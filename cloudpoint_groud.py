@@ -28,7 +28,7 @@ xml = '''<mujoco model="plane_with_camera">
   <worldbody>
     <light pos="0 0 3" dir="0 0 -1" directional="true"/>
     <geom type="plane" size="3 3 0.1" pos="0 0 0" material="groundplane" rgba="0.6 0.8 1.0 1"/>
-    <camera name="fixed_cam" pos="1.5 0 1.0" euler="60 0 0" fovy="60"/>
+    <camera name="fixed_cam" pos="0 0 1.0" euler="60 0 0" fovy="60"/>
   </worldbody>
 </mujoco>'''
 
@@ -70,8 +70,8 @@ mask = (z >= MIN_DEPTH) & (z <= MAX_DEPTH)
 u, v, z = u[mask], v[mask], z[mask]
 
 Xc = (u - cx) * z / fx
-Yc = (v - cy) * z / fy
-Zc = z
+Yc = (cy - v) * z / fy
+Zc = -z
 points_cam = np.stack((Xc, Yc, Zc), axis=-1)
 
 print("\n相机坐标系点云范围:")
@@ -87,8 +87,7 @@ print("\n相机外参 (世界坐标系):")
 print(f"位置: {cam_pos}")
 print(f"旋转矩阵 (相机→世界):\n{cam_rot}")
 
-points_world = -(cam_rot @ points_cam.T).T + cam_pos
-points_world[:,0] = -points_world[:,0]
+points_world = (cam_rot @ points_cam.T).T + cam_pos
 
 
 print("\n世界坐标系点云范围:")

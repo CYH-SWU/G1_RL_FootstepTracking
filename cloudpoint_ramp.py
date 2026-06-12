@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-最终修正版：平面地面 + 固定相机（高1.0m，俯角60°）
+最终修正版：倾斜地面 + 固定相机（高1.0m，俯角60°）
 - 使用减法公式 points_world = (R @ P_c.T).T - cam_pos
 - 骨盆坐标系平移 (0,0,0.8) 后 Y 取反
 - 输出地面水平且 Z=0，Y 正向为左的点云
@@ -109,8 +109,8 @@ mask = (z >= MIN_DEPTH) & (z <= MAX_DEPTH)
 u, v, z = u[mask], v[mask], z[mask]
 
 Xc = (u - cx) * z / fx
-Yc = (v - cy) * z / fy
-Zc = z
+Yc = (cy - v) * z / fy
+Zc = -z
 points_cam = np.stack((Xc, Yc, Zc), axis=-1)
 
 print("\n相机坐标系点云范围:")
@@ -126,8 +126,7 @@ print("\n相机外参 (世界坐标系):")
 print(f"位置: {cam_pos}")
 print(f"旋转矩阵 (相机→世界):\n{cam_rot}")
 
-points_world = -(cam_rot @ points_cam.T).T + cam_pos
-points_world[:,0] = -points_world[:,0]
+points_world = (cam_rot @ points_cam.T).T + cam_pos
 
 
 print("\n世界坐标系点云范围:")
