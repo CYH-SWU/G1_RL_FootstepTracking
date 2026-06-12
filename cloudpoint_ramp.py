@@ -155,18 +155,8 @@ print(f"  X: [{points_final[:,0].min():.3f}, {points_final[:,0].max():.3f}]")
 print(f"  Y: [{points_final[:,1].min():.3f}, {points_final[:,1].max():.3f}]")
 print(f"  Z: [{points_final[:,2].min():.3f}, {points_final[:,2].max():.3f}]")
 
-# ==================== 7. 保存点云（可选）====================
-try:
-    import open3d as o3d
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(points_final)
-    o3d.io.write_point_cloud(str(script_dir / "pointcloud_final.ply"), pcd)
-    print(f"点云已保存至: {script_dir / 'pointcloud_final.ply'}")
-except ImportError:
-    np.savetxt(script_dir / "pointcloud_final.xyz", points_final, delimiter=' ')
-    print(f"点云已保存至: {script_dir / 'pointcloud_final.xyz'}")
 
-# ==================== 8. 可视化 ====================
+# ==================== 7. 可视化 ====================
 if len(points_final) > 10000:
     idx = np.random.choice(len(points_final), 10000, replace=False)
     points_small = points_final[idx]
