@@ -5,7 +5,7 @@
 - 骨盆坐标系平移 (0,0,0.8) 后 Y 取反
 - 输出地面水平且 Z=0，Y 正向为左的点云
 """
-
+import time
 import numpy as np
 import mujoco
 import cv2
@@ -67,7 +67,7 @@ xml = f'''<mujoco model="ramp_terrain">
     
     <!-- 添加一个参考小球，置于斜坡最高点上方 -->
     <geom type="sphere" pos="{x_len/2 - 0.2} 0 {z_max + 0.1}" size="0.05" rgba="1 0 0 1"/>
-    <camera name="fixed_cam" pos="0 0 1.0" euler="60 0 0" fovy="60"/>
+    <camera name="fixed_cam" pos="0 0 1.0" euler="30 0 0" fovy="60"/>
   </worldbody>
 </mujoco>'''
 
@@ -78,6 +78,8 @@ data = mujoco.MjData(model)
 camera_name = "fixed_cam"
 camera_id = model.camera(camera_name).id
 width, height = 640, 480
+
+start = time.perf_counter()
 
 renderer_rgb = mujoco.Renderer(model, width=width, height=height)
 renderer_depth = mujoco.Renderer(model, width=width, height=height)
@@ -104,7 +106,7 @@ z = depth.flatten()
 valid = np.isfinite(z) & (z > 0)
 u, v, z = u[valid], v[valid], z[valid]
 
-MIN_DEPTH, MAX_DEPTH = 0.3, 3.0
+MIN_DEPTH, MAX_DEPTH = 0.5, 2.0
 mask = (z >= MIN_DEPTH) & (z <= MAX_DEPTH)
 u, v, z = u[mask], v[mask], z[mask]
 
@@ -126,6 +128,7 @@ print("\n相机外参 (世界坐标系):")
 print(f"位置: {cam_pos}")
 print(f"旋转矩阵 (相机→世界):\n{cam_rot}")
 
+
 points_world = (cam_rot @ points_cam.T).T + cam_pos
 
 
@@ -134,18 +137,8 @@ print(f"  X: [{points_world[:,0].min():.3f}, {points_world[:,0].max():.3f}]")
 print(f"  Y: [{points_world[:,1].min():.3f}, {points_world[:,1].max():.3f}]")
 print(f"  Z: [{points_world[:,2].min():.3f}, {points_world[:,2].max():.3f}]")
 
-# ==================== 5. 水平性验证 ====================
-pca = PCA(n_components=3)
-pca.fit(points_world[::100])
-normal = pca.components_[2]
-print(f"世界坐标系下点云平面法线: {normal}")
 
-center_mask = (np.abs(points_world[:,0])<0.5) & (np.abs(points_world[:,1])<0.5)
-if np.any(center_mask):
-    center_z = np.mean(points_world[center_mask,2])
-    print(f"地面中心区域平均 Z 值: {center_z:.3f} m (应接近 0)")
-
-# ==================== 6. 骨盆坐标系 ====================
+# ==================== 5. 骨盆坐标系 ====================
 pelvis_pos = np.array([0.0, 0.0, 0.8])      # 骨盆在世界中的位置
 points_pelvis = points_world - pelvis_pos  
 points_final = points_pelvis
@@ -155,13 +148,26 @@ print(f"  X: [{points_final[:,0].min():.3f}, {points_final[:,0].max():.3f}]")
 print(f"  Y: [{points_final[:,1].min():.3f}, {points_final[:,1].max():.3f}]")
 print(f"  Z: [{points_final[:,2].min():.3f}, {points_final[:,2].max():.3f}]")
 
+# ==================== 6.范围裁剪 ====================
+pts = points_final
+mask = (pts[:,1] > 0.15) & (pts[:,1] < 0.8) & (np.abs(pts[:,0]) < 0.5)      
+pts_cropped = pts[mask]
+
+print("\n骨盆坐标系点云范围 (裁剪后):")
+print(f"  X: [{pts_cropped[:,0].min():.3f}, {pts_cropped[:,0].max():.3f}]")
+print(f"  Y: [{pts_cropped[:,1].min():.3f}, {pts_cropped[:,1].max():.3f}]")
+print(f"  Z: [{pts_cropped[:,2].min():.3f}, {pts_cropped[:,2].max():.3f}]")
+
+end = time.perf_counter()
+elapsed_ms = (end - start) * 1000
+print(f"执行耗时: {elapsed_ms:.3f} 毫秒")
 
 # ==================== 7. 可视化 ====================
-if len(points_final) > 10000:
-    idx = np.random.choice(len(points_final), 10000, replace=False)
-    points_small = points_final[idx]
+if len(pts_cropped) > 10000:
+    idx = np.random.choice(len(pts_cropped), 10000, replace=False)
+    points_small = pts_cropped[idx]
 else:
-    points_small = points_final
+    points_small = pts_cropped
 
 fig = plt.figure(figsize=(10,8))
 ax = fig.add_subplot(111, projection='3d')
@@ -180,3 +186,55 @@ cv2.imshow("RGB Image", cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
 print("按任意键关闭窗口...")
 cv2.waitKey(0)
 cv2.destroyAllWindows()
+
+# ==================== 8. 生成高程图 ====================
+print("\n生成高程图...")
+start = time.perf_counter()
+# 检查点云是否为空
+if len(pts_cropped) == 0:
+    print("警告：裁剪后点云为空，无法生成高程图")
+    # 创建一个默认的高程图（全零）作为占位
+    height_map = np.zeros((1, 1))
+    slope_map = np.zeros((1, 1))
+else:
+    # 定义高程图范围（骨盆坐标系，X侧向，Y前向）
+    x_min, x_max = -0.5, 0.5      # X 范围（左右）
+    y_min, y_max = 0.15, 0.8      # Y 范围（前向）
+    res = 0.05                    # 网格分辨率（米）
+    nx = int((x_max - x_min) / res) + 1
+    ny = int((y_max - y_min) / res) + 1
+    
+    # 初始化高程图（每个网格存储最高点，初始为 -inf）
+    height_map = np.full((nx, ny), -np.inf)
+    
+    # 填充高程图
+    for px, py, pz in pts_cropped:
+        ix = int((px - x_min) / res)
+        iy = int((py - y_min) / res)
+        if 0 <= ix < nx and 0 <= iy < ny:
+            if pz > height_map[ix, iy]:
+                height_map[ix, iy] = pz
+    
+    # 处理未覆盖的网格（使用最近邻插值填充）
+    from scipy.ndimage import distance_transform_edt
+    missing = ~np.isfinite(height_map) | (height_map == -np.inf)
+    if np.any(missing):
+        indices = distance_transform_edt(missing, return_distances=False, return_indices=True)
+        height_map[missing] = height_map[tuple(indices)][missing]
+
+    
+
+end_elev = time.perf_counter()
+print(f"高程图生成耗时: {(end_elev - start)*1000:.3f} 毫秒")
+print(f"高程图尺寸: {nx} x {ny}")
+
+# ==================== 9. 可视化高程图（2D热力图）====================
+fig2, ax2 = plt.subplots(figsize=(10, 6))
+im = ax2.imshow(height_map.T, origin='lower', 
+                extent=[x_min, x_max, y_min, y_max],
+                cmap='terrain', aspect='auto')
+plt.colorbar(im, label='Height (m)')
+ax2.set_xlabel('X (m)')
+ax2.set_ylabel('Y (m)')
+ax2.set_title('Elevation Map (Pelvis Frame)')
+plt.show()
