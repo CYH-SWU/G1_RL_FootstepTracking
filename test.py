@@ -13,6 +13,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.decomposition import PCA
+from planner import G1FootstepPlanner
 
 script_dir = Path(__file__).parent
 
@@ -24,27 +25,11 @@ xml = '''<mujoco model="plane_with_camera">
              width="300" height="300" mark="edge" random="0.01"/>
     <material name="groundplane" texture="ground_tex" texrepeat="4 4" 
               texuniform="true" reflectance="0.2"/>
-    <material name="step_mat" rgba="0.8 0.6 0.4 1" reflectance="0.3"/>
   </asset>
   <worldbody>
     <light pos="0 0 3" dir="0 0 -1" directional="true"/>
-    
-    <!-- 扩大后的基础平面地面（5m×5m，位于 Z=0） -->
-    <geom type="plane" size="5 5 0.1" pos="0 0 0" material="groundplane" rgba="0.6 0.8 1.0 1"/>
-    
-    <!-- 台阶1: 上表面 Z=0.10，中心 Y=0.75 -->
-    <geom type="box" size="1.0 0.25 0.05" pos="0 0.75 0.05" material="step_mat" rgba="0.8 0.6 0.4 1"/>
-    <!-- 台阶2: 上表面 Z=0.20，中心 Y=1.25 -->
-    <geom type="box" size="1.0 0.25 0.05" pos="0 1.25 0.15" material="step_mat" rgba="0.8 0.6 0.4 1"/>
-    <!-- 台阶3: 上表面 Z=0.30，中心 Y=1.75 -->
-    <geom type="box" size="1.0 0.25 0.05" pos="0 1.75 0.25" material="step_mat" rgba="0.8 0.6 0.4 1"/>
-    <!-- 台阶4: 上表面 Z=0.40，中心 Y=2.25 -->
-    <geom type="box" size="1.0 0.25 0.05" pos="0 2.25 0.35" material="step_mat" rgba="0.8 0.6 0.4 1"/>
-    <!-- 台阶5: 上表面 Z=0.50，中心 Y=2.75 -->
-    <geom type="box" size="1.0 0.25 0.05" pos="0 2.75 0.45" material="step_mat" rgba="0.8 0.6 0.4 1"/>
-    <geom type="box" size="1.0 0.25 0.05" pos="0 3.25 0.55" material="step_mat" rgba="0.8 0.6 0.4 1"/>
-    <!-- 固定相机：位置(0,0,1.0)，绕X轴旋转60°，视野60度 -->
-    <camera name="fixed_cam" pos="0 0 1.0" euler="30 30 0" fovy="60"/>
+    <geom type="plane" size="3 3 0.1" pos="0 0 0" material="groundplane" rgba="0.6 0.8 1.0 1"/>
+    <camera name="fixed_cam" pos="0 0 1.0" euler="30 0 0" fovy="60"/>
   </worldbody>
 </mujoco>'''
 
@@ -54,15 +39,15 @@ data = mujoco.MjData(model)
 
 camera_name = "fixed_cam"
 camera_id = model.camera(camera_name).id
-width, height = 640, 480
-
-start = time.perf_counter()
+width, height = 320, 240
 
 renderer_rgb = mujoco.Renderer(model, width=width, height=height)
 renderer_depth = mujoco.Renderer(model, width=width, height=height)
 renderer_depth.enable_depth_rendering()
-
 mujoco.mj_forward(model, data)
+
+start = time.perf_counter()
+
 renderer_rgb.update_scene(data, camera=camera_id)
 renderer_depth.update_scene(data, camera=camera_id)
 rgb = renderer_rgb.render()
@@ -105,9 +90,7 @@ print("\n相机外参 (世界坐标系):")
 print(f"位置: {cam_pos}")
 print(f"旋转矩阵 (相机→世界):\n{cam_rot}")
 
-
 points_world = (cam_rot @ points_cam.T).T + cam_pos
-
 
 print("\n世界坐标系点云范围:")
 print(f"  X: [{points_world[:,0].min():.3f}, {points_world[:,0].max():.3f}]")
@@ -215,3 +198,52 @@ ax2.set_xlabel('X (m)')
 ax2.set_ylabel('Y (m)')
 ax2.set_title('Elevation Map (Pelvis Frame)')
 plt.show()
+
+# =================== 10. 计算高度图与可视化
+from scipy.ndimage import sobel
+
+start = time.perf_counter()
+# 计算梯度（单位：高度差/米）
+grad_x = sobel(height_map, axis=0) / res
+grad_y = sobel(height_map, axis=1) / res
+slope_map = np.arctan(np.sqrt(grad_x**2 + grad_y**2)) * 180.0 / np.pi
+# 处理可能出现的 NaN
+slope_map = np.nan_to_num(slope_map)
+end = time.perf_counter()
+print(f"高程图生成耗时: {(end - start)*1000:.3f} 毫秒")
+# 可视化坡度图
+fig3, ax3 = plt.subplots(figsize=(10, 6))
+im2 = ax3.imshow(slope_map.T, origin='lower', 
+                 extent=[x_min, x_max, y_min, y_max],
+                 cmap='hot', aspect='auto', vmin=0, vmax=30)
+plt.colorbar(im2, label='Slope (deg)')
+ax3.set_xlabel('X (m)')
+ax3.set_ylabel('Y (m)')
+ax3.set_title('Slope Map (Pelvis Frame)')
+plt.show()
+
+# ==================== 11. 调用规划器 ====================
+print("\n开始步点规划...")
+
+# 确保高程图网格参数已定义（如果之前未定义，这里补充）
+if 'x_edges' not in locals():
+    x_min, x_max = -0.5, 0.5
+    y_min, y_max = 0.15, 0.8
+    res = 0.05
+    nx = int((x_max - x_min) / res) + 1
+    ny = int((y_max - y_min) / res) + 1
+    x_edges = np.linspace(x_min, x_max, nx)
+    y_edges = np.linspace(y_min, y_max, ny)
+
+# 假设高程图已生成
+planner = G1FootstepPlanner(step_len=0.25, step_variation=0.05, step_width=0.23, max_turn_rad=0.2)
+planner.set_heightmap(height_map, slope_map, x_edges, y_edges, res)
+
+# 当前支撑脚位置（骨盆坐标系）
+current_foot = (-0.115, 0.3, -0.8)   # 左脚位置
+current_stance = 'left'
+robot_yaw = 0.0                   # 机器人当前朝向
+target = (2.0, 2.0)               # 目标终点（侧向2米，前向2米）
+
+footstep, next_stance = planner.plan_next_footstep(current_foot, current_stance, robot_yaw, target)
+print(f"规划结果: 使用 {footstep.foot} 脚落脚点: ({footstep.x:.3f}, {footstep.y:.3f}, {footstep.z:.3f}), 朝向 {np.degrees(footstep.yaw):.1f}°")

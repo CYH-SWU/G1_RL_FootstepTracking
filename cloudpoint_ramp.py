@@ -77,7 +77,7 @@ data = mujoco.MjData(model)
 
 camera_name = "fixed_cam"
 camera_id = model.camera(camera_name).id
-width, height = 640, 480
+width, height = 320, 240
 
 start = time.perf_counter()
 

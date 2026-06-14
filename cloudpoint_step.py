@@ -59,9 +59,10 @@ width, height = 320, 240
 renderer_rgb = mujoco.Renderer(model, width=width, height=height)
 renderer_depth = mujoco.Renderer(model, width=width, height=height)
 renderer_depth.enable_depth_rendering()
-
 mujoco.mj_forward(model, data)
+
 start = time.perf_counter()
+
 renderer_rgb.update_scene(data, camera=camera_id)
 renderer_depth.update_scene(data, camera=camera_id)
 rgb = renderer_rgb.render()
