@@ -199,7 +199,7 @@ ax2.set_ylabel('Y (m)')
 ax2.set_title('Elevation Map (Pelvis Frame)')
 plt.show()
 
-# =================== 10. 计算高度图与可视化
+# =================== 10. 计算坡度图与可视化 ==============================
 from scipy.ndimage import sobel
 
 start = time.perf_counter()
@@ -236,14 +236,18 @@ if 'x_edges' not in locals():
     y_edges = np.linspace(y_min, y_max, ny)
 
 # 假设高程图已生成
-planner = G1FootstepPlanner(step_len=0.25, step_variation=0.05, step_width=0.23, max_turn_rad=0.2)
+planner = G1FootstepPlanner()
+
+start = time.perf_counter()
 planner.set_heightmap(height_map, slope_map, x_edges, y_edges, res)
 
 # 当前支撑脚位置（骨盆坐标系）
 current_foot = (-0.115, 0.3, -0.8)   # 左脚位置
-current_stance = 'left'
-robot_yaw = 0.0                   # 机器人当前朝向
+current_stance = -1             
 target = (2.0, 2.0)               # 目标终点（侧向2米，前向2米）
 
-footstep, next_stance = planner.plan_next_footstep(current_foot, current_stance, robot_yaw, target)
-print(f"规划结果: 使用 {footstep.foot} 脚落脚点: ({footstep.x:.3f}, {footstep.y:.3f}, {footstep.z:.3f}), 朝向 {np.degrees(footstep.yaw):.1f}°")
+footstep, next_stance = planner.plan_next_footstep(current_foot, current_stance, target)
+
+end = time.perf_counter()
+print(f"步点生成耗时: {(end - start)*1000:.3f} 毫秒")
+print(f"落脚点: ({footstep.x:.3f}, {footstep.y:.3f}, {footstep.z:.3f}), 朝向 {np.degrees(footstep.yaw):.1f}°, 下一步用 {'左' if next_stance==-1 else '右'}脚")
