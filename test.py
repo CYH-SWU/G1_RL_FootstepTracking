@@ -244,7 +244,7 @@ planner.set_heightmap(height_map, slope_map, x_edges, y_edges, res)
 # 当前支撑脚位置（骨盆坐标系）
 current_foot = (-0.115, 0.3, -0.8)   # 左脚位置
 current_stance = -1             
-target = (2.0, 2.0)               # 目标终点（侧向2米，前向2米）
+target = (-2.0, 2.0)               # 目标终点（侧向2米，前向2米）
 
 footstep, next_stance = planner.plan_next_footstep(current_foot, current_stance, target)
 
