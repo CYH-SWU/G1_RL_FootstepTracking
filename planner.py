@@ -30,12 +30,12 @@ class G1FootstepPlanner:
                  min_step_len: float = 0.10,       # 最小前向步长（米）
                  max_turn_deg: float = 20.0,       # 最大转向角（度）
                  max_step_height: float = 0.15,    # 最大抬腿高度差（米）
-                 max_slope_deg: float = 15.0,      # 最大地形坡度（度）
+                 max_slope_deg: float = 20.0,      # 最大地形坡度（度）
                  clearance: float = 0.03,          # 脚底安全间隙（米）
                  w_step: float = 0.6,              # 步长偏差惩罚权重
                  w_angle: float = 0.4,             # 角度偏差惩罚权重
                  step_discretization: float = 0.05,   # 步长离散化间隔（米）
-                 turn_discretization: float = 5.0     # 转向角离散化间隔（度）
+                 turn_discretization: float = 1.0     # 转向角离散化间隔（度）
                  ):
         self.step = step
         self.step_width = step_width
@@ -149,10 +149,10 @@ class G1FootstepPlanner:
         cx, cy, cz = current_foot_pos
 
         # 目标方向角（相对于 Y 轴）
-        target_dx = target_pos[0] - cx
-        target_dy = target_pos[1] - cy
+        target_dx = target_pos[0]
+        target_dy = target_pos[1]
         if (target_dx**2 + target_dy**2) > 1e-6:
-            target_dir = np.arctan2(target_dx, target_dy)
+            target_dir = -np.arctan2(target_dx, target_dy)  
         else:
             target_dir = 0.0
 
@@ -195,7 +195,8 @@ class G1FootstepPlanner:
                 if terrain_h is None:
                     terrain_h = cz
                 fallback_z = terrain_h + self.clearance
-                best_step = Footstep(x=cx, y=cy, z=fallback_z, yaw=0.0, foot=next_stance)
+                best_step = Footstep(x=cx + (-current_stance) * self.step_width, 
+                                     y=cy, z=fallback_z, yaw=0.0, foot=next_stance)
                 print("警告：无候选步，原地落脚")
             else:
                 rand_idx = np.random.randint(len(self.candidates))

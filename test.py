@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.decomposition import PCA
 from planner import G1FootstepPlanner
+from scipy.signal import convolve2d
 
 script_dir = Path(__file__).parent
 
@@ -25,10 +26,26 @@ xml = '''<mujoco model="plane_with_camera">
              width="300" height="300" mark="edge" random="0.01"/>
     <material name="groundplane" texture="ground_tex" texrepeat="4 4" 
               texuniform="true" reflectance="0.2"/>
+    <material name="step_mat" rgba="0.8 0.6 0.4 1" reflectance="0.3"/>
   </asset>
   <worldbody>
     <light pos="0 0 3" dir="0 0 -1" directional="true"/>
-    <geom type="plane" size="3 3 0.1" pos="0 0 0" material="groundplane" rgba="0.6 0.8 1.0 1"/>
+    
+    <!-- 扩大后的基础平面地面（5m×5m，位于 Z=0） -->
+    <geom type="plane" size="5 5 0.1" pos="0 0 0" material="groundplane" rgba="0.6 0.8 1.0 1"/>
+    
+    <!-- 台阶1: 上表面 Z=0.10，中心 Y=0.75 -->
+    <geom type="box" size="1.0 0.25 0.05" pos="0 0.75 0.05" material="step_mat" rgba="0.8 0.6 0.4 1"/>
+    <!-- 台阶2: 上表面 Z=0.20，中心 Y=1.25 -->
+    <geom type="box" size="1.0 0.25 0.05" pos="0 1.25 0.15" material="step_mat" rgba="0.8 0.6 0.4 1"/>
+    <!-- 台阶3: 上表面 Z=0.30，中心 Y=1.75 -->
+    <geom type="box" size="1.0 0.25 0.05" pos="0 1.75 0.25" material="step_mat" rgba="0.8 0.6 0.4 1"/>
+    <!-- 台阶4: 上表面 Z=0.40，中心 Y=2.25 -->
+    <geom type="box" size="1.0 0.25 0.05" pos="0 2.25 0.35" material="step_mat" rgba="0.8 0.6 0.4 1"/>
+    <!-- 台阶5: 上表面 Z=0.50，中心 Y=2.75 -->
+    <geom type="box" size="1.0 0.25 0.05" pos="0 2.75 0.45" material="step_mat" rgba="0.8 0.6 0.4 1"/>
+    <geom type="box" size="1.0 0.25 0.05" pos="0 3.25 0.55" material="step_mat" rgba="0.8 0.6 0.4 1"/>
+    <!-- 固定相机：位置(0,0,1.0)，绕X轴旋转60°，视野60度 -->
     <camera name="fixed_cam" pos="0 0 1.0" euler="30 0 0" fovy="60"/>
   </worldbody>
 </mujoco>'''
@@ -103,6 +120,7 @@ pelvis_pos = np.array([0.0, 0.0, 0.8])      # 骨盆在世界中的位置
 points_pelvis = points_world - pelvis_pos  
 points_final = points_pelvis
 
+
 print("\n骨盆坐标系点云范围 (校正后):")
 print(f"  X: [{points_final[:,0].min():.3f}, {points_final[:,0].max():.3f}]")
 print(f"  Y: [{points_final[:,1].min():.3f}, {points_final[:,1].max():.3f}]")
@@ -119,8 +137,8 @@ print(f"  Y: [{pts_cropped[:,1].min():.3f}, {pts_cropped[:,1].max():.3f}]")
 print(f"  Z: [{pts_cropped[:,2].min():.3f}, {pts_cropped[:,2].max():.3f}]")
 
 end = time.perf_counter()
-elapsed_ms = (end - start) * 1000
-print(f"执行耗时: {elapsed_ms:.3f} 毫秒")
+gap1 = (end - start) * 1000
+print(f"点云生成耗时: {gap1:.3f} 毫秒")
 
 # ==================== 7. 可视化 ====================
 if len(pts_cropped) > 10000:
@@ -167,25 +185,25 @@ else:
     # 初始化高程图（每个网格存储最高点，初始为 -inf）
     height_map = np.full((nx, ny), -np.inf)
     
-    # 填充高程图
+
     for px, py, pz in pts_cropped:
         ix = int((px - x_min) / res)
         iy = int((py - y_min) / res)
         if 0 <= ix < nx and 0 <= iy < ny:
             if pz > height_map[ix, iy]:
                 height_map[ix, iy] = pz
-    
+
     # 处理未覆盖的网格（使用最近邻插值填充）
     from scipy.ndimage import distance_transform_edt
     missing = ~np.isfinite(height_map) | (height_map == -np.inf)
     if np.any(missing):
         indices = distance_transform_edt(missing, return_distances=False, return_indices=True)
         height_map[missing] = height_map[tuple(indices)][missing]
-
     
 
-end_elev = time.perf_counter()
-print(f"高程图生成耗时: {(end_elev - start)*1000:.3f} 毫秒")
+end = time.perf_counter()
+gap2 = (end - start) * 1000
+print(f"高程图生成耗时: {gap2:.3f} 毫秒")
 print(f"高程图尺寸: {nx} x {ny}")
 
 # ==================== 9. 可视化高程图（2D热力图）====================
@@ -201,16 +219,16 @@ plt.show()
 
 # =================== 10. 计算坡度图与可视化 ==============================
 from scipy.ndimage import sobel
-
+res = 0.05
 start = time.perf_counter()
-# 计算梯度（单位：高度差/米）
 grad_x = sobel(height_map, axis=0) / res
 grad_y = sobel(height_map, axis=1) / res
 slope_map = np.arctan(np.sqrt(grad_x**2 + grad_y**2)) * 180.0 / np.pi
-# 处理可能出现的 NaN
 slope_map = np.nan_to_num(slope_map)
+print("网格分辨率", res)
 end = time.perf_counter()
-print(f"高程图生成耗时: {(end - start)*1000:.3f} 毫秒")
+gap3 = (end - start)*1000
+print(f"高程图生成耗时: {gap3:.3f} 毫秒")
 # 可视化坡度图
 fig3, ax3 = plt.subplots(figsize=(10, 6))
 im2 = ax3.imshow(slope_map.T, origin='lower', 
@@ -242,12 +260,14 @@ start = time.perf_counter()
 planner.set_heightmap(height_map, slope_map, x_edges, y_edges, res)
 
 # 当前支撑脚位置（骨盆坐标系）
-current_foot = (-0.115, 0.3, -0.8)   # 左脚位置
+current_foot = (-0.115, 0.125, -0.8)   # 左脚位置
 current_stance = -1             
-target = (-2.0, 2.0)               # 目标终点（侧向2米，前向2米）
+target = (0, 10)               # 目标终点（侧向2米，前向2米）
 
 footstep, next_stance = planner.plan_next_footstep(current_foot, current_stance, target)
 
 end = time.perf_counter()
-print(f"步点生成耗时: {(end - start)*1000:.3f} 毫秒")
+gap4 = (end - start)*1000
+print(f"步点生成耗时: {gap4:.3f} 毫秒")
 print(f"落脚点: ({footstep.x:.3f}, {footstep.y:.3f}, {footstep.z:.3f}), 朝向 {np.degrees(footstep.yaw):.1f}°, 下一步用 {'左' if next_stance==-1 else '右'}脚")
+print(f"总流程耗时: {(gap1 + gap2 + gap3 + gap4):.3f} 毫秒")

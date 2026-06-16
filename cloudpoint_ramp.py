@@ -17,10 +17,10 @@ from sklearn.decomposition import PCA
 script_dir = Path(__file__).parent
 
 # ==================== 1. 构建 XML ====================
-# 地形参数
-nrow, ncol = 100, 100        # 网格分辨率 (X方向行数, Y方向列数)
-x_len, y_len = 5.0, 5.0      # 地形物理尺寸（米）
-z_min, z_max = 0.0, 0.8      # 斜面最低点和最高点高度（米）→ 坡度更明显
+k = 2
+nrow, ncol = 100*k, 100*k        # 网格分辨率 (X方向行数, Y方向列数)
+x_len, y_len = 5.0*k, 5.0*k      # 地形物理尺寸（米）
+z_min, z_max = 0.0, 0.6      # 斜面最低点和最高点高度（米）→ 坡度更明显
 
 # 1. 生成斜面高度场
 # 创建网格坐标：X 从 -x_len/2 到 x_len/2，Y 从 -y_len/2 到 y_len/2

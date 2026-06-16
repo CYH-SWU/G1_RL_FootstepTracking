@@ -18,13 +18,14 @@ script_dir = Path(__file__).parent
 
 # ==================== 1. 生成随机起伏地形（高度场）====================
 print("生成随机起伏地形...")
-nrow, ncol = 80, 80               # 网格分辨率
-x_len, y_len = 5.0, 5.0           # 地形物理尺寸（米）
-z_min, z_max = 0.0, 0.2           # 高度范围（米）
+k = 2
+nrow, ncol = 80*k, 80*k               # 网格分辨率
+x_len, y_len = 5.0*k, 5.0*k           # 地形物理尺寸（米）
+z_min, z_max = 0.0, 0.06           # 高度范围（米）
 
 # 随机高度场 + 平滑
 hf = np.random.randn(nrow, ncol).astype(np.float32)
-kernel = np.ones((4,4), dtype=np.float32) / 16
+kernel = np.ones((5,5), dtype=np.float32) / 25
 hf = convolve2d(hf, kernel, mode='same')
 rel_h = (hf - hf.min()) / (hf.max() - hf.min())
 elev_int = (rel_h * 65535).astype(np.uint32)
