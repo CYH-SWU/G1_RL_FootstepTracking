@@ -1,63 +1,48 @@
 import xml.etree.ElementTree as ET
 from pathlib import Path
+import numpy as np
 
 DEFAULT_INPUT = Path(__file__).parent / "unitree_g1.xml"
 DEFAULT_OUTPUT = Path(__file__).parent / "g1_processed.xml"
 
-KEEP_JOINT_KEYWORDS = ["hip", "knee", "ankle", "waist"]
+# 保留的关键词：髋、膝、踝、以及腰部俯仰（waist_pitch）
+KEEP_JOINT_KEYWORDS = ["hip", "knee", "ankle", "waist_pitch"]
 
+# ---- 官方站立姿态角度（所有关节，无论是否可控） ----
+# 这些角度来自原始 XML 的 stand keyframe，已验证正确
+STAND_ANGLES = {
+    "left_hip_pitch_joint": 0.0,
+    "left_hip_roll_joint": 0.0,
+    "left_hip_yaw_joint": 0.0,
+    "left_knee_joint": 1.2800,
+    "left_ankle_pitch_joint": 0.0,
+    "left_ankle_roll_joint": 0.0,
+    "right_hip_pitch_joint": 0.0,
+    "right_hip_roll_joint": 0.0,
+    "right_hip_yaw_joint": 0.0,
+    "right_knee_joint": 1.2800,
+    "right_ankle_pitch_joint": 0.0,
+    "right_ankle_roll_joint": 0.0,
+    "waist_yaw_joint": 0.0,
+    "waist_roll_joint": 0.0,
+    "waist_pitch_joint": 0.0,
+    "left_shoulder_pitch_joint": 0.2000,
+    "left_shoulder_roll_joint": 0.2000,
+    "left_shoulder_yaw_joint": 0.0,
+    "left_elbow_joint": 1.2800,
+    "left_wrist_roll_joint": 0.0,
+    "left_wrist_pitch_joint": 0.0,
+    "left_wrist_yaw_joint": 0.0,
+    "right_shoulder_pitch_joint": 0.2000,
+    "right_shoulder_roll_joint": -0.2000,
+    "right_shoulder_yaw_joint": 0.0,
+    "right_elbow_joint": 1.2800,
+    "right_wrist_roll_joint": 0.0,
+    "right_wrist_pitch_joint": 0.0,
+    "right_wrist_yaw_joint": 0.0,
+}
 
-def add_ground_with_texture(root):
-    asset = root.find("asset")
-    if asset is None:
-        asset = ET.SubElement(root, "asset")
-
-    tex = asset.find("texture[@name='ground_tex']")
-    if tex is None:
-        tex = ET.SubElement(asset, "texture")
-        tex.set("name", "ground_tex")
-        tex.set("type", "2d")
-        tex.set("builtin", "checker")
-        tex.set("rgb1", "0.2 0.3 0.4")
-        tex.set("rgb2", "0.6 0.7 0.8")
-        tex.set("width", "300")
-        tex.set("height", "300")
-        tex.set("mark", "edge")
-        tex.set("random", "0.01")
-
-    mat = asset.find("material[@name='groundplane']")
-    if mat is None:
-        mat = ET.SubElement(asset, "material")
-        mat.set("name", "groundplane")
-        mat.set("texture", "ground_tex")
-        mat.set("texrepeat", "2 2")
-        mat.set("texuniform", "true")
-        mat.set("reflectance", "0.2")
-
-    worldbody = root.find("worldbody")
-    if worldbody is None:
-        worldbody = ET.SubElement(root, "worldbody")
-
-    for geom in worldbody.findall(".//geom"):
-        if geom.get("name") in ("floor", "ground"):
-            parent = worldbody.find(f".//body[geom='{geom}']") or worldbody
-            parent.remove(geom)
-    for body in worldbody.findall("body"):
-        if body.get("name") == "floor":
-            worldbody.remove(body)
-
-    floor_body = ET.SubElement(worldbody, "body")
-    floor_body.set("name", "floor")
-    floor_geom = ET.SubElement(floor_body, "geom")
-    floor_geom.set("name", "floor")
-    floor_geom.set("type", "plane")
-    floor_geom.set("size", "0 0 0.25")
-    floor_geom.set("material", "groundplane")
-    floor_geom.set("pos", "0 0 0")
-    floor_geom.set("friction", "0.7 0.005 0.0001")
-
-
-def process_g1_model(input_path=None, output_path=None, add_ground=True):
+def process_g1_model(input_path=None, output_path=None):
     in_path = Path(input_path) if input_path else DEFAULT_INPUT
     out_path = Path(output_path) if output_path else DEFAULT_OUTPUT
 
@@ -68,6 +53,15 @@ def process_g1_model(input_path=None, output_path=None, add_ground=True):
     tree = ET.parse(in_path)
     root = tree.getroot()
 
+    # ---- 1. 收集所有铰链关节名称（排除 freejoint），按出现顺序 ----
+    joint_order = []
+    for joint in root.findall(".//joint"):
+        jname = joint.get("name")
+        if jname and jname != "floating_base_joint":
+            joint_order.append(jname)
+    print(f"提取到 {len(joint_order)} 个铰链关节")
+
+    # ---- 2. 处理执行器（保留/移除） ----
     actuator_node = root.find(".//actuator")
     if actuator_node is not None:
         kept = 0
@@ -110,24 +104,22 @@ def process_g1_model(input_path=None, output_path=None, add_ground=True):
                         del joint.attrib["actuatorfrcrange"]
                     if "frictionloss" in joint.attrib:
                         del joint.attrib["frictionloss"]
-        print(f"Kept {kept} actuators (legs + waist).")
+        print(f"Kept {kept} actuators (legs + waist_pitch).")
 
+    # ---- 3. 添加接触排除 ----
     contact = root.find("contact")
     if contact is None:
         contact = ET.SubElement(root, "contact")
 
     ET.SubElement(contact, "exclude", body1="torso_link", body2="left_shoulder_pitch_link")
     ET.SubElement(contact, "exclude", body1="torso_link", body2="right_shoulder_pitch_link")
-
     ET.SubElement(contact, "exclude", body1="left_shoulder_pitch_link", body2="left_elbow_link")
     ET.SubElement(contact, "exclude", body1="right_shoulder_pitch_link", body2="right_elbow_link")
-
     ET.SubElement(contact, "exclude", body1="left_shoulder_pitch_link", body2="pelvis")
     ET.SubElement(contact, "exclude", body1="right_shoulder_pitch_link", body2="pelvis")
 
-    if add_ground:
-        add_ground_with_texture(root)
 
+    # ---- 4. 清理 keyframe 中的 ctrl 属性 ----
     keyframe = root.find(".//keyframe")
     if keyframe is not None:
         if "ctrl" in keyframe.attrib:
@@ -136,6 +128,41 @@ def process_g1_model(input_path=None, output_path=None, add_ground=True):
             if "ctrl" in key.attrib:
                 del key.attrib["ctrl"]
 
+    # ---- 5. 更新 stand keyframe 的 qpos ----
+    stand_key = keyframe.find("key[@name='stand']") if keyframe is not None else None
+    if stand_key is not None:
+        qpos_str = stand_key.get("qpos")
+        if qpos_str:
+            qpos_values = np.array([float(x) for x in qpos_str.split()], dtype=np.float64)
+
+            # 构建名称到索引的映射（索引 = 7 + 在 joint_order 中的位置）
+            name_to_idx = {}
+            for idx, name in enumerate(joint_order):
+                name_to_idx[name] = 7 + idx
+
+            # 更新所有关节的角度
+            for name, angle in STAND_ANGLES.items():
+                if name in name_to_idx:
+                    idx = name_to_idx[name]
+                    if idx < len(qpos_values):
+                        qpos_values[idx] = angle
+                    else:
+                        print(f"Warning: 关节 {name} 的索引 {idx} 超出 qpos 长度 {len(qpos_values)}")
+                else:
+                    print(f"Warning: 关节 {name} 未在 joint_order 中找到，无法设置初始角度。")
+
+            # 打印前几个值以供验证
+            print(f"更新后的 qpos (前10个): {qpos_values[:10]}")
+
+            new_qpos_str = ' '.join([f"{v:.6f}" for v in qpos_values])
+            stand_key.set("qpos", new_qpos_str)
+            print("已更新 stand keyframe 的 qpos 为官方站立姿态。")
+        else:
+            print("Warning: stand keyframe 的 qpos 为空。")
+    else:
+        print("Warning: 未找到 stand keyframe，无法设置初始姿态。")
+
+    # ---- 6. 输出处理后的模型 ----
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tree.write(out_path, encoding="utf-8", xml_declaration=True)
     print(f"Processed model saved to: {out_path}")
