@@ -4,22 +4,22 @@ from dataclasses import dataclass
 
 @dataclass
 class Footstep:
-    """落脚点信息（骨盆坐标系，Y向前，X向右，Z向上）"""
-    x: float          # 侧向位置 (m)
-    y: float          # 前向位置 (m)
+    """落脚点信息（骨盆坐标系，X向前，Y向左，Z向上）"""
+    x: float          # 前向位置 (m)
+    y: float          # 侧向位置 (m)
     z: float          # 地形高度 + 安全间隙 (m)
     yaw: float        # 落脚点朝向 (rad)
     foot: int         # -1 表示左脚，1 表示右脚
 
 class G1FootstepPlanner:
     """
-    宇树G1步点规划器（骨盆坐标系Y轴为机器人朝向）
+    宇树G1步点规划器（骨盆坐标系X轴为机器人朝向）
     - 支撑腿标识：-1=左，1=右
     - 所有坐标均在骨盆坐标系下
-    - 机器人始终朝向骨盆坐标系Y轴正向
-    - 步长离散化，步宽固定（无无侧移模式）
+    - 机器人始终朝向骨盆坐标系X轴正向
+    - 步长（前向位移）离散化，步宽（侧向偏移）固定
     - 转向角范围可配置，离散化间隔可调
-    - 成本函数：到目标的距离 + 步长偏差惩罚 + 朝向目标奖励
+    - 成本函数：步长偏差惩罚 + 朝向目标奖励
     - 若无可行候选步，则随机选择一个候选步（强制迈步）
     """
 
@@ -54,7 +54,7 @@ class G1FootstepPlanner:
         self.step_lengths = self._discretize_step_lengths()
         self.yaw_steps = self._discretize_yaw_steps()
 
-        # 构建候选步 (dx_abs, dy, dyaw)，dx_abs 固定为 step_width（无0选项）
+        # 构建候选步 (dx, dy_abs, dyaw)，其中 dx 为前向位移，dy_abs 为侧向偏移绝对值
         self.candidates = self._build_candidates()
 
         # 高程图数据（外部设置）
@@ -77,14 +77,14 @@ class G1FootstepPlanner:
         return [round(y, 4) for y in yaws]
 
     # ------------------------------------------------------------------
-    # 候选步生成（仅固定步宽）
+    # 候选步生成（固定步宽）
     # ------------------------------------------------------------------
     def _build_candidates(self) -> List[Tuple[float, float, float]]:
         candidates = []
-        for dy in self.step_lengths:
+        for dx in self.step_lengths:          # 前向位移
             for dyaw in self.yaw_steps:
-                candidates.append((self.step_width, dy, dyaw))
-        # 去重（理论上无重复，但保留）
+                candidates.append((dx, self.step_width, dyaw))   # (dx, dy_abs, dyaw)
+        # 去重
         unique = []
         for c in candidates:
             if not any(np.allclose(c, u, atol=1e-5) for u in unique):
@@ -134,9 +134,9 @@ class G1FootstepPlanner:
     # 步点规划主接口
     # ------------------------------------------------------------------
     def plan_next_footstep(self,
-                           current_foot_pos: Tuple[float, float, float],
-                           current_stance: int,
-                           target_pos: Tuple[float, float]
+                           current_foot_pos: Tuple[float, float, float],   # (x, y, z) 当前支撑脚位置（骨盆坐标系）
+                           current_stance: int,                           # -1: 左脚, 1: 右脚
+                           target_pos: Tuple[float, float]                # (x, y) 目标终点（骨盆坐标系）
                            ) -> Tuple[Optional[Footstep], int]:
         if self.height_map is None:
             print("错误：未设置高程图")
@@ -148,18 +148,18 @@ class G1FootstepPlanner:
 
         cx, cy, cz = current_foot_pos
 
-        # 目标方向角（相对于 Y 轴）
-        target_dx = target_pos[0]
-        target_dy = target_pos[1]
+        # 目标方向角（相对于 X 轴正向）
+        target_dx = target_pos[0] 
+        target_dy = target_pos[1] 
         if (target_dx**2 + target_dy**2) > 1e-6:
-            target_dir = -np.arctan2(target_dx, target_dy)  
+            target_dir = np.arctan2(target_dy, target_dx)
         else:
             target_dir = 0.0
 
-        for dx_abs, dy, dyaw in self.candidates:
-            # 侧向偏移符号：左脚支撑（-1）-> 向右（正X）；右脚支撑（1）-> 向左（负X）
-            sign_x = -current_stance
-            dx = sign_x * dx_abs
+        for dx, dy_abs, dyaw in self.candidates:
+            # 侧向偏移符号：左脚（-1）-> 向右（Y正方向），右脚（1）-> 向左（Y负方向）
+            sign_y = -current_stance
+            dy = sign_y * dy_abs
             nx = cx + dx
             ny = cy + dy
 
@@ -178,10 +178,11 @@ class G1FootstepPlanner:
                 continue
 
             nz = terrain_h + self.clearance
-            foot_yaw = dyaw
+            foot_yaw = dyaw   # 机器人朝向为X正向，偏航角即转向变化
 
-            step_penalty = (dy - self.step) ** 2
-            angle_penalty = (target_dir - foot_yaw) ** 2   # 希望落脚点朝向指向目标
+            # 成本函数：步长偏差 + 角度偏差
+            step_penalty = (dx - self.step) ** 2
+            angle_penalty = (target_dir - foot_yaw) ** 2
             cost = self.w_step * step_penalty + self.w_angle * angle_penalty
 
             if cost < best_cost:
@@ -195,14 +196,16 @@ class G1FootstepPlanner:
                 if terrain_h is None:
                     terrain_h = cz
                 fallback_z = terrain_h + self.clearance
-                best_step = Footstep(x=cx + (-current_stance) * self.step_width, 
-                                     y=cy, z=fallback_z, yaw=0.0, foot=next_stance)
-                print("警告：无候选步，原地落脚")
+                # 原地侧移一步（保持步宽）
+                sign_y = -current_stance
+                best_step = Footstep(x=cx, y=cy + sign_y * self.step_width,
+                                     z=fallback_z, yaw=0.0, foot=next_stance)
+                print("警告：无候选步，原地侧移")
             else:
                 rand_idx = np.random.randint(len(self.candidates))
-                dx_abs, dy, dyaw = self.candidates[rand_idx]
-                sign_x = -current_stance
-                dx = sign_x * dx_abs
+                dx, dy_abs, dyaw = self.candidates[rand_idx]
+                sign_y = -current_stance
+                dy = sign_y * dy_abs
                 nx = cx + dx
                 ny = cy + dy
                 nx = np.clip(nx, self.x_edges[0], self.x_edges[-1])

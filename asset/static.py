@@ -42,7 +42,7 @@ def main():
   <compiler meshdir="../robot/assets"/>
   <worldbody>
     <light pos="0 0 3" dir="0 0 -1" directional="true"/>
-    <geom type="plane" size="5 5 0.1" pos="0 0 0" rgba="0.5 0.5 0.5 1"/>
+    <geom type="plane" size="10 5 0.1" pos="0 0 0" rgba="0.5 0.5 0.5 1"/>
   </worldbody>
 </mujoco>'''
 
@@ -64,7 +64,7 @@ def main():
         mujoco.mj_resetData(scene_model, scene_data)
 
     # 取消重力（便于观察初始姿态）
-    scene_model.opt.gravity[:] = [0, 0, 0]
+    #scene_model.opt.gravity[:] = [0, 0, 0]
 
     # 更新运动学（仅计算前向动力学，不推进时间）
     mujoco.mj_forward(scene_model, scene_data)

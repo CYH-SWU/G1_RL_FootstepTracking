@@ -14,13 +14,13 @@ STAND_ANGLES = {
     "left_hip_pitch_joint": 0.0,
     "left_hip_roll_joint": 0.0,
     "left_hip_yaw_joint": 0.0,
-    "left_knee_joint": 1.2800,
+    "left_knee_joint": 0.0,          # 膝关节伸直
     "left_ankle_pitch_joint": 0.0,
     "left_ankle_roll_joint": 0.0,
     "right_hip_pitch_joint": 0.0,
     "right_hip_roll_joint": 0.0,
     "right_hip_yaw_joint": 0.0,
-    "right_knee_joint": 1.2800,
+    "right_knee_joint": 0.0,
     "right_ankle_pitch_joint": 0.0,
     "right_ankle_roll_joint": 0.0,
     "waist_yaw_joint": 0.0,
@@ -61,8 +61,9 @@ def process_g1_model(input_path=None, output_path=None):
             joint_order.append(jname)
     print(f"提取到 {len(joint_order)} 个铰链关节")
 
-    # ---- 2. 处理执行器（保留/移除） ----
+    # ---- 2. 处理执行器（保留/移除），同时记录保留的关节名称（按执行器顺序） ----
     actuator_node = root.find(".//actuator")
+    kept_joint_names = []  # 按执行器顺序存储保留的关节名称
     if actuator_node is not None:
         kept = 0
         for actuator in list(actuator_node.findall("position")):
@@ -74,6 +75,7 @@ def process_g1_model(input_path=None, output_path=None):
 
             if keep:
                 kept += 1
+                kept_joint_names.append(joint_name)   # 记录顺序
                 if "inheritrange" in actuator.attrib:
                     del actuator.attrib["inheritrange"]
                 actuator.set("inheritrange", "0")
@@ -111,6 +113,7 @@ def process_g1_model(input_path=None, output_path=None):
     if contact is None:
         contact = ET.SubElement(root, "contact")
 
+    # 1. 上肢与躯干（避免固定手臂穿透）
     ET.SubElement(contact, "exclude", body1="torso_link", body2="left_shoulder_pitch_link")
     ET.SubElement(contact, "exclude", body1="torso_link", body2="right_shoulder_pitch_link")
     ET.SubElement(contact, "exclude", body1="left_shoulder_pitch_link", body2="left_elbow_link")
@@ -118,8 +121,36 @@ def process_g1_model(input_path=None, output_path=None):
     ET.SubElement(contact, "exclude", body1="left_shoulder_pitch_link", body2="pelvis")
     ET.SubElement(contact, "exclude", body1="right_shoulder_pitch_link", body2="pelvis")
 
+    # 2. 手部与大腿（末端手腕与髋）
+    ET.SubElement(contact, "exclude", body1="left_wrist_yaw_link", body2="left_hip_pitch_link")
+    ET.SubElement(contact, "exclude", body1="right_wrist_yaw_link", body2="right_hip_pitch_link")
 
-    # ---- 4. 清理 keyframe 中的 ctrl 属性 ----
+    # 3. 手臂与腿（肘部与大腿）
+    ET.SubElement(contact, "exclude", body1="left_elbow_link", body2="left_hip_pitch_link")
+    ET.SubElement(contact, "exclude", body1="right_elbow_link", body2="right_hip_pitch_link")
+
+    # 4. 腿与腿（左右大腿、膝盖之间）
+    ET.SubElement(contact, "exclude", body1="left_hip_pitch_link", body2="right_hip_pitch_link")
+    ET.SubElement(contact, "exclude", body1="left_knee_link", body2="right_knee_link")
+
+    # 5. 骨盆与腰部（避免关节连接处额外接触）
+    ET.SubElement(contact, "exclude", body1="pelvis", body2="waist_yaw_link")
+    ET.SubElement(contact, "exclude", body1="pelvis", body2="waist_roll_link")
+    ET.SubElement(contact, "exclude", body1="pelvis", body2="torso_link")  # 躯干通过腰部关节连接
+
+    # ---- 4. 添加胸部相机（挂载在躯干前方 40mm，下倾 30°） ----
+    torso_body = root.find(".//body[@name='torso_link']")
+    if torso_body is not None:
+        cam = ET.SubElement(torso_body, "camera")
+        cam.set("name", "chest_camera")
+        cam.set("pos", "0.1 0 0")           # 相对于 torso_link 本地坐标系，Y 向前 40mm
+        cam.set("euler", "0 -0.5236 -1.5708")          # 绕 X 轴向下倾斜 30°
+        cam.set("fovy", "60")
+        print("已添加胸部相机，位于躯干前方 40mm，俯仰角 -30°。")
+    else:
+        print("警告：未找到 torso_link，无法添加相机。")
+
+    # ---- 5. 清理 keyframe 中的 ctrl 属性（我们将重新添加） ----
     keyframe = root.find(".//keyframe")
     if keyframe is not None:
         if "ctrl" in keyframe.attrib:
@@ -128,7 +159,7 @@ def process_g1_model(input_path=None, output_path=None):
             if "ctrl" in key.attrib:
                 del key.attrib["ctrl"]
 
-    # ---- 5. 更新 stand keyframe 的 qpos ----
+    # ---- 6. 更新 stand keyframe 的 qpos 并添加正确的 ctrl ----
     stand_key = keyframe.find("key[@name='stand']") if keyframe is not None else None
     if stand_key is not None:
         qpos_str = stand_key.get("qpos")
@@ -156,13 +187,28 @@ def process_g1_model(input_path=None, output_path=None):
 
             new_qpos_str = ' '.join([f"{v:.6f}" for v in qpos_values])
             stand_key.set("qpos", new_qpos_str)
-            print("已更新 stand keyframe 的 qpos 为官方站立姿态。")
+
+            # ---- 添加 ctrl 属性（仅针对保留的执行器） ----
+            # 构建 ctrl 值列表，顺序与 kept_joint_names 相同
+            ctrl_values = []
+            for name in kept_joint_names:
+                if name in STAND_ANGLES:
+                    ctrl_values.append(STAND_ANGLES[name])
+                else:
+                    print(f"Warning: 关节 {name} 没有在 STAND_ANGLES 中，ctrl 设为 0")
+                    ctrl_values.append(0.0)
+
+            ctrl_str = ' '.join([f"{v:.6f}" for v in ctrl_values])
+            stand_key.set("ctrl", ctrl_str)
+            print(f"已设置 ctrl: {len(ctrl_values)} 个值，前5个: {ctrl_values[:5]}")
+
+            print("已更新 stand keyframe 的 qpos 和 ctrl 为官方站立姿态。")
         else:
             print("Warning: stand keyframe 的 qpos 为空。")
     else:
         print("Warning: 未找到 stand keyframe，无法设置初始姿态。")
 
-    # ---- 6. 输出处理后的模型 ----
+    # ---- 7. 输出处理后的模型 ----
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tree.write(out_path, encoding="utf-8", xml_declaration=True)
     print(f"Processed model saved to: {out_path}")
