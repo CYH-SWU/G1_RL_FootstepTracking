@@ -34,57 +34,69 @@ if not processed_xml.exists():
 else:
     print(f"使用已有模型: {processed_xml}")
 
-# ==================== 2. 构建场景 XML ====================
-# ==================== 2. 构建场景 XML（含棋盘纹理 + 台阶 + 机器人） ====================
+asset_dir = PROJECT_ROOT / "asset"
+scene_xml_path = asset_dir / "scene_with_robot.xml"
+robot_rel_path = os.path.relpath(processed_xml, start=asset_dir)
+# ====================================================================
+
+
+# ==================== 1. 生成随机起伏地形（高度场） ====================
+print("生成随机起伏地形...")
+k = 4
+nrow, ncol = 60*k, 60*k               # 网格分辨率
+x_len, y_len = 5.0*k, 5.0*k           # 地形物理尺寸（米）
+z_min, z_max = 0.0, 0.3              # 高度范围（米）
+
+# 随机高度场 + 平滑
+hf = np.random.randn(nrow, ncol).astype(np.float32)
+kernel = np.ones((4,4), dtype=np.float32) / 16
+hf = convolve2d(hf, kernel, mode='same')
+rel_h = (hf - hf.min()) / (hf.max() - hf.min())
+elev_int = (rel_h * 65535).astype(np.uint32)
+elev_str = ' '.join(elev_int.flatten('C').astype(str))
+
+sx = x_len / 2
+sy = y_len / 2
+sz_half = (z_max - z_min) / 2
+z_mean = (z_min + z_max) / 2
+
+# ==================== 2. 构建完整 XML（起伏地形 + 机器人） ====================
 asset_dir = PROJECT_ROOT / "asset"
 scene_xml_path = asset_dir / "scene_with_robot.xml"
 robot_rel_path = os.path.relpath(processed_xml, start=asset_dir)
 
-# 台阶定义（使用材质以应用纹理）
-steps = '''
-    <!-- 台阶1: 上表面 Z=0.10，中心 X=0.75 -->
-    <geom type="box" size="0.25 1.0 0.05" pos="0.75 0 0.05" material="step_mat" rgba="0.8 0.6 0.4 1"/>
-    <!-- 台阶2: 上表面 Z=0.20，中心 X=1.25 -->
-    <geom type="box" size="0.25 1.0 0.05" pos="1.25 0 0.15" material="step_mat" rgba="0.8 0.6 0.4 1"/>
-    <!-- 台阶3: 上表面 Z=0.30，中心 X=1.75 -->
-    <geom type="box" size="0.25 1.0 0.05" pos="1.75 0 0.25" material="step_mat" rgba="0.8 0.6 0.4 1"/>
-    <!-- 台阶4: 上表面 Z=0.40，中心 X=2.25 -->
-    <geom type="box" size="0.25 1.0 0.05" pos="2.25 0 0.35" material="step_mat" rgba="0.8 0.6 0.4 1"/>
-    <!-- 台阶5: 上表面 Z=0.50，中心 X=2.75 -->
-    <geom type="box" size="0.25 1.0 0.05" pos="2.75 0 0.45" material="step_mat" rgba="0.8 0.6 0.4 1"/>
-    <!-- 台阶6: 上表面 Z=0.60? 但原定义是0.55，我们保持0.55 -->
-    <geom type="box" size="0.25 1.0 0.05" pos="3.25 0 0.55" material="step_mat" rgba="0.8 0.6 0.4 1"/>
-'''
-
-xml_content = f'''<mujoco model="g1_with_steps">
+xml_content = f'''<mujoco model="rough_terrain_with_g1">
   <!-- 1. 引入机器人模型 -->
-  <include file="{robot_rel_path}"/>
+  <include file="../robot/g1_processed.xml"/>
   
   <!-- 2. 覆盖资源路径，使STL从 robot/assets 加载 -->
   <compiler meshdir="../robot/assets"/>
   
-  <!-- 3. 定义场景的纹理和材质 -->
+  <!-- 3. 定义场景的纹理和高度场 -->
   <asset>
     <texture name="ground_tex" type="2d" builtin="checker" 
              rgb1="0.2 0.3 0.4" rgb2="0.6 0.7 0.8" 
              width="300" height="300" mark="edge" random="0.01"/>
-    <material name="groundplane" texture="ground_tex" texrepeat="4 4" 
+    <material name="groundplane" texture="ground_tex" texrepeat="2 2" 
               texuniform="true" reflectance="0.2"/>
-    <material name="step_mat" rgba="0.8 0.6 0.4 1" reflectance="0.3"/>
+    <hfield name="ground" size="{sx} {sy} {sz_half} {z_mean}" 
+            nrow="{nrow}" ncol="{ncol}" 
+            elevation="{elev_str}"/>
   </asset>
   
   <worldbody>
     <light pos="0 0 3" dir="0 0 -1" directional="true"/>
-    <!-- 地面（带棋盘纹理） -->
-    <geom type="plane" size="5 5 0.1" pos="0 0 0" material="groundplane"/>
-    <!-- 台阶 -->
-    {steps}
+    <!-- 起伏地面（高度场） -->
+    <geom type="hfield" hfield="ground" material="groundplane" rgba="0.6 0.8 1.0 1"/>
+
+    <geom type="sphere" pos="7.5 0 2" size="0.05" rgba="1 0 0 1"/>
   </worldbody>
 </mujoco>'''
 
 with open(scene_xml_path, 'w') as f:
     f.write(xml_content)
 print(f"场景 XML 已保存至: {scene_xml_path}")
+
 
 # ==================== 3. 加载场景并准备渲染 ====================
 model = mujoco.MjModel.from_xml_path(str(scene_xml_path))
@@ -94,8 +106,8 @@ data = mujoco.MjData(model)
 key_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_KEY, "stand")
 if key_id != -1:
     mujoco.mj_resetDataKeyframe(model, data, key_id)
-    actuator_qpos_indices = [7,8,9,10,11,12,13,14,15,16,17,18,21]
-    data.ctrl[:] = data.qpos[actuator_qpos_indices]
+    #actuator_qpos_indices = [7,8,9,10,11,12,13,14,15,16,17,18,21]
+    #data.ctrl[:] = data.qpos[actuator_qpos_indices]
     print("已重置到 'stand' 关键帧并同步 ctrl。")
 else:
     print("警告: 未找到 'stand' 关键帧，使用默认重置。")
@@ -319,6 +331,7 @@ if 'x_edges' not in locals():
     y_edges = np.linspace(y_min, y_max, ny)
 
 planner = G1FootstepPlanner()
+slope_map = np.zeros_like(height_map)
 planner.set_heightmap(height_map, slope_map, x_edges, y_edges, res)
 
 current_foot = (0.125, -0.115, -0.8)
