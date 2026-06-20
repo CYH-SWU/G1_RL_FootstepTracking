@@ -6,7 +6,6 @@ HumanoidRLTerrain
 机器人：Utree-G1
 项目目标：基于强化学习，实现人形机器人在多种复杂地形（平地、起伏面、斜坡、台阶）上的稳定行走控制，使机器人能够从起点自主走向终点，全程不摔倒，并具备良好的地形适应能力。
 技术要点：深度强化学习，计算机视觉，几何步点规划器，人形机器人运动控制
-（每次reset都会随机设置终点位置但始终位于离机器人7.5m的地方）
 
 =============================地形设置==========================================
 
@@ -168,16 +167,40 @@ obs包含信息：
 使用stable_baselines3.common.vec_env import VecNormalize进行观测归一化
 env.step控制频率为50hz
 但无步点或者当前规划的步点被指定的脚踩中后再规划下一个步点
-步点踩中判定：当指定脚离步点在xy平面上距离0.08m时判定踩中步点并规划下一个步点
-			先把步点转换到世界坐标系再转为骨盆坐标系
+步点踩中判定：当移动脚标签指定的脚离步点在xy平面上距离0.08m时判定踩中步点并规划下一个步点
+			 先把步点转换到世界坐标系再转为骨盆坐标系
+
+终点设置：
+	台阶与斜面地形，终点始终在离机器人正前方7.5m处
+	其他地形：每次reset都会随机设置终点位置但始终位于离机器人7.5m的地方，角度范围为-60，60
+
+clock与步态相位由phase计算得来，设计专门的clock计算函数，左右腿phase差为0.5T
+实例代码：
+def clock_frc(phase, swing_frac=0.625, relax=0.1):
+    # 摆动相边界（带松弛）
+    lower_bound = swing_frac * (1 - relax)   # 摆动相结束点（开始过渡）
+    upper_bound = swing_frac * (1 + relax)   # 过渡结束点（进入支撑相）
+
+    if phase < lower_bound:
+        # 摆动相早期：脚完全抬起（-1）
+        return -1.0
+    elif phase < upper_bound:
+        # 过渡区：线性插值从 -1 到 +1
+        t = (phase - lower_bound) / (upper_bound - lower_bound)
+        # t ∈ [0, 1]，映射到 [-1, 1]
+        return -1.0 + 2.0 * t
+    else:
+        # 支撑相：脚完全踩实（+1）
+        return 1.0
 
 奖励函数：
     足底力相位匹配奖励:(0.145)
     calc_foot_frc_clock_reward：
         1. 将左右脚足底力归一化到 [-1, 1]；max_force = 总重力的一半
         2. 根据步态相位计算期望力函数（left_frc_fn, right_frc_fn）；
-        3. 得分 = tan(π/4 * clock * normed_force)；
+        3. 单个腿得分 = tan(π/4 * clock * normed_force)；
         4. 最终 = (left_score + right_score) / 2。
+		注意：要传入两腿各自的clock
 
     足部速度相位匹配奖励:(0.145)
     calc_foot_vel_clock_reward：
@@ -198,8 +221,8 @@ env.step控制频率为50hz
     骨盆高度奖励:(0.050)
     calc_height_reward：
     1.获取骨盆高度（骨盆z坐标 - 支撑腿z坐标）
-    2.deadzone = 0.05
-    3.height_reward = exp(-k * (max(0, |height_pelvis - height_goal|))**2)
+    2.deadzone = 0.02
+    3.height_reward = exp(-k * (max(0, |height_pelvis - height_goal| - deadzone))**2)
 
     步点跟踪奖励:(0.450)
     calc_step_reward：
@@ -221,6 +244,26 @@ env.step控制频率为50hz
     m为每个电机的力矩，m_max为每个电机的最大力矩（初始化时就把嘴大例句保存下来）
 
 课程学习：
+目标训练轮次 m = 20000
+每个环境独自记录自己的轮次记为ep
+难度缩放系数 u = min(1, ep / m)
+注意：u会传入地形生成器中，u*地形设置 如:目标台阶高度*u 作为当前地形的实际台阶高度
 
+概率表：
+terrain_modes = [
+    "flat_stand", "rough_stand", "slope_stand",
+    "flat_walk", "rough_walk", "step_walk"
+]
+probs = [0.05, 0.05, 0.05, 0.35, 0.30, 0.20]
+
+代码中会获取模式标签，利用模式标签来优化逻辑结构
+
+站立模式：
+	不需要调用步点生成器
+	冻结obs的正弦余弦信号相位为0
+	固定obs的步点偏航角为0
+	obs采用固定虚拟步点:每次reset的移动腿标签所指定腿的脚掌位置
+	奖励函数处理：足底力clock固定为1，足部速度clock固定为-1
+	注意：不需要专门为站立模式设计一套是否踩中步点的逻辑
 
 
