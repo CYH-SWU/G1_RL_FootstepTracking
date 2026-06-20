@@ -1,0 +1,226 @@
+HumanoidRLTerrain
+人形机器人复杂地形行走
+
+基于Learninghumanoidwalking，G1AntiDisturbanceRL
+技术栈：python，mujoco，stable-baseline3，gymnasium
+机器人：Utree-G1
+项目目标：基于强化学习，实现人形机器人在多种复杂地形（平地、起伏面、斜坡、台阶）上的稳定行走控制，使机器人能够从起点自主走向终点，全程不摔倒，并具备良好的地形适应能力。
+技术要点：深度强化学习，计算机视觉，几何步点规划器，人形机器人运动控制
+（每次reset都会随机设置终点位置但始终位于离机器人7.5m的地方）
+
+=============================地形设置==========================================
+
+
+复杂地形组成：
+平地 ：维持基础行走与稳定性。
+起伏面 ：考核连续地形感知与姿态微调。
+斜坡 ：锻炼上下坡的质心控制与平衡能力。
+台阶（台阶高0.1m） ：训练离散落足点的精准定位与抬腿高度。
+起伏面：（k = 4  nrow, ncol = 60*k, 60*k  x_len, y_len = 5*k, 5*k  z_min, z_max = 0.0, 0.3    4*4）
+斜坡面：（k = 4  nrow, ncol = 100*k, 100*k   x_len, y_len = 5.0*k, 5.0*k     z_min, z_max = 0.0, 1.6）
+	
+高度场生成斜坡与起伏路面
+
+注意：斜坡面与起伏面适当提高骨盆初始高度
+	  斜坡面：骨盆高度 = 0.80 + z_max / 2
+
+定义一个地形生成器类用于生成地形
+每次reset都重新生成临时地形xml文件并返回mjmodel信息
+
+mujoco世界坐标系：y向前，右手系
+机器人骨盆坐标系：x向前，右手系!!!!
+
+平面与起伏面训练转向能力
+台阶与斜坡地形中终点处于正前方
+
+
+=========================================================================================
+
+
+==========================视觉流程设计(拍摄深度图->获取步点序列）：===========================================
+
+视觉处理类：
+渲染器规格320 240
+将摄像机挂载于机器人胸部(接近重心，拍摄稳定)，提供30度向下视角：
+	机器人可以获取更多足下信息，走得更稳
+	30度时摄像机的拍摄视野下界正好与地面平行
+使用mujoco的渲染器获取深度图
+对深度图的点进行筛选：
+	删除Na点，深度小于0的点
+	仅保留0.5m-2.0m的点
+生成点云（相机坐标系下）
+使用机器人骨盆处作为坐标原点
+转换点云坐标（相机坐标系->世界坐标系->骨盆坐标系）：
+	使用mujoco获取cam_pos于cam_mat，构造旋转矩阵 C -> W
+	旋转运算：points_world = (cam_rot @ points_cam.T).T + cam_pos
+	使用mujoco获取pelvis_pos与pelvis_mat（保持骨盆z轴与世界坐标系z轴平行同向），构造旋转矩阵 W->P
+    计算骨盆偏航角：
+        pelvis_pos_world = data.xpos[pelvis_body_id].copy()
+        pelvis_quat_world = data.xquat[pelvis_body_id].copy()
+        r_pelvis = R.from_quat([pelvis_quat_world[1], pelvis_quat_world[2], pelvis_quat_world[3], pelvis_quat_world[0]])
+        euler_pelvis = r_pelvis.as_euler('xyz')
+        yaw_pelvis = euler_pelvis[2]
+	进行旋转运算 points_pelvis = (R_world_to_pelvis @ points_pelvis.T).T - robot_pos
+	mujoco获取示例：cam_pos = data.cam_xpos[camera_id].copy()    cam_rot = data.cam_xmat[camera_id].copy().reshape(3, 3)
+	注意：采用世界坐标系间接坐标变换，不使用复杂的手眼标定技术
+		  摄像机拍摄的坐标系与世界坐标系需要轴修正操作，将y，z轴取反！！！
+		  正确变换公式：Xc = (u - cx) * z / fx；Yc = (cy - v) * z / fy；Zc = -z，其中z = depth.flatten()
+		  世界坐标系为y向前，但骨盆坐标系为x向前，两者都为右手系。可以直接获取骨盆的绕z轴角度构造旋转矩阵，不需要额外swap。
+对点云图进行高质量筛选：
+	范围裁剪：|Y| < 0.5m, 0.15m < X < 0.8m
+生成高程图与坡度图：
+	x，y范围与点云范围相同
+	高程图分辨率res = 0.025m
+	使用最近邻插值填充（from scipy.ndimage import distance_transform_edt）
+点云->高程图与坡度图 约70ms（不做优化时演示阶段可能出现轻微卡顿）
+
+输入：model，data，摄像机id，骨盆id，*其他参数
+输出：高程图，坡度图（映射尺寸有误，但不影响核心功能），res，x_edges，y_edges
+
+步点规划器：
+假设基础：
+	骨盆坐标系的y轴正方向为机器人的当前朝向
+	当前支撑腿的朝向与骨盆朝向同向
+接收：高程图，坡度图，支撑腿坐标，支撑腿类型（左，右），目标位置
+输出：步点坐标，步点偏航角（绕z轴），步点左右脚（-1，1）     
+注意：步点输出是基于骨盆坐标系，强化学习跟踪应该把机器人的脚掌信息由世界坐标系变换为骨盆坐标系下
+对G1机器人信息进行硬编码：
+	    step: float = 0.30,               # 标称步长（前向位移，米）
+        step_width: float = 0.237,         # 固定步宽（侧向偏移绝对值，米）
+        max_step_len: float = 0.40,       # 最大前向步长（米）
+        min_step_len: float = 0.15,       # 最小前向步长（米）
+        max_turn_deg: float = 20.0,       # 最大转向角（度）
+        max_step_height: float = 0.20,    # 最大抬腿高度差（米）
+        max_slope_deg: float = 20.0,      # 最大地形坡度（度）
+        clearance: float = 0.03,          # 脚底安全间隙（米）
+        w_step: float = 0.6,              # 步长偏差惩罚权重
+        w_angle: float = 0.4,             # 朝向目标奖励权重
+        step_discretization: float = 0.05,   # 步长离散化间隔（米）
+        turn_discretization: float = 1.0     # 转向角离散化间隔（度）
+规划逻辑：
+	将转向范围与步长范围进行线性离散化，全分配生成预选步点
+	遍历所有预选步点，根据机器人运动约束与地形情况（高程图，坡度图）去除不符合条件的步点
+	计算预选步点的成本函数，选出成本函数最低的步点 / 如果筛选后预选步点为空，则退回原始预选步点并随机取一个步点或者原地迈步
+	输出最佳步点/输出退回步点
+
+
+================================================================================
+
+===========================机器人设置==============================================
+机器人全局设置使用yml文件保存
+
+
+机器人控制电机与关节设置（gen_xml.py)：
+	摄像机挂载：<camera name="chest_camera" pos="0.1 0 0" euler="0 -0.5236 -1.5708" fovy="60" />胸部
+	左右腿的髋关节（俯仰、侧摆、偏航）、膝关节、踝关节（侧摆、俯仰），腰部（俯仰），共13个关节
+	所有控制电机设置kp ：250"，dampratio ：1
+	保留关节range继承原xml文件设置
+	非保留关节range设置为0,0
+	控制器采用增量控制：目标角度 = 当前关节角度 + (策略输出) * max_delta（缩放因子）
+	不同关节采用不同缩放因子
+	仿真开始阶段使用g1机器人xml文件的关键帧作为初始姿态（mj_resetDataKeyframe ）  注意：每次reset都要切换关键帧
+	关键帧数据使用宇树g1机器人xml中设置的数据     注意：确保关节名称和原xml文件相同，ctrl的数量要减少，因为删除了固定关节的控制器
+	删除接触对：
+	        # 1. 上肢与躯干（避免固定手臂穿透）
+    		ET.SubElement(contact, "exclude", body1="torso_link", body2="left_shoulder_pitch_link")
+    		ET.SubElement(contact, "exclude", body1="torso_link", body2="right_shoulder_pitch_link")
+    		ET.SubElement(contact, "exclude", body1="left_shoulder_pitch_link", body2="left_elbow_link")
+    		ET.SubElement(contact, "exclude", body1="right_shoulder_pitch_link", body2="right_elbow_link")
+    		ET.SubElement(contact, "exclude", body1="left_shoulder_pitch_link", body2="pelvis")
+    		ET.SubElement(contact, "exclude", body1="right_shoulder_pitch_link", body2="pelvis")
+
+    		# 2. 手部与大腿（末端手腕与髋）
+    		ET.SubElement(contact, "exclude", body1="left_wrist_yaw_link", body2="left_hip_pitch_link")
+    		ET.SubElement(contact, "exclude", body1="right_wrist_yaw_link", body2="right_hip_pitch_link")
+
+    		# 3. 手臂与腿（肘部与大腿）
+    		ET.SubElement(contact, "exclude", body1="left_elbow_link", body2="left_hip_pitch_link")
+    		ET.SubElement(contact, "exclude", body1="right_elbow_link", body2="right_hip_pitch_link")
+
+    		# 4. 腿与腿（左右大腿、膝盖之间）
+    		ET.SubElement(contact, "exclude", body1="left_hip_pitch_link", body2="right_hip_pitch_link")
+    		ET.SubElement(contact, "exclude", body1="left_knee_link", body2="right_knee_link")
+
+    		# 5. 骨盆与腰部（避免关节连接处额外接触）
+    		ET.SubElement(contact, "exclude", body1="pelvis", body2="waist_yaw_link")
+    		ET.SubElement(contact, "exclude", body1="pelvis", body2="waist_roll_link")
+    		ET.SubElement(contact, "exclude", body1="pelvis", body2="torso_link")  # 躯干通过腰部关节连接
+
+计算机器人的步态信息：（通过正弦余弦信号作为obs传入策略网络）
+  	goal_height: 0.75m
+  	total_duration: 0.8s
+  	swing_duration: 0.5s
+  	stance_duration: 0.3s
+    标准步长: 0.3m
+    目标速度: 0.375m/s
+
+
+===========================深度强化学习架构设计==========================================
+
+====================env设计==========================
+使用Gymnasium 接口规范，stable-baseline3 make_vec_env 启用DummyVecEnv实现多环境并行训练
+env.step():
+	接受策略网络的输出
+	返回(obs, reward, terminated, truncated, info)
+obs包含信息：
+	关节角度（13），关节速度（13），骨盆高度（1），落脚点相对位置 (dx, dy, dz)（1），落脚点偏航角（1）(骨盆坐标系)
+	支撑脚标识（1），步态相位（2），骨盆欧拉角（3），骨盆角速度（3）
+使用stable_baselines3.common.vec_env import VecNormalize进行观测归一化
+env.step控制频率为50hz
+但无步点或者当前规划的步点被指定的脚踩中后再规划下一个步点
+步点踩中判定：当指定脚离步点在xy平面上距离0.08m时判定踩中步点并规划下一个步点
+			先把步点转换到世界坐标系再转为骨盆坐标系
+
+奖励函数：
+    足底力相位匹配奖励:(0.145)
+    calc_foot_frc_clock_reward：
+        1. 将左右脚足底力归一化到 [-1, 1]；max_force = 总重力的一半
+        2. 根据步态相位计算期望力函数（left_frc_fn, right_frc_fn）；
+        3. 得分 = tan(π/4 * clock * normed_force)；
+        4. 最终 = (left_score + right_score) / 2。
+
+    足部速度相位匹配奖励:(0.145)
+    calc_foot_vel_clock_reward：
+    1. 将左右脚速度模长归一化到 [-1, 1]；max_vel = 0.7m/s
+    2. 根据步态相位计算期望速度函数（left_vel_fn, right_vel_fn）；
+    3. 得分 = tan(π/4 * clock * normed_vel)；
+    4. 最终 = (left_score + right_score) / 2。
+
+    躯干姿态奖励:(0.150)
+    calc_body_orient_reward：
+    1.获取目标步点，躯干偏航角
+    2.计算归一化角度差
+    delta = root_yaw - target_yaw
+    delta = np.arctan2(np.sin(delta), np.cos(delta))
+    3.计算奖励
+    orient_yaw_reward = np.exp(-10 * delta**2)
+
+    骨盆高度奖励:(0.050)
+    calc_height_reward：
+    1.获取骨盆高度（骨盆z坐标 - 支撑腿z坐标）
+    2.deadzone = 0.05
+    3.height_reward = exp(-k * (max(0, |height_pelvis - height_goal|))**2)
+
+    步点跟踪奖励:(0.450)
+    calc_step_reward：
+    1. 计算移动脚到目标点的最小距离d
+    2. hit_reward = 0.8 * exp(-d / 0.25)（若目标已踩中）；
+    3. progress_reward = 0.2 * exp(-distance_root_to_target / 2)；
+    4. 总 = hit_reward + progress_reward。
+
+    上身稳定性奖励:(0.050)
+    r = exp(-10*||Headxy - Pelvisxy||)
+
+    动作平滑度惩罚:(0.005)
+    calc_action_penalty:
+    penalty = - mean((a_t - a_t-1)**2)
+    注意：a为策略输出，需要维护上一次策略输出
+
+    关节力矩惩罚:(0.005)
+    torque_penalty = mean((m / m_max)**2)
+    m为每个电机的力矩，m_max为每个电机的最大力矩（初始化时就把嘴大例句保存下来）
+
+课程学习：
+
+
+

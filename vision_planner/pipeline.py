@@ -40,55 +40,45 @@ robot_rel_path = os.path.relpath(processed_xml, start=asset_dir)
 # ====================================================================
 
 
-# ==================== 1. 生成随机起伏地形（高度场） ====================
-print("生成随机起伏地形...")
-k = 4
-nrow, ncol = 60*k, 60*k               # 网格分辨率
-x_len, y_len = 5.0*k, 5.0*k           # 地形物理尺寸（米）
-z_min, z_max = 0.0, 0.3              # 高度范围（米）
+# 台阶定义（使用材质以应用纹理）
+steps = '''
+    <!-- 台阶1: 上表面 Z=0.10，中心 X=0.75 -->
+    <geom type="box" size="0.25 1.0 0.05" pos="0.6 0 0.05" material="step_mat" rgba="0.8 0.6 0.4 1"/>
+    <!-- 台阶2: 上表面 Z=0.20，中心 X=1.25 -->
+    <geom type="box" size="0.25 1.0 0.05" pos="0.9 0 0.15" material="step_mat" rgba="0.8 0.6 0.4 1"/>
+    <!-- 台阶3: 上表面 Z=0.30，中心 X=1.75 -->
+    <geom type="box" size="0.25 1.0 0.05" pos="1.2 0 0.25" material="step_mat" rgba="0.8 0.6 0.4 1"/>
+    <!-- 台阶4: 上表面 Z=0.40，中心 X=2.25 -->
+    <geom type="box" size="0.25 1.0 0.05" pos="1.5 0 0.35" material="step_mat" rgba="0.8 0.6 0.4 1"/>
+    <!-- 台阶5: 上表面 Z=0.50，中心 X=2.75 -->
+    <geom type="box" size="0.25 1.0 0.05" pos="1.8 0 0.45" material="step_mat" rgba="0.8 0.6 0.4 1"/>
+    <!-- 台阶6: 上表面 Z=0.60? 但原定义是0.55，我们保持0.55 -->
+    <geom type="box" size="0.25 1.0 0.05" pos="2.1 0 0.55" material="step_mat" rgba="0.8 0.6 0.4 1"/>
+'''
 
-# 随机高度场 + 平滑
-hf = np.random.randn(nrow, ncol).astype(np.float32)
-kernel = np.ones((4,4), dtype=np.float32) / 16
-hf = convolve2d(hf, kernel, mode='same')
-rel_h = (hf - hf.min()) / (hf.max() - hf.min())
-elev_int = (rel_h * 65535).astype(np.uint32)
-elev_str = ' '.join(elev_int.flatten('C').astype(str))
-
-sx = x_len / 2
-sy = y_len / 2
-sz_half = (z_max - z_min) / 2
-z_mean = (z_min + z_max) / 2
-
-# ==================== 2. 构建完整 XML（起伏地形 + 机器人） ====================
-asset_dir = PROJECT_ROOT / "asset"
-scene_xml_path = asset_dir / "scene_with_robot.xml"
-robot_rel_path = os.path.relpath(processed_xml, start=asset_dir)
-
-xml_content = f'''<mujoco model="rough_terrain_with_g1">
+xml_content = f'''<mujoco model="g1_with_steps">
   <!-- 1. 引入机器人模型 -->
-  <include file="../robot/g1_processed.xml"/>
+  <include file="{robot_rel_path}"/>
   
   <!-- 2. 覆盖资源路径，使STL从 robot/assets 加载 -->
   <compiler meshdir="../robot/assets"/>
   
-  <!-- 3. 定义场景的纹理和高度场 -->
+  <!-- 3. 定义场景的纹理和材质 -->
   <asset>
     <texture name="ground_tex" type="2d" builtin="checker" 
              rgb1="0.2 0.3 0.4" rgb2="0.6 0.7 0.8" 
              width="300" height="300" mark="edge" random="0.01"/>
-    <material name="groundplane" texture="ground_tex" texrepeat="2 2" 
+    <material name="groundplane" texture="ground_tex" texrepeat="4 4" 
               texuniform="true" reflectance="0.2"/>
-    <hfield name="ground" size="{sx} {sy} {sz_half} {z_mean}" 
-            nrow="{nrow}" ncol="{ncol}" 
-            elevation="{elev_str}"/>
+    <material name="step_mat" rgba="0.8 0.6 0.4 1" reflectance="0.3"/>
   </asset>
   
   <worldbody>
     <light pos="0 0 3" dir="0 0 -1" directional="true"/>
-    <!-- 起伏地面（高度场） -->
-    <geom type="hfield" hfield="ground" material="groundplane" rgba="0.6 0.8 1.0 1"/>
-
+    <!-- 地面（带棋盘纹理） -->
+    <geom type="plane" size="20 20 0.1" pos="0 0 0" material="groundplane"/>
+    <!-- 台阶 -->
+    {steps}
     <geom type="sphere" pos="7.5 0 2" size="0.05" rgba="1 0 0 1"/>
   </worldbody>
 </mujoco>'''
@@ -269,7 +259,7 @@ if len(pts_cropped) == 0:
 else:
     x_min, x_max = 0.15, 0.8      # X 为前向（机器人前方）
     y_min, y_max = -0.5, 0.5      # Y 为侧向（左右）
-    res = 0.05
+    res = 0.025
     nx = int((x_max - x_min) / res) + 1
     ny = int((y_max - y_min) / res) + 1
 
@@ -303,7 +293,7 @@ ax2.set_title('Elevation Map (Pelvis Frame)')
 plt.show()
 
 # ==================== 11. 坡度图 ====================
-res = 0.05
+res = 0.025
 start = time.perf_counter()
 grad_x = sobel(height_map, axis=0) / res
 grad_y = sobel(height_map, axis=1) / res
@@ -336,7 +326,7 @@ planner.set_heightmap(height_map, slope_map, x_edges, y_edges, res)
 
 current_foot = (0.125, -0.115, -0.8)
 current_stance = -1
-target = (1, 1)
+target = (7.5, 0)
 
 start = time.perf_counter()
 footstep, next_stance = planner.plan_next_footstep(current_foot, current_stance, target)
@@ -345,3 +335,28 @@ gap4 = (end - start)*1000
 print(f"步点生成耗时: {gap4:.3f} 毫秒")
 print(f"落脚点: ({footstep.x:.3f}, {footstep.y:.3f}, {footstep.z:.3f}), 朝向 {np.degrees(footstep.yaw):.1f}°, 下一步用 {'左' if next_stance==-1 else '右'}脚")
 print(f"总流程耗时: {(gap1 + gap2 + gap3 + gap4):.3f} 毫秒")
+
+# ==================== 13. 将步点转换到世界坐标系 ====================
+# 获取当前骨盆位姿
+pelvis_pos_world = data.xpos[pelvis_body_id].copy()
+pelvis_quat_world = data.xquat[pelvis_body_id].copy()
+
+# 计算骨盆偏航角
+r_pelvis = R.from_quat([pelvis_quat_world[1], pelvis_quat_world[2], pelvis_quat_world[3], pelvis_quat_world[0]])
+euler_pelvis = r_pelvis.as_euler('xyz')
+yaw_pelvis = euler_pelvis[2]
+
+# 构造绕 Z 轴旋转矩阵（骨盆→世界）
+R_yaw = R.from_euler('z', yaw_pelvis).as_matrix()
+
+# 局部坐标
+local_pos = np.array([footstep.x, footstep.y, footstep.z])
+world_pos = pelvis_pos_world + R_yaw @ local_pos
+
+# 世界朝向（骨盆偏航 + 局部偏航）
+world_yaw = yaw_pelvis + footstep.yaw
+world_yaw = np.arctan2(np.sin(world_yaw), np.cos(world_yaw))  # 归一化到 [-pi, pi]
+
+print(f"\n世界坐标系下的落脚点:")
+print(f"  位置: ({world_pos[0]:.3f}, {world_pos[1]:.3f}, {world_pos[2]:.3f})")
+print(f"  朝向: {np.degrees(world_yaw):.1f}°")

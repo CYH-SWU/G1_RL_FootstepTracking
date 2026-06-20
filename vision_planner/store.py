@@ -61,17 +61,17 @@ print(f"场景 XML 已保存至: {scene_xml_path}")
 # 台阶定义（使用材质以应用纹理）
 steps = '''
     <!-- 台阶1: 上表面 Z=0.10，中心 X=0.75 -->
-    <geom type="box" size="0.25 1.0 0.05" pos="0.75 0 0.05" material="step_mat" rgba="0.8 0.6 0.4 1"/>
+    <geom type="box" size="0.25 1.0 0.05" pos="0.6 0 0.05" material="step_mat" rgba="0.8 0.6 0.4 1"/>
     <!-- 台阶2: 上表面 Z=0.20，中心 X=1.25 -->
-    <geom type="box" size="0.25 1.0 0.05" pos="1.25 0 0.15" material="step_mat" rgba="0.8 0.6 0.4 1"/>
+    <geom type="box" size="0.25 1.0 0.05" pos="0.9 0 0.15" material="step_mat" rgba="0.8 0.6 0.4 1"/>
     <!-- 台阶3: 上表面 Z=0.30，中心 X=1.75 -->
-    <geom type="box" size="0.25 1.0 0.05" pos="1.75 0 0.25" material="step_mat" rgba="0.8 0.6 0.4 1"/>
+    <geom type="box" size="0.25 1.0 0.05" pos="1.2 0 0.25" material="step_mat" rgba="0.8 0.6 0.4 1"/>
     <!-- 台阶4: 上表面 Z=0.40，中心 X=2.25 -->
-    <geom type="box" size="0.25 1.0 0.05" pos="2.25 0 0.35" material="step_mat" rgba="0.8 0.6 0.4 1"/>
+    <geom type="box" size="0.25 1.0 0.05" pos="1.5 0 0.35" material="step_mat" rgba="0.8 0.6 0.4 1"/>
     <!-- 台阶5: 上表面 Z=0.50，中心 X=2.75 -->
-    <geom type="box" size="0.25 1.0 0.05" pos="2.75 0 0.45" material="step_mat" rgba="0.8 0.6 0.4 1"/>
+    <geom type="box" size="0.25 1.0 0.05" pos="1.8 0 0.45" material="step_mat" rgba="0.8 0.6 0.4 1"/>
     <!-- 台阶6: 上表面 Z=0.60? 但原定义是0.55，我们保持0.55 -->
-    <geom type="box" size="0.25 1.0 0.05" pos="3.25 0 0.55" material="step_mat" rgba="0.8 0.6 0.4 1"/>
+    <geom type="box" size="0.25 1.0 0.05" pos="2.1 0 0.55" material="step_mat" rgba="0.8 0.6 0.4 1"/>
 '''
 
 xml_content = f'''<mujoco model="g1_with_steps">

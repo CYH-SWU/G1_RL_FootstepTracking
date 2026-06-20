@@ -24,10 +24,10 @@ class G1FootstepPlanner:
     """
 
     def __init__(self,
-                 step: float = 0.25,               # 标称步长（前向位移，米）
-                 step_width: float = 0.23,         # 固定步宽（侧向偏移绝对值，米）
-                 max_step_len: float = 0.35,       # 最大前向步长（米）
-                 min_step_len: float = 0.10,       # 最小前向步长（米）
+                 step: float = 0.3,               # 标称步长（前向位移，米）
+                 step_width: float = 0.237,         # 固定步宽（侧向偏移绝对值，米）
+                 max_step_len: float = 0.40,       # 最大前向步长（米）
+                 min_step_len: float = 0.15,       # 最小前向步长（米）
                  max_turn_deg: float = 20.0,       # 最大转向角（度）
                  max_step_height: float = 0.20,    # 最大抬腿高度差（米）
                  max_slope_deg: float = 20.0,      # 最大地形坡度（度）

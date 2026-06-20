@@ -8,6 +8,7 @@
 import sys
 import os
 from pathlib import Path
+import numpy as np
 
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 if str(PROJECT_ROOT) not in sys.path:
@@ -56,6 +57,10 @@ def main():
     # 推进一次 forward 更新运动学
     mujoco.mj_forward(model, data)
 
+    left_foot = data.site_xpos[model.site("left_foot").id]
+    right_foot = data.site_xpos[model.site("right_foot").id]
+    foot_distance = np.linalg.norm(left_foot - right_foot)
+    print(foot_distance)
     # 启动查看器
     with mujoco.viewer.launch_passive(model, data) as viewer:
         print("\n按 'Esc' 或关闭窗口退出。")
