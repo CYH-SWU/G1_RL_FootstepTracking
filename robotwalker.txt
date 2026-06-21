@@ -106,7 +106,7 @@ mujoco世界坐标系：y向前，右手系
 ================================================================================
 
 ===========================机器人设置==============================================
-机器人全局设置使用yml文件保存
+机器人全局设置采用硬编码
 
 
 机器人控制电机与关节设置（gen_xml.py)：
@@ -244,8 +244,11 @@ def clock_frc(phase, swing_frac=0.4545, relax=0.1):
     m为每个电机的力矩，m_max为每个电机的最大力矩（初始化时就把嘴大例句保存下来）
 
 课程学习：
-目标训练轮次 m = 20000
-每个环境独自记录自己的轮次记为ep
+目标训练步数 m = 11000(轮次) * 预估单轮次步数
+使用全局步数计数
+使用stable_baselines3 model.num_timesteps课程驱动编写回调函数，共同管理所有并行环境的课程难度
+progress = min(1.0, self.num_timesteps / self.total_timesteps_for_max)
+环境内部要实现一个设置难度的外部接口
 难度缩放系数 u = min(1, ep / m)
 注意：u会传入地形生成器中，u*地形设置 如:目标台阶高度*u 作为当前地形的实际台阶高度
 
@@ -266,4 +269,38 @@ probs = [0.05, 0.05, 0.05, 0.35, 0.30, 0.20]
 	奖励函数处理：足底力clock固定为1，足部速度clock固定为-1
 	注意：不需要专门为站立模式设计一套是否踩中步点的逻辑
 
+镜像数据增强：
+    创建镜像包装器MirrorWrapper
+    注意关节，电机索引位以及坐标系是否正确
+    注意：必须进行功能测试
 
+神经网络：
+    使用stable_baselines3定制网络
+    policy_kwargs = dict(
+        net_arch=[256, 256, 128],
+        activation_fn=torch.nn.ReLU,
+    )
+
+算法：
+    使用stable_baselines3内置ppo算法
+    先使用默认参数进行除算法外参数的调教
+    最终使用RL Baselines3 Zoo找出最佳参数
+
+项目文件架构：
+
+HumanoidRLTerrain/
+├── robot/
+|   ├── __init__.py
+|   ├── assets/ 放置机器人STL文件
+|   ├── gen_xml.py 处理g1机器人初始文件
+|   └─unitree_g1.xml
+├── env/
+|   ├── g1_terrain_env.py 训练env
+|   └─ mirrorwrapper.py 镜像包装器
+├── planner_pipeline/
+|   ├── __init__.py
+│   ├── terrain_generator.py       # 地形生成类
+│   ├── vision_processor.py        # 视觉处理类（点云->高程图）
+│   ├── footstep_planner.py        # 步点规划器（高程图,坡度图->基于骨盆坐标系步点）
+│   └── reward_functions.py        # 奖励函数类
+|
