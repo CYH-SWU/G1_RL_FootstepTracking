@@ -128,7 +128,6 @@ renderer_depth = mujoco.Renderer(model, width=width, height=height)
 renderer_depth.enable_depth_rendering()
 
 mujoco.mj_step(model, data)
-
 start = time.perf_counter()
 
 if camera_id != -1:
@@ -138,9 +137,15 @@ else:
     renderer_rgb.update_scene(data)
     renderer_depth.update_scene(data)
 
-rgb = renderer_rgb.render()
 depth = renderer_depth.render()
-print(f"Depth range: {depth.min():.3f} ~ {depth.max():.3f} m")
+
+end = time.perf_counter()
+gap1 = (end - start) * 1000
+print(f"深度图耗时: {gap1:.3f} 毫秒")
+
+rgb = renderer_rgb.render()
+
+start = time.perf_counter()
 # ==================== 4. 相机坐标系点云 ====================
 fov_deg = 60.0
 focal_px = 0.5 * height / np.tan(0.5 * np.radians(fov_deg))
@@ -231,8 +236,8 @@ print(f"  Y: [{pts_cropped[:,1].min():.3f}, {pts_cropped[:,1].max():.3f}]")
 print(f"  Z: [{pts_cropped[:,2].min():.3f}, {pts_cropped[:,2].max():.3f}]")
 
 end = time.perf_counter()
-gap1 = (end - start) * 1000
-print(f"点云生成耗时: {gap1:.3f} 毫秒")
+gap2 = (end - start) * 1000
+print(f"点云生成耗时: {gap2:.3f} 毫秒")
 
 # ==================== 8. 可视化点云 ====================
 if len(pts_cropped) > 10000:
@@ -287,8 +292,8 @@ else:
         height_map[missing] = height_map[tuple(indices)][missing]
 
 end = time.perf_counter()
-gap2 = (end - start) * 1000
-print(f"高程图生成耗时: {gap2:.3f} 毫秒")
+gap3 = (end - start) * 1000
+print(f"高程图生成耗时: {gap3:.3f} 毫秒")
 print(f"高程图尺寸: {nx} x {ny}")
 
 # ==================== 10. 高程图可视化 ====================
@@ -326,8 +331,8 @@ slope_map = np.arctan(np.sqrt(grad_x**2 + grad_y**2)) * 180.0 / np.pi
 slope_map = np.nan_to_num(slope_map, nan=0.0)
 
 end = time.perf_counter()
-gap3 = (end - start) * 1000
-print(f"坡度图计算耗时: {gap3:.3f} 毫秒")
+gap4 = (end - start) * 1000
+print(f"坡度图计算耗时: {gap4:.3f} 毫秒")
 
 fig3, ax3 = plt.subplots(figsize=(10, 6))
 im2 = ax3.imshow(slope_map.T, origin='lower',
@@ -350,6 +355,7 @@ if 'x_edges' not in locals():
     y_edges = np.linspace(y_min, y_max, ny)
 
 planner = G1FootstepPlanner()
+start = time.perf_counter()
 slope_map = np.zeros_like(height_map)
 planner.set_heightmap(height_map, slope_map, x_edges, y_edges, res)
 
@@ -357,7 +363,6 @@ current_foot = (0.125, -0.115, -0.8)
 current_stance = -1
 target = (7.5, 0)
 
-start = time.perf_counter()
 footstep, next_stance = planner.plan_next_footstep(current_foot, current_stance, target)
 end = time.perf_counter()
 gap4 = (end - start)*1000
