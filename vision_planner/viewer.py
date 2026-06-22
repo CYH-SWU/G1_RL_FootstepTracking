@@ -49,6 +49,7 @@ def main():
         # 同步 ctrl 与 qpos（避免弹跳）
         #actuator_qpos_indices = [7,8,9,10,11,12,13,14,15,16,17,18,21]  # 从打印表获取
         #data.ctrl[:] = data.qpos[actuator_qpos_indices]
+        data.qpos[2] = 1.8
         print("已同步 ctrl。")
     else:
         print("警告: 未找到 'stand' 关键帧，将使用默认重置。")

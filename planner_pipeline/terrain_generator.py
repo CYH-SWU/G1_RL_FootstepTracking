@@ -127,7 +127,7 @@ class TerrainGenerator:
         k = 4
         nrow, ncol = 100 * k, 100 * k        
         x_len, y_len = 5.0 * k, 5.0 * k      
-        z_min, z_max = 0.0, 4.5 * difficulty  
+        z_min, z_max = 0.0, 9.0 * difficulty  
 
         x = np.linspace(-x_len/2, x_len/2, nrow)
         y = np.linspace(-y_len/2, y_len/2, ncol)

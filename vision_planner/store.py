@@ -115,12 +115,12 @@ print("生成斜坡地形...")
 k = 4
 nrow, ncol = 100*k, 100*k        # 网格分辨率
 x_len, y_len = 5.0*k, 5.0*k      # 地形物理尺寸（米）
-z_min, z_max = 0.0, 1.6          # 斜坡最低/最高高度（米）
+z_min, z_max = 0.0, 9.0          # 斜坡最低/最高高度（米）
 
 # 创建网格坐标（X 方向为斜坡方向）
 x = np.linspace(-x_len/2, x_len/2, nrow)
 y = np.linspace(-y_len/2, y_len/2, ncol)
-X, Y = np.meshgrid(x, y, indexing='ij')
+Y, X = np.meshgrid(x, y, indexing='ij')
 
 # 高度沿 X 线性变化：从 z_min 到 z_max
 t = (X - X.min()) / (X.max() - X.min())

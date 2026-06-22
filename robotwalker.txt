@@ -16,7 +16,9 @@ HumanoidRLTerrain
 斜坡 ：锻炼上下坡的质心控制与平衡能力。
 台阶（台阶高0.1m） ：训练离散落足点的精准定位与抬腿高度。
 起伏面：（k = 4  nrow, ncol = 30*k, 30*k  x_len, y_len = 5*k, 5*k  z_min, z_max = 0.0, 0.6    5*5）
-斜坡面：（k = 4  nrow, ncol = 100*k, 100*k   x_len, y_len = 5.0*k, 5.0*k     z_min, z_max = 0.0, 4.5）
+斜坡面：（k = 4  nrow, ncol = 100*k, 100*k   x_len, y_len = 5.0*k, 5.0*k     z_min, z_max = 0.0, 9.0）
+斜坡面机器人骨盆高度 = 0.8 + z_max / 4
+注意：实际斜坡最高处只有z_max/2
 	
 高度场生成斜坡与起伏路面
 
