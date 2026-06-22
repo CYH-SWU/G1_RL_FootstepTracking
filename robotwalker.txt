@@ -15,8 +15,8 @@ HumanoidRLTerrain
 起伏面 ：考核连续地形感知与姿态微调。
 斜坡 ：锻炼上下坡的质心控制与平衡能力。
 台阶（台阶高0.1m） ：训练离散落足点的精准定位与抬腿高度。
-起伏面：（k = 4  nrow, ncol = 60*k, 60*k  x_len, y_len = 5*k, 5*k  z_min, z_max = 0.0, 0.3    4*4）
-斜坡面：（k = 4  nrow, ncol = 100*k, 100*k   x_len, y_len = 5.0*k, 5.0*k     z_min, z_max = 0.0, 1.6）
+起伏面：（k = 4  nrow, ncol = 30*k, 30*k  x_len, y_len = 5*k, 5*k  z_min, z_max = 0.0, 0.6    5*5）
+斜坡面：（k = 4  nrow, ncol = 100*k, 100*k   x_len, y_len = 5.0*k, 5.0*k     z_min, z_max = 0.0, 4.5）
 	
 高度场生成斜坡与起伏路面
 
@@ -293,7 +293,7 @@ HumanoidRLTerrain/
 |   ├── __init__.py
 |   ├── assets/ 放置机器人STL文件
 |   ├── gen_xml.py 处理g1机器人初始文件
-|   └─unitree_g1.xml
+|   └─ unitree_g1.xml
 ├── env/
 |   ├── g1_terrain_env.py 训练env
 |   └─ mirrorwrapper.py 镜像包装器
@@ -303,4 +303,28 @@ HumanoidRLTerrain/
 │   ├── vision_processor.py        # 视觉处理类（点云->高程图）
 │   ├── footstep_planner.py        # 步点规划器（高程图,坡度图->基于骨盆坐标系步点）
 │   └── reward_functions.py        # 奖励函数类
-|
+├── scripts/ 放置测试脚本 如可视化地形与打印关节电机索引
+├── checkpoints/                   # 存放模型权重和归一化参数
+├── logs/                          # 存放 TensorBoard 日志
+└── run_experiment.py 主程序
+
+==========================================================================================
+
+===================================项目编码==========================================
+
+terrain_generator.py 
+TerrainGenerator类
+初始化时获取g1机器人的xml文件以及stl文件
+接收终点的xy坐标，在终点处上方设置一个红色球体
+最后向外输出model与data
+临时创建地形使用include挂载g1机器人文件
+有四种地形：平面，斜坡，台阶（使用循环方法设置20个沿x轴的台阶），起伏面
+地形生成样板：
+....
+接受一个难度因子，设置地形的难度，
+比如台阶地形的台阶高度 = 0.1 * 难度因子 
+起伏面z_max = 0.6 * 难度因子
+注意：不需要额外存储临时地形，直接使用
+机器人文件字符串需要外部输入
+外部还要传入模式字符串["flat","terrain","slope"]
+根据模式生成地形
