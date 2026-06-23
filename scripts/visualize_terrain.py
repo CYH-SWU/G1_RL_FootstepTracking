@@ -1,11 +1,8 @@
 '''
 该脚本用于地形可视化
-
 切换地形请手动修改地形标签字符串
 为使机器人骨盆高度正常请手动设置机器人的骨盆高度
 '''
-
-
 
 import os
 import sys
@@ -36,9 +33,9 @@ def main():
 
     print("生成平地地形...")
     model, data = terrain_gen.generate(
-        mode="slope",          
+        mode="flat",     # flat, rough, slope, steps  
         difficulty=1,       
-        goal_pos=(7.5, 0.0)   
+        goal_pos=(7.5, 0.0)    
     )
 
     key_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_KEY, "stand")
@@ -46,7 +43,7 @@ def main():
         mujoco.mj_resetDataKeyframe(model, data, key_id)
         # actuator_qpos_indices = [7,8,9,10,11,12,13,14,15,16,17,18,21]
         # data.ctrl[:] = data.qpos[actuator_qpos_indices]
-        data.qpos[2] = 1.00 #手动修改骨盆高度
+        data.qpos[2] = 0.90 #手动修改骨盆高度
         print("已重置到 'stand' 关键帧并同步 ctrl。")
     else:
         print("警告: 未找到 'stand' 关键帧，使用默认重置。")

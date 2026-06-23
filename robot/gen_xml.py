@@ -5,16 +5,15 @@ import numpy as np
 DEFAULT_INPUT = Path(__file__).parent / "unitree_g1.xml"
 DEFAULT_OUTPUT = Path(__file__).parent / "g1_processed.xml"
 
-# 保留的关键词：髋、膝、踝、以及腰部俯仰（waist_pitch）
+# 保留的关键词：髋、膝、踝、以及腰部俯仰
 KEEP_JOINT_KEYWORDS = ["hip", "knee", "ankle", "waist_pitch"]
 
-# ---- 官方站立姿态角度（所有关节，无论是否可控） ----
-# 这些角度来自原始 XML 的 stand keyframe，已验证正确
+# keyframe数据
 STAND_ANGLES = {
     "left_hip_pitch_joint": 0.0,
     "left_hip_roll_joint": 0.0,
     "left_hip_yaw_joint": 0.0,
-    "left_knee_joint": 0.0,          # 膝关节伸直
+    "left_knee_joint": 0.0,          
     "left_ankle_pitch_joint": 0.0,
     "left_ankle_roll_joint": 0.0,
     "right_hip_pitch_joint": 0.0,
@@ -53,7 +52,7 @@ def process_g1_model(input_path=None, output_path=None):
     tree = ET.parse(in_path)
     root = tree.getroot()
 
-    # ---- 1. 收集所有铰链关节名称（排除 freejoint），按出现顺序 ----
+    # 收集所有铰链关节名称
     joint_order = []
     for joint in root.findall(".//joint"):
         jname = joint.get("name")
@@ -61,7 +60,7 @@ def process_g1_model(input_path=None, output_path=None):
             joint_order.append(jname)
     print(f"提取到 {len(joint_order)} 个铰链关节")
 
-    # ---- 2. 处理执行器（保留/移除），同时记录保留的关节名称（按执行器顺序） ----
+    # 处理执行器
     actuator_node = root.find(".//actuator")
     kept_joint_names = []  # 按执行器顺序存储保留的关节名称
     if actuator_node is not None:
@@ -108,12 +107,12 @@ def process_g1_model(input_path=None, output_path=None):
                         del joint.attrib["frictionloss"]
         print(f"Kept {kept} actuators (legs + waist_pitch).")
 
-    # ---- 3. 添加接触排除 ----
+    # 添加接触排除 
     contact = root.find("contact")
     if contact is None:
         contact = ET.SubElement(root, "contact")
 
-    # 1. 上肢与躯干（避免固定手臂穿透）
+    # 上肢与躯干（避免固定手臂穿透）
     ET.SubElement(contact, "exclude", body1="torso_link", body2="left_shoulder_pitch_link")
     ET.SubElement(contact, "exclude", body1="torso_link", body2="right_shoulder_pitch_link")
     ET.SubElement(contact, "exclude", body1="left_shoulder_pitch_link", body2="left_elbow_link")
@@ -121,36 +120,36 @@ def process_g1_model(input_path=None, output_path=None):
     ET.SubElement(contact, "exclude", body1="left_shoulder_pitch_link", body2="pelvis")
     ET.SubElement(contact, "exclude", body1="right_shoulder_pitch_link", body2="pelvis")
 
-    # 2. 手部与大腿（末端手腕与髋）
+    # 手部与大腿（末端手腕与髋）
     ET.SubElement(contact, "exclude", body1="left_wrist_yaw_link", body2="left_hip_pitch_link")
     ET.SubElement(contact, "exclude", body1="right_wrist_yaw_link", body2="right_hip_pitch_link")
 
-    # 3. 手臂与腿（肘部与大腿）
+    # 手臂与腿（肘部与大腿）
     ET.SubElement(contact, "exclude", body1="left_elbow_link", body2="left_hip_pitch_link")
     ET.SubElement(contact, "exclude", body1="right_elbow_link", body2="right_hip_pitch_link")
 
-    # 4. 腿与腿（左右大腿、膝盖之间）
+    # 腿与腿（左右大腿、膝盖之间）
     ET.SubElement(contact, "exclude", body1="left_hip_pitch_link", body2="right_hip_pitch_link")
     ET.SubElement(contact, "exclude", body1="left_knee_link", body2="right_knee_link")
 
-    # 5. 骨盆与腰部（避免关节连接处额外接触）
+    # 骨盆与腰部（避免关节连接处额外接触）
     ET.SubElement(contact, "exclude", body1="pelvis", body2="waist_yaw_link")
     ET.SubElement(contact, "exclude", body1="pelvis", body2="waist_roll_link")
-    ET.SubElement(contact, "exclude", body1="pelvis", body2="torso_link")  # 躯干通过腰部关节连接
+    ET.SubElement(contact, "exclude", body1="pelvis", body2="torso_link")  
 
-    # ---- 4. 添加胸部相机（挂载在躯干前方 40mm，下倾 30°） ----
+    # 添加胸部相机
     torso_body = root.find(".//body[@name='torso_link']")
     if torso_body is not None:
         cam = ET.SubElement(torso_body, "camera")
         cam.set("name", "chest_camera")
-        cam.set("pos", "0.1 0 0")           # 相对于 torso_link 本地坐标系，Y 向前 40mm
-        cam.set("euler", "0 -0.5236 -1.5708")          # 绕 X 轴向下倾斜 30°
+        cam.set("pos", "0.1 0 0")           
+        cam.set("euler", "0 -0.5236 -1.5708")          
         cam.set("fovy", "60")
         print("已添加胸部相机，位于躯干前方 40mm，俯仰角 -30°。")
     else:
         print("警告：未找到 torso_link，无法添加相机。")
 
-    # ---- 5. 清理 keyframe 中的 ctrl 属性（我们将重新添加） ----
+    # 清理 keyframe 中的 ctrl 属性
     keyframe = root.find(".//keyframe")
     if keyframe is not None:
         if "ctrl" in keyframe.attrib:
@@ -159,14 +158,14 @@ def process_g1_model(input_path=None, output_path=None):
             if "ctrl" in key.attrib:
                 del key.attrib["ctrl"]
 
-    # ---- 6. 更新 stand keyframe 的 qpos 并添加正确的 ctrl ----
+    # 更新 stand keyframe 的 qpos 并添加正确的 ctrl 
     stand_key = keyframe.find("key[@name='stand']") if keyframe is not None else None
     if stand_key is not None:
         qpos_str = stand_key.get("qpos")
         if qpos_str:
             qpos_values = np.array([float(x) for x in qpos_str.split()], dtype=np.float64)
 
-            # 构建名称到索引的映射（索引 = 7 + 在 joint_order 中的位置）
+            # 构建名称到索引的映射
             name_to_idx = {}
             for idx, name in enumerate(joint_order):
                 name_to_idx[name] = 7 + idx
@@ -182,13 +181,13 @@ def process_g1_model(input_path=None, output_path=None):
                 else:
                     print(f"Warning: 关节 {name} 未在 joint_order 中找到，无法设置初始角度。")
 
-            # 打印前几个值以供验证
+            
             print(f"更新后的 qpos (前10个): {qpos_values[:10]}")
 
             new_qpos_str = ' '.join([f"{v:.6f}" for v in qpos_values])
             stand_key.set("qpos", new_qpos_str)
 
-            # ---- 添加 ctrl 属性（仅针对保留的执行器） ----
+            
             # 构建 ctrl 值列表，顺序与 kept_joint_names 相同
             ctrl_values = []
             for name in kept_joint_names:
@@ -208,8 +207,8 @@ def process_g1_model(input_path=None, output_path=None):
     else:
         print("Warning: 未找到 stand keyframe，无法设置初始姿态。")
 
-    # ---- 7. 输出处理后的模型 ----
+    # 输出处理后的模型
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tree.write(out_path, encoding="utf-8", xml_declaration=True)
     print(f"Processed model saved to: {out_path}")
-    return out_path
+    return out_path 
