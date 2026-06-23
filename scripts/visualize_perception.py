@@ -33,7 +33,7 @@ def main():
     print("初始化地形生成器...")
     terrain_gen = TerrainGenerator(robot_xml_path=robot_xml, mesh_dir=mesh_dir)
 
-    MODE = "rough"          # 可选: flat, rough, slope, steps
+    MODE = "steps"          # 可选: flat, rough, slope, steps
     DIFFICULTY = 1.0
 
     print(f"生成地形: {MODE}, 难度: {DIFFICULTY}")
@@ -48,7 +48,7 @@ def main():
     if key_id != -1:
         mujoco.mj_resetDataKeyframe(model, data, key_id)
         data.qpos[2] = 0.80   
-        data.qpos[3:7] = [0.8660254, 0, 0, -0.5] # 重置机器人旋转四元组
+        #data.qpos[3:7] = [0.8660254, 0, 0, -0.5] # 重置机器人旋转四元组
         print("已重置到 'stand' 关键帧，并手动设置骨盆高度。")
     else:
         print("警告: 未找到 'stand' 关键帧，使用默认重置。")

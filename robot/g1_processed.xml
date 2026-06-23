@@ -255,7 +255,7 @@
                 </body>
               </body>
             </body>
-          <camera name="chest_camera" pos="0.1 0 0" euler="0 -0.5236 -1.5708" fovy="60" /></body>
+          <camera name="chest_camera" pos="0.1 0 0" euler="0.0 -0.5236 -1.5708" fovy="60" /></body>
         </body>
       </body>
     </body>
