@@ -24,7 +24,7 @@ class G1FootstepPlanner:
                  step_width: float = 0.237,        # 固定步宽
                  max_step_len: float = 0.40,       # 最大前向步长
                  min_step_len: float = 0.15,       # 最小前向步长
-                 max_turn_deg: float = 8.0,       # 最大转向角
+                 max_turn_deg: float = 6.0,        # 最大转向角
                  max_step_height: float = 0.20,    # 最大抬腿高度差
                  max_slope_deg: float = 20.0,      # 最大地形坡度
                  clearance: float = 0.03,          # 脚底安全间隙
