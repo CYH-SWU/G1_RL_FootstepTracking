@@ -22,7 +22,7 @@ class VisionProcessor:
         width: int = 320,
         height: int = 240,
         fov_deg: float = 60.0,
-        depth_min: float = 0.5,
+        depth_min: float = 0.3,
         depth_max: float = 2.0,
         crop_x_min: float = 0.15,
         crop_x_max: float = 0.8,

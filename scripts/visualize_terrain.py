@@ -33,7 +33,7 @@ def main():
 
     print("生成平地地形...")
     model, data = terrain_gen.generate(
-        mode="flat",     # flat, rough, slope, steps  
+        mode="steps",     # flat, rough, slope, steps  
         difficulty=1,       
         goal_pos=(7.5, 0.0)    
     )
