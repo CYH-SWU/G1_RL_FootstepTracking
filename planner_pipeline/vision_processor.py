@@ -91,6 +91,13 @@ class VisionProcessor:
         self.last_slopemap = None
         self.last_x_edges = None
         self.last_y_edges = None
+
+    def update_model_data(self, model, data):
+        '''更新持有的model与data'''
+        self.model = model
+        self.data = data
+        self.renderer = mujoco.Renderer(model, width=self.width, height=self.height)
+        self.renderer.enable_depth_rendering()
         
     def process(self, render_rgb: bool = False, verbose: bool = False) -> Dict[str, Any]:
         """

@@ -34,22 +34,13 @@ LOG_DIR = project_root / "logs"
 CHECKPOINT_DIR.mkdir(exist_ok=True)
 LOG_DIR.mkdir(exist_ok=True)
 
-# 训练超参数
-N_ENVS = 8                     # 并行环境数量
-TOTAL_TIMESTEPS = 1000 * 1500   # 总训练步数（1100万，可根据需要调整）11_000_000
+# 训练超参数（仅保留环境相关，PPO算法参数使用默认值）
+N_ENVS = 16                    # 并行环境数量
+TOTAL_TIMESTEPS = 900000       # 总训练步数（可根据需要调整）
 MAX_EPISODE_STEPS = 2000       # 单回合最大步数
-LEARNING_RATE = 3e-4
-N_STEPS = 2048                 # 每轮更新步数（每环境）
-BATCH_SIZE = 64
-N_EPOCHS = 10
-GAMMA = 0.99
-GAE_LAMBDA = 0.95
-CLIP_RANGE = 0.2
-ENT_COEF = 0.01
-VF_COEF = 0.5
 
 # 课程学习：达到最大难度所需的总步数（通常与总步数一致）
-TOTAL_TIMESTEPS_FOR_MAX = TOTAL_TIMESTEPS
+TOTAL_TIMESTEPS_FOR_MAX = 11_000_0000000
 
 # -------------------- 环境创建 --------------------
 def make_env():
@@ -66,16 +57,16 @@ def make_env():
 vec_env = make_vec_env(
     make_env,
     n_envs=N_ENVS,
-    vec_env_cls=DummyVecEnv,   # 顺序执行，适合共享内存
+    vec_env_cls=DummyVecEnv,
 )
 
 # 包装 VecNormalize（观测归一化）
 vec_env = VecNormalize(
     venv=vec_env,
     norm_obs=True,
-    norm_reward=False,          # 不归一化奖励，保持原始尺度
+    norm_reward=False,
     clip_obs=10.0,
-    gamma=GAMMA,
+    gamma=0.99,  # 默认gamma也是0.99，但显式保留以避免歧义
 )
 
 # -------------------- 课程学习回调 --------------------
@@ -94,14 +85,14 @@ class CurriculumCallback(BaseCallback):
 
 # -------------------- 检查点回调 --------------------
 checkpoint_callback = CheckpointCallback(
-    save_freq=50_000,                # 每 5 万步保存一次
+    save_freq=100_000,
     save_path=str(CHECKPOINT_DIR),
     name_prefix="ppo_g1",
     save_replay_buffer=False,
-    save_vecnormalize=True,          # 保存归一化统计量
+    save_vecnormalize=True,
 )
 
-# -------------------- 创建模型（使用定制网络） --------------------
+# -------------------- 创建模型（使用PPO默认参数，仅指定网络结构） --------------------
 policy_kwargs = dict(
     net_arch=[256, 256, 128],
     activation_fn=torch.nn.ReLU,
@@ -110,19 +101,11 @@ policy_kwargs = dict(
 model = PPO(
     policy="MlpPolicy",
     env=vec_env,
-    learning_rate=LEARNING_RATE,
-    n_steps=N_STEPS,
-    batch_size=BATCH_SIZE,
-    n_epochs=N_EPOCHS,
-    gamma=GAMMA,
-    gae_lambda=GAE_LAMBDA,
-    clip_range=CLIP_RANGE,
-    ent_coef=ENT_COEF,
-    vf_coef=VF_COEF,
-    policy_kwargs=policy_kwargs,
     verbose=1,
     tensorboard_log=str(LOG_DIR),
-    device='cpu',  # 强制使用 CPU（MLP 策略在 GPU 上效率低）
+    device='cpu',                # 强制使用 CPU（MLP 策略在 GPU 上效率低）
+    policy_kwargs=policy_kwargs,
+    # 所有其他 PPO 超参数均使用 SB3 默认值
 )
 
 # -------------------- 训练 --------------------

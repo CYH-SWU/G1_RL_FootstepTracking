@@ -7,7 +7,6 @@
 import os
 import sys
 import time
-import argparse
 import numpy as np
 import mujoco
 import mujoco.viewer
@@ -15,6 +14,7 @@ from pathlib import Path
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
+# 项目根目录
 project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
@@ -22,22 +22,22 @@ from env.g1_terrain_env import G1TerrainEnv
 
 
 def main():
-    # 参数配置
+    # 文件路径
     model_path = project_root / "checkpoints" / "ppo_g1_final.zip"
     norm_path = project_root / "checkpoints" / "vec_normalize_final.pkl"
     robot_xml = project_root / "robot" / "g1_processed.xml"
     mesh_dir = project_root / "robot" / "assets"
+
+    # 评估参数
     num_episodes = 10
     max_steps_per_episode = 2000
 
-    # 检查文件是否存在
+    # 检查文件
     if not model_path.exists():
         print(f"错误：模型文件不存在: {model_path}")
         return
-    if not norm_path.exists():
-        print(f"警告：归一化文件不存在: {norm_path}，将尝试仅加载模型（可能失败）")
 
-    # 1. 创建基础环境（单环境）
+    # 1. 创建基础环境
     base_env = G1TerrainEnv(
         robot_xml_path=str(robot_xml),
         mesh_dir=str(mesh_dir),
@@ -45,31 +45,32 @@ def main():
         total_timesteps_for_max=11_000_000  # 不影响评估
     )
 
-    # 2. 包装为 VecEnv（因为 VecNormalize 需要 VecEnv）
+    # 2. 包装为 VecEnv（单环境）
     vec_env = DummyVecEnv([lambda: base_env])
 
-    # 3. 加载归一化参数
+    # 3. 加载归一化参数（如果存在）
     if norm_path.exists():
         vec_env = VecNormalize.load(str(norm_path), vec_env)
         print("已加载 VecNormalize 统计量")
     else:
-        print("未找到归一化文件，假设环境未归一化。")
+        print("警告：未找到归一化文件，假设环境未归一化。")
 
     # 4. 加载模型
     model = PPO.load(str(model_path))
     print("模型加载成功")
 
-    # 5. 提取原始环境（以便直接访问 model/data 用于渲染）
+    # 5. 获取原始环境（用于渲染）
+    # VecNormalize 包装了 DummyVecEnv，DummyVecEnv 内部有 envs 列表
     if hasattr(vec_env, 'venv'):
         raw_env = vec_env.venv.envs[0]
     else:
         raw_env = vec_env.envs[0]
 
-    # 6. 重置 vec_env（获取初始观测）
+    # 6. 重置环境
     obs = vec_env.reset()
     print("环境已重置，开始评估...")
 
-    # 7. 启动 MuJoCo 查看器
+    # 7. 启动查看器
     viewer = mujoco.viewer.launch_passive(raw_env.model, raw_env.data)
     print("按 Esc 或关闭窗口可提前退出评估。")
 
@@ -94,10 +95,14 @@ def main():
 
             # 策略推理（确定性）
             action, _ = model.predict(obs, deterministic=True)
-            obs, reward, terminated, truncated, info = vec_env.step(action)
+            obs, rewards, dones, infos = vec_env.step(action)
 
-            done = terminated[0] or truncated[0]
-            episode_reward += reward[0]
+            # 单环境，取第一个元素
+            reward = rewards[0]
+            done = dones[0]
+            info = infos[0]
+
+            episode_reward += reward
             step += 1
             total_steps += 1
 
@@ -110,30 +115,31 @@ def main():
             if time_to_sleep > 0:
                 time.sleep(time_to_sleep)
 
-            # 每 100 步打印状态
+            # 每100步打印状态
             if step % 100 == 0:
                 pelvis_z = raw_env.data.qpos[2]
                 stance_foot = raw_env.left_foot_id if raw_env.current_stance == -1 else raw_env.right_foot_id
                 foot_z = raw_env.data.xpos[stance_foot][2]
                 height = pelvis_z - foot_z
                 dist = np.linalg.norm(raw_env.data.xpos[raw_env.pelvis_id][:2] - raw_env.goal_pos[:2])
-                print(f"  步数 {step:4d}: 奖励={reward[0]:6.2f}, 总奖励={episode_reward:7.2f}, "
+                print(f"  步数 {step:4d}: 奖励={reward:6.2f}, 总奖励={episode_reward:7.2f}, "
                       f"骨盆高={height:.3f}m, 距终点={dist:.3f}m")
 
         episode_rewards.append(episode_reward)
         print(f"Episode {episode} 结束: 总步数={step}, 总奖励={episode_reward:.2f}")
 
-        # 如果是因为到达终点而结束，打印成功信息
-        if done and terminated[0]:
-            dist = np.linalg.norm(raw_env.data.xpos[raw_env.pelvis_id][:2] - raw_env.goal_pos[:2])
-            if dist < 0.5:
-                print("  → 成功到达终点！")
-            else:
-                print("  → 摔倒终止。")
-        elif done and truncated[0]:
-            print("  → 超时截断。")
+        # 判断终止原因（从 info 中读取）
+        if done:
+            if info.get('terminated', False):
+                dist = np.linalg.norm(raw_env.data.xpos[raw_env.pelvis_id][:2] - raw_env.goal_pos[:2])
+                if dist < 0.5:
+                    print("  → 成功到达终点！")
+                else:
+                    print("  → 摔倒终止。")
+            elif info.get('truncated', False):
+                print("  → 超时截断。")
 
-        # 若查看器已关闭，退出循环
+        # 如果查看器已关闭，退出循环
         if not viewer.is_running():
             break
 
@@ -149,7 +155,8 @@ def main():
     print(f"总步数: {total_steps}")
     if episode_rewards:
         print(f"平均回合奖励: {np.mean(episode_rewards):.2f} ± {np.std(episode_rewards):.2f}")
-        print(f"成功率: {sum(1 for r in episode_rewards if r > 0) / len(episode_rewards) * 100:.1f}%")
+        success_count = sum(1 for r in episode_rewards if r > 0)
+        print(f"成功率: {success_count / len(episode_rewards) * 100:.1f}%")
 
 
 if __name__ == "__main__":

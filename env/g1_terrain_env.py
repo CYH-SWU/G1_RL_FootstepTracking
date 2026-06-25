@@ -149,10 +149,15 @@ class G1TerrainEnv(gym.Env):
         """重置环境，返回初始观测和info字典。"""
         super().reset(seed=seed)
 
-        # 1. 选择地形模式 (根据概率)
-        self.terrain_mode = np.random.choice(
-            self.terrain_modes, p=self.probabilities
-        )
+
+        if self.difficulty < 0.1:  # 训练初期，只使用站立模式
+            # 从所有站立模式中随机选一个（flat_stand, rough_stand, slope_stand）
+            stand_modes = ["flat_stand", "rough_stand", "slope_stand"]
+            self.terrain_mode = np.random.choice(stand_modes)
+        else:
+            # 正常随机选择
+            self.terrain_mode = np.random.choice(self.terrain_modes, p=self.probabilities)
+
 
         # 2. 设置终点 (世界坐标系)
         self._set_goal()
@@ -231,6 +236,8 @@ class G1TerrainEnv(gym.Env):
                 crop_y_min=-0.5, crop_y_max=0.5,
                 heightmap_resolution=0.025
             )
+        else:
+            self.vision_processor.update_model_data(self.model, self.data)
 
         # 11. 更新高程图 (初次)
         self._update_terrain_map()
@@ -293,9 +300,22 @@ class G1TerrainEnv(gym.Env):
             except Exception as e:
                 raise ValueError(f"执行器 {name} 未找到: {e}")
 
-        # 最大力矩 (从actuator的ctrlrange获取，作为近似)
+        # 最大力矩（直接硬编码，单位 Nm）
+        # 顺序与 actuator_indices 一致（即 13 个执行器）
         self.max_torques = np.array([
-            np.max(np.abs(model.actuator_ctrlrange[idx])) for idx in self.actuator_indices
+            88,   # left_hip_pitch
+            139,  # left_hip_roll
+            88,   # left_hip_yaw
+            139,  # left_knee
+            50,   # left_ankle_pitch
+            50,   # left_ankle_roll
+            88,   # right_hip_pitch
+            139,  # right_hip_roll
+            88,   # right_hip_yaw
+            139,  # right_knee
+            50,   # right_ankle_pitch
+            50,   # right_ankle_roll
+            50,   # waist_pitch
         ])
 
     def _set_pelvis_height(self):
