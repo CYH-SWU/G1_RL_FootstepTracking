@@ -51,6 +51,8 @@ class TerrainGenerator:
         """
         # 防止难度因子越界
         difficulty = np.clip(difficulty, 0.0, 1.0)
+        if difficulty < 1e-6:
+            mode = "flat"
 
         # 根据模式分发构建
         if mode == "flat":
