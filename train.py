@@ -23,6 +23,7 @@ project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
 from env.g1_terrain_env import G1TerrainEnv
+from env.test_env import G1TerrainTestEnv
 
 # -------------------- 配置参数 --------------------
 ROBOT_XML = project_root / "robot" / "g1_processed.xml"
@@ -36,16 +37,16 @@ LOG_DIR.mkdir(exist_ok=True)
 
 # 训练超参数（仅保留环境相关，PPO算法参数使用默认值）
 N_ENVS = 8                    # 并行环境数量
-TOTAL_TIMESTEPS = 400 * 1500       # 总训练步数（可根据需要调整）
+TOTAL_TIMESTEPS = 1000 * 1500       # 总训练步数（可根据需要调整）
 MAX_EPISODE_STEPS = 2000       # 单回合最大步数
 
 # 课程学习：达到最大难度所需的总步数（通常与总步数一致）
-TOTAL_TIMESTEPS_FOR_MAX = 11_000_0000000
+TOTAL_TIMESTEPS_FOR_MAX = 11_000_00000000
 
 # -------------------- 环境创建 --------------------
 def make_env():
     """工厂函数：创建单个 G1 环境实例"""
-    env = G1TerrainEnv(
+    env = G1TerrainTestEnv(
         robot_xml_path=str(ROBOT_XML),
         mesh_dir=str(MESH_DIR),
         max_episode_steps=MAX_EPISODE_STEPS,
@@ -84,7 +85,7 @@ class CurriculumCallback(BaseCallback):
         return True
 
 # -------------------- 检查点回调 --------------------
-save_freq = TOTAL_TIMESTEPS / 2
+save_freq = TOTAL_TIMESTEPS / 10
 checkpoint_callback = CheckpointCallback(
     save_freq=save_freq/N_ENVS,
     save_path=str(CHECKPOINT_DIR),
