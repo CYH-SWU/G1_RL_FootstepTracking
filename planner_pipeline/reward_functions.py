@@ -36,7 +36,8 @@ def get_pelvis_yaw(data, pelvis_id):
     return euler[2]
 
 
-def calc_foot_frc_clock_reward(left_force, right_force, phase, max_force):
+def calc_foot_frc_clock_reward(left_force, right_force, phase, max_force,
+                               clock_left=None, clock_right=None):
     """
     足底力相位匹配奖励。
     
@@ -44,16 +45,17 @@ def calc_foot_frc_clock_reward(left_force, right_force, phase, max_force):
     :param right_force: 右脚法向力 
     :param phase: 当前步态相位 [0, 1)
     :param max_force: 最大足底力归一化基准
+    :param clock_left: 可选，左腿期望时钟信号（若为 None 则自动计算）
+    :param clock_right: 可选，右腿期望时钟信号（若为 None 则自动计算）
     :return: 奖励值
     """
     norm_left = np.clip(left_force / max_force, -1.0, 1.0)
     norm_right = np.clip(right_force / max_force, -1.0, 1.0)
 
-    phase_left = phase
-    phase_right = (phase + 0.5) % 1.0
-
-    clock_left = clock_frc(phase_left)
-    clock_right = clock_frc(phase_right)
+    if clock_left is None:
+        clock_left = clock_frc(phase)
+    if clock_right is None:
+        clock_right = clock_frc((phase + 0.5) % 1.0)
 
     score_left = np.tan(np.pi / 4 * clock_left * norm_left)
     score_right = np.tan(np.pi / 4 * clock_right * norm_right)
@@ -61,7 +63,8 @@ def calc_foot_frc_clock_reward(left_force, right_force, phase, max_force):
     return (score_left + score_right) / 2.0
 
 
-def calc_foot_vel_clock_reward(left_vel, right_vel, phase, max_vel):
+def calc_foot_vel_clock_reward(left_vel, right_vel, phase, max_vel,
+                               clock_left=None, clock_right=None):
     """
     足部速度相位匹配奖励。
     
@@ -69,16 +72,17 @@ def calc_foot_vel_clock_reward(left_vel, right_vel, phase, max_vel):
     :param right_vel: 右脚速度模长
     :param phase: 当前步态相位 [0, 1)
     :param max_vel: 最大速度归一化基准 
+    :param clock_left: 可选，左腿期望时钟信号（若为 None 则自动计算）
+    :param clock_right: 可选，右腿期望时钟信号（若为 None 则自动计算）
     :return: 奖励值
     """
     norm_left = np.clip(left_vel / max_vel, -1.0, 1.0)
     norm_right = np.clip(right_vel / max_vel, -1.0, 1.0)
 
-    phase_left = phase
-    phase_right = (phase + 0.5) % 1.0
-
-    clock_left = clock_frc(phase_left)
-    clock_right = clock_frc(phase_right)
+    if clock_left is None:
+        clock_left = clock_frc(phase)
+    if clock_right is None:
+        clock_right = clock_frc((phase + 0.5) % 1.0)
 
     score_left = np.tan(np.pi / 4 * clock_left * norm_left)
     score_right = np.tan(np.pi / 4 * clock_right * norm_right)

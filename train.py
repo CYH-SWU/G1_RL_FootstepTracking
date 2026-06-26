@@ -35,8 +35,8 @@ CHECKPOINT_DIR.mkdir(exist_ok=True)
 LOG_DIR.mkdir(exist_ok=True)
 
 # 训练超参数（仅保留环境相关，PPO算法参数使用默认值）
-N_ENVS = 16                    # 并行环境数量
-TOTAL_TIMESTEPS = 900000       # 总训练步数（可根据需要调整）
+N_ENVS = 8                    # 并行环境数量
+TOTAL_TIMESTEPS = 100 * 1500       # 总训练步数（可根据需要调整）
 MAX_EPISODE_STEPS = 2000       # 单回合最大步数
 
 # 课程学习：达到最大难度所需的总步数（通常与总步数一致）
@@ -84,8 +84,9 @@ class CurriculumCallback(BaseCallback):
         return True
 
 # -------------------- 检查点回调 --------------------
+save_freq = 10000
 checkpoint_callback = CheckpointCallback(
-    save_freq=100_000,
+    save_freq=save_freq/N_ENVS,
     save_path=str(CHECKPOINT_DIR),
     name_prefix="ppo_g1",
     save_replay_buffer=False,
@@ -121,7 +122,5 @@ model.learn(
     progress_bar=True,
 )
 
-# 保存最终模型和归一化参数
 model.save(str(CHECKPOINT_DIR / "ppo_g1_final.zip"))
 vec_env.save(str(CHECKPOINT_DIR / "vec_normalize_final.pkl"))
-print(f"训练完成！模型和归一化参数已保存至 {CHECKPOINT_DIR}")

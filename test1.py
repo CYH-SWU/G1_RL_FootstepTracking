@@ -64,7 +64,7 @@ def main():
             time.sleep(time_to_sleep)
 
         # 每50步打印状态
-        if step % 50 == 0:
+        if step % 5 == 0:
             pelvis_z = env.data.qpos[2]
             stance_foot = env.left_foot_id if env.current_stance == -1 else env.right_foot_id
             foot_z = env.data.xpos[stance_foot][2]

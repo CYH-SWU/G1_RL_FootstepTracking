@@ -569,9 +569,26 @@ class G1TerrainEnv(gym.Env):
         total_mass = sum(self.model.body_mass)
         max_force = total_mass * 9.81 * 0.5
 
+        # === 判断是否为站立模式 ===
+        is_stand = "stand" in self.terrain_mode
+
         # 计算各子奖励
-        r_frc = calc_foot_frc_clock_reward(left_force, right_force, self.phase, max_force)
-        r_vel = calc_foot_vel_clock_reward(left_vel, right_vel, self.phase, 0.7)
+        if is_stand:
+            # 站立模式：强制期望力为 1（踩实），期望速度为 -1（静止）
+            r_frc = calc_foot_frc_clock_reward(
+                left_force, right_force, 
+                self.phase, max_force,
+                clock_left=1.0, clock_right=1.0
+            )
+            r_vel = calc_foot_vel_clock_reward(
+                left_vel, right_vel, 
+                self.phase, 0.7,
+                clock_left=-1.0, clock_right=-1.0
+            )
+        else:
+            r_frc = calc_foot_frc_clock_reward(left_force, right_force, self.phase, max_force)
+            r_vel = calc_foot_vel_clock_reward(left_vel, right_vel, self.phase, 0.7)
+
         r_orient = calc_body_orient_reward(pelvis_yaw, target_yaw)
         r_height = calc_height_reward(pelvis_z, foot_z, goal_height=0.75, deadzone=0.0235)
         r_step = calc_step_reward(swing_pos, target_pos, pelvis_xy, goal_xy)
@@ -582,10 +599,11 @@ class G1TerrainEnv(gym.Env):
         torques = self.data.actuator_force[self.actuator_indices]
         p_torque = calc_torque_penalty(torques, self.max_torques)
 
-        # 加权求和 (权重已确定)
+        # 加权求和 (调整高度权重以强化站立稳定性)
         weights = {
             'frc': 0.145, 'vel': 0.145, 'orient': 0.150,
-            'height': 0.050, 'step': 0.450, 'stability': 0.050,
+            'height': 0.150,          # 从 0.050 提高至 0.150
+            'step': 0.450, 'stability': 0.050,
             'action': 0.005, 'torque': 0.005
         }
         total = (weights['frc'] * r_frc +
