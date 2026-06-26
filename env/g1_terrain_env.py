@@ -484,7 +484,7 @@ class G1TerrainEnv(gym.Env):
         self.phase = (self.step_counter * self.control_dt % 1.1) / 1.1
 
         # 4. 检查是否需要规划新步点 (踩中判定)
-        if "walk" in self.terrain_mode and self.target_footstep is not None:
+        if self.target_footstep is not None:
             # 获取当前摆动脚位置 (与目标步点对应的脚)
             swing_foot = self.target_footstep['foot']
             foot_id = self.left_foot_id if swing_foot == -1 else self.right_foot_id
@@ -495,12 +495,16 @@ class G1TerrainEnv(gym.Env):
             dx = foot_pos[0] - target_pos[0]
             dy = foot_pos[1] - target_pos[1]
             if np.hypot(dx, dy) < self.footstep_threshold:
-                # 踩中，切换支撑腿，规划下一步
+                # 踩中，切换支撑腿
                 self.current_stance = -self.current_stance
-                # 更新高程图 (视觉)
-                self._update_terrain_map()
-                # 规划下一步
-                self._plan_next_footstep(force=True)
+                # 根据模式更新步点
+                if "walk" in self.terrain_mode:
+                    # 行走模式：更新高程图并规划新步点
+                    self._update_terrain_map()
+                    self._plan_next_footstep(force=True)
+                else:
+                    # 站立模式：重新生成虚拟步点（基于新的支撑腿）
+                    self._setup_stand_mode()
 
         # 5. 计算奖励
         reward = self._compute_reward(action)
@@ -658,6 +662,7 @@ class G1TerrainEnv(gym.Env):
         # 步态相位 (左右腿)
         phase_left = self.phase
         phase_right = (self.phase + 0.5) % 1.0
+
         phase = np.array([phase_left, phase_right])
 
         # 骨盆欧拉角
