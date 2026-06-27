@@ -17,13 +17,13 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_util import make_vec_env
+from policies.sb3_lhw_policy import LHWPolicy
 
 # 将项目根目录加入 Python 路径（确保能导入自定义模块）
 project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
 from env.g1_terrain_env import G1TerrainEnv
-from env.test_env import G1TerrainTestEnv
 
 # -------------------- 配置参数 --------------------
 ROBOT_XML = project_root / "robot" / "g1_processed.xml"
@@ -37,7 +37,7 @@ LOG_DIR.mkdir(exist_ok=True)
 
 # 训练超参数（仅保留环境相关，PPO算法参数使用默认值）
 N_ENVS = 8                    # 并行环境数量
-TOTAL_TIMESTEPS = 1000 * 1500       # 总训练步数（可根据需要调整）
+TOTAL_TIMESTEPS = 200 * 1500       # 总训练步数（可根据需要调整）
 MAX_EPISODE_STEPS = 2000       # 单回合最大步数
 
 # 课程学习：达到最大难度所需的总步数（通常与总步数一致）
@@ -46,7 +46,7 @@ TOTAL_TIMESTEPS_FOR_MAX = 11_000_00000000
 # -------------------- 环境创建 --------------------
 def make_env():
     """工厂函数：创建单个 G1 环境实例"""
-    env = G1TerrainTestEnv(
+    env = G1TerrainEnv(
         robot_xml_path=str(ROBOT_XML),
         mesh_dir=str(MESH_DIR),
         max_episode_steps=MAX_EPISODE_STEPS,
@@ -85,7 +85,7 @@ class CurriculumCallback(BaseCallback):
         return True
 
 # -------------------- 检查点回调 --------------------
-save_freq = TOTAL_TIMESTEPS / 10
+save_freq = TOTAL_TIMESTEPS / 4
 checkpoint_callback = CheckpointCallback(
     save_freq=save_freq/N_ENVS,
     save_path=str(CHECKPOINT_DIR),
@@ -95,19 +95,25 @@ checkpoint_callback = CheckpointCallback(
 )
 
 # -------------------- 创建模型（使用PPO默认参数，仅指定网络结构） --------------------
+
+
+from stable_baselines3 import PPO
+from policies.sb3_lhw_policy import LHWPolicy  # 你的自定义策略
+
 policy_kwargs = dict(
-    net_arch=[256, 256, 128],
+    net_arch=dict(pi=[256, 128], vf=[256, 128]),
     activation_fn=torch.nn.ReLU,
 )
 
 model = PPO(
     policy="MlpPolicy",
     env=vec_env,
-    verbose=1,
-    tensorboard_log=str(LOG_DIR),
-    device='cpu',                # 强制使用 CPU（MLP 策略在 GPU 上效率低）
     policy_kwargs=policy_kwargs,
-    # 所有其他 PPO 超参数均使用 SB3 默认值
+    verbose=1,
+    n_steps=500,    
+    tensorboard_log=str(LOG_DIR),
+    device='cpu',
+    ent_coef=0.01
 )
 
 # -------------------- 训练 --------------------

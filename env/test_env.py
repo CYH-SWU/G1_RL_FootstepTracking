@@ -1,3 +1,9 @@
+'''
+模仿LHW
+使用双脚中点
+删除obs的迈步标签
+'''
+
 import os
 import time
 import gymnasium as gym
@@ -24,7 +30,8 @@ from planner_pipeline.reward_functions import (
 )
 
 
-class G1TerrainTestEnv(gym.Env):
+
+class G1TerrainEnv(gym.Env):
     """
     G1人形机器人复杂地形行走环境，集成视觉感知、步点规划与强化学习。
     符合Gymnasium规范，支持SB3的DummyVecEnv并行训练。

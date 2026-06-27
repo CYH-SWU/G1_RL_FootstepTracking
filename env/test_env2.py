@@ -1,8 +1,7 @@
 '''
-基于原env
-站立模式reset获取脚的位置
-保存初始脚的位置,踩中后切换但不实时读取
+obs使用线性phase
 '''
+
 
 import os
 import time
@@ -96,7 +95,7 @@ class G1TerrainEnv(gym.Env):
         )
 
         # 观测空间
-        obs_dim = 13 + 13 + 1 + 3 + 1 + 1 + 4 + 3 + 3  # 关节角度(13)+速度(13)+骨盆高(1)+落脚点相对位置(3)+偏航(1)+支撑脚(1)+相位(2)+欧拉角(3)+角速度(3)
+        obs_dim = 13 + 13 + 1 + 3 + 1 + 1 + 2 + 3 + 3  # 关节角度(13)+速度(13)+骨盆高(1)+落脚点相对位置(3)+偏航(1)+支撑脚(1)+相位(2)+欧拉角(3)+角速度(3)
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(obs_dim,), dtype=np.float32
         )
@@ -253,11 +252,6 @@ class G1TerrainEnv(gym.Env):
             self._plan_next_footstep(force=True)
         else:
             # 站立模式：使用虚拟步点 (当前摆动脚的位置)
-            self._initial_left_foot_pos = self.data.xpos[self.left_foot_id].copy()
-            self._initial_right_foot_pos = self.data.xpos[self.right_foot_id].copy()
-            pelvis_quat = self.data.xquat[self.pelvis_id].copy()
-            r = R.from_quat([pelvis_quat[1], pelvis_quat[2], pelvis_quat[3], pelvis_quat[0]])
-            self._initial_yaw = r.as_euler('xyz')[2]
             self._setup_stand_mode()
 
         # 13. 构建初始观测
@@ -360,16 +354,19 @@ class G1TerrainEnv(gym.Env):
         self.goal_pos = np.array([x_goal, y_goal, 0.0])
 
     def _setup_stand_mode(self):
-        """站立模式：设置虚拟步点，使用复位时的固定脚位置和偏航角。"""
+        """站立模式：设置虚拟步点 (当前摆动脚位置)。"""
         # 确定摆动脚 (与支撑腿相反)
         swing_leg = 1 if self.current_stance == -1 else -1
-        # 使用存储的初始脚位置
-        if swing_leg == -1:
-            foot_pos_world = self._initial_left_foot_pos
-        else:
-            foot_pos_world = self._initial_right_foot_pos
-        # 使用存储的初始偏航角
-        yaw = self._initial_yaw
+        foot_id = self.left_foot_id if swing_leg == -1 else self.right_foot_id
+        foot_pos_world = self.data.xpos[foot_id].copy()
+        # 转换为骨盆坐标系 (仅偏航)
+        pelvis_pos = self.data.xpos[self.pelvis_id].copy()
+        pelvis_quat = self.data.xquat[self.pelvis_id].copy()
+        r = R.from_quat([pelvis_quat[1], pelvis_quat[2], pelvis_quat[3], pelvis_quat[0]])
+        yaw = r.as_euler('xyz')[2]
+        R_yaw_to_world = R.from_euler('z', yaw).as_matrix()
+        R_world_to_pelvis = R_yaw_to_world.T
+        local_pos = R_world_to_pelvis @ (foot_pos_world - pelvis_pos)
         # 构造虚拟步点 (世界坐标系下存储)
         self.target_footstep = {
             'x': foot_pos_world[0],
@@ -670,11 +667,7 @@ class G1TerrainEnv(gym.Env):
         # 步态相位 (左右腿)
         phase_left = self.phase
         phase_right = (self.phase + 0.5) % 1.0
-        sin_left = np.sin(2 * np.pi * phase_left)
-        cos_left = np.cos(2 * np.pi * phase_left)
-        sin_right = np.sin(2 * np.pi * phase_right)
-        cos_right = np.cos(2 * np.pi * phase_right)
-        phase = np.array([sin_left, cos_left, sin_right, cos_right])
+        phase = np.array([phase_left, phase_right])
 
         # 骨盆欧拉角
         pelvis_quat = self.data.xquat[self.pelvis_id].copy()

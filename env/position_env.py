@@ -1,7 +1,6 @@
 '''
-基于原env
-站立模式reset获取脚的位置
-保存初始脚的位置,踩中后切换但不实时读取
+原env基础
+采用position控制
 '''
 
 import os
@@ -253,11 +252,6 @@ class G1TerrainEnv(gym.Env):
             self._plan_next_footstep(force=True)
         else:
             # 站立模式：使用虚拟步点 (当前摆动脚的位置)
-            self._initial_left_foot_pos = self.data.xpos[self.left_foot_id].copy()
-            self._initial_right_foot_pos = self.data.xpos[self.right_foot_id].copy()
-            pelvis_quat = self.data.xquat[self.pelvis_id].copy()
-            r = R.from_quat([pelvis_quat[1], pelvis_quat[2], pelvis_quat[3], pelvis_quat[0]])
-            self._initial_yaw = r.as_euler('xyz')[2]
             self._setup_stand_mode()
 
         # 13. 构建初始观测
@@ -360,16 +354,19 @@ class G1TerrainEnv(gym.Env):
         self.goal_pos = np.array([x_goal, y_goal, 0.0])
 
     def _setup_stand_mode(self):
-        """站立模式：设置虚拟步点，使用复位时的固定脚位置和偏航角。"""
+        """站立模式：设置虚拟步点 (当前摆动脚位置)。"""
         # 确定摆动脚 (与支撑腿相反)
         swing_leg = 1 if self.current_stance == -1 else -1
-        # 使用存储的初始脚位置
-        if swing_leg == -1:
-            foot_pos_world = self._initial_left_foot_pos
-        else:
-            foot_pos_world = self._initial_right_foot_pos
-        # 使用存储的初始偏航角
-        yaw = self._initial_yaw
+        foot_id = self.left_foot_id if swing_leg == -1 else self.right_foot_id
+        foot_pos_world = self.data.xpos[foot_id].copy()
+        # 转换为骨盆坐标系 (仅偏航)
+        pelvis_pos = self.data.xpos[self.pelvis_id].copy()
+        pelvis_quat = self.data.xquat[self.pelvis_id].copy()
+        r = R.from_quat([pelvis_quat[1], pelvis_quat[2], pelvis_quat[3], pelvis_quat[0]])
+        yaw = r.as_euler('xyz')[2]
+        R_yaw_to_world = R.from_euler('z', yaw).as_matrix()
+        R_world_to_pelvis = R_yaw_to_world.T
+        local_pos = R_world_to_pelvis @ (foot_pos_world - pelvis_pos)
         # 构造虚拟步点 (世界坐标系下存储)
         self.target_footstep = {
             'x': foot_pos_world[0],
@@ -530,18 +527,14 @@ class G1TerrainEnv(gym.Env):
         return obs, reward, terminated, truncated, info
 
     def _apply_action(self, action):
-        """将动作应用到执行器 (增量控制)。"""
-        # 当前关节角度
-        qpos = self.data.qpos
-        # 目标角度 = 当前角度 + action * max_delta (缩放因子)
-        # 缩放因子根据关节范围设置 (这里简单使用0.2)
-        max_delta = 0.2  # 可调整
-        target_qpos = qpos[self.joint_indices] + action * max_delta
-        # 裁剪到关节限位 (使用ctrlrange)
+        """将动作直接映射为关节目标角度（位置控制）。"""
+        # action 是 [-1, 1] 的归一化值，映射到每个关节的物理限位
+        target_qpos = np.zeros_like(action)
         for i, idx in enumerate(self.actuator_indices):
             low, high = self.model.actuator_ctrlrange[idx]
-            target_qpos[i] = np.clip(target_qpos[i], low, high)
-        # 设置ctrl
+            # 将 [-1, 1] 线性映射到 [low, high]
+            target_qpos[i] = low + (action[i] + 1.0) * 0.5 * (high - low)
+        # 直接设置目标角度
         self.data.ctrl[self.actuator_indices] = target_qpos
 
     def _compute_reward(self, action):

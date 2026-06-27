@@ -1,3 +1,9 @@
+'''
+初始版本
+单个脚跟踪
+'''
+
+
 import os
 import time
 import gymnasium as gym
