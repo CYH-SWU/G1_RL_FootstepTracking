@@ -189,7 +189,7 @@ class G1FootstepPlanner:
 
         if best_step is None:
             # 尝试原地迈步
-            fallback_x = cx + self.step * 0.5  # 小步
+            fallback_x = cx + self.step  
             fallback_y = cy + dy_offset
             # 查地形
             terrain_h, _ = self._get_terrain(fallback_x, fallback_y)
@@ -197,6 +197,5 @@ class G1FootstepPlanner:
                 terrain_h = cz
             nz = terrain_h + self.clearance
             best_step = Footstep(x=fallback_x, y=fallback_y, z=nz, yaw=0.0, foot=next_stance)
-            print("警告：无可行候选步，采用原地迈步回退。")
 
         return best_step, next_stance

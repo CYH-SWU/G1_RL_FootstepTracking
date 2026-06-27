@@ -176,3 +176,51 @@ def calc_torque_penalty(torques, max_torques):
     """
     norm_torques = torques / (max_torques + 1e-6)
     return -np.mean(norm_torques**2)
+
+
+def calc_step_reward(left_pos, right_pos, target_pos, pelvis_xy, target_reached):
+    """
+    步点跟踪奖励（LHW 风格）：取左右脚到目标的最小距离，计算命中奖励，
+    并加上骨盆向目标移动的进度奖励。
+
+    Args:
+        left_pos: 左脚世界坐标 (3,)
+        right_pos: 右脚世界坐标 (3,)
+        target_pos: 目标步点世界坐标 (3,)
+        pelvis_xy: 骨盆 XY 坐标 (2,)
+
+    Returns:
+        float: 步点跟踪奖励值
+    """
+    hit_reward = 0
+    # 计算左右脚到目标的距离，取最小值
+    if target_reached:
+        d_left = np.linalg.norm(left_pos - target_pos)
+        d_right = np.linalg.norm(right_pos - target_pos)
+        d = min(d_left, d_right)
+
+        # 命中奖励：指数衰减
+        hit_reward = np.exp(-d / 0.25)
+
+    # 进度奖励：骨盆到目标 XY 的距离
+    target_xy = target_pos[:2]
+    root_dist_to_target = np.linalg.norm(pelvis_xy - target_xy)
+    progress_reward = np.exp(-root_dist_to_target / 2.0)
+
+    return 0.8 * hit_reward + 0.2 * progress_reward
+
+def calc_posture_error_reward(current_joint_angles, nominal_angles):
+    """
+    姿态误差奖励（LHW 风格）。
+    计算当前关节角度与标称姿态的欧氏距离，返回指数衰减奖励。
+    奖励值 = exp(-||current - nominal||)
+
+    Args:
+        current_joint_angles: 当前关节角度 (13,)
+        nominal_angles: 标称关节角度 (13,)，顺序与 joint_indices 一致
+
+    Returns:
+        float: 奖励值，范围 (0, 1]
+    """
+    error = np.linalg.norm(current_joint_angles - nominal_angles)
+    return np.exp(-error)

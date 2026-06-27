@@ -23,7 +23,7 @@ from policies.sb3_lhw_policy import LHWPolicy
 project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
-from env.g1_terrain_env import G1TerrainEnv
+from env.LHW_env import G1TerrainEnv
 
 # -------------------- 配置参数 --------------------
 ROBOT_XML = project_root / "robot" / "g1_processed.xml"
@@ -41,7 +41,7 @@ TOTAL_TIMESTEPS = 200 * 1500       # 总训练步数（可根据需要调整）
 MAX_EPISODE_STEPS = 2000       # 单回合最大步数
 
 # 课程学习：达到最大难度所需的总步数（通常与总步数一致）
-TOTAL_TIMESTEPS_FOR_MAX = 11_000_00000000
+TOTAL_TIMESTEPS_FOR_MAX = 11000 * 1500
 
 # -------------------- 环境创建 --------------------
 def make_env():
@@ -113,7 +113,7 @@ model = PPO(
     n_steps=500,    
     tensorboard_log=str(LOG_DIR),
     device='cpu',
-    ent_coef=0.01
+    ent_coef=0.05
 )
 
 # -------------------- 训练 --------------------

@@ -18,13 +18,13 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
-from env.g1_terrain_env import G1TerrainEnv
+from env.LHW_env import G1TerrainEnv
 
 
 def main():
     # 文件路径
-    model_path = project_root / "checkpoints" / "ppo_g1_450000_steps.zip"
-    norm_path = project_root / "checkpoints" / "ppo_g1_vecnormalize_450000_steps.pkl"
+    model_path = project_root / "checkpoints" / "ppo_g1_final.zip"
+    norm_path = project_root / "checkpoints" / "vec_normalize_final.pkl"
     robot_xml = project_root / "robot" / "g1_processed.xml"
     mesh_dir = project_root / "robot" / "assets"
 
