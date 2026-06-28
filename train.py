@@ -85,7 +85,7 @@ class CurriculumCallback(BaseCallback):
         return True
 
 # -------------------- 检查点回调 --------------------
-save_freq = TOTAL_TIMESTEPS / 4
+save_freq = TOTAL_TIMESTEPS / 1
 checkpoint_callback = CheckpointCallback(
     save_freq=save_freq/N_ENVS,
     save_path=str(CHECKPOINT_DIR),

@@ -41,6 +41,22 @@ STAND_ANGLES = {
     "right_wrist_yaw_joint": 0.0,
 }
 
+KP_MAP = {
+    "left_hip_pitch_joint": 116,
+    "left_hip_roll_joint": 116,
+    "left_hip_yaw_joint": 116,
+    "left_knee_joint": 145,
+    "left_ankle_pitch_joint": 46,
+    "left_ankle_roll_joint": 46,
+    "right_hip_pitch_joint": 116,
+    "right_hip_roll_joint": 116,
+    "right_hip_yaw_joint": 116,
+    "right_knee_joint": 145,
+    "right_ankle_pitch_joint": 46,
+    "right_ankle_roll_joint": 46,
+    "waist_pitch_joint": 100,  
+}
+
 def process_g1_model(input_path=None, output_path=None):
     in_path = Path(input_path) if input_path else DEFAULT_INPUT
     out_path = Path(output_path) if output_path else DEFAULT_OUTPUT
@@ -78,8 +94,11 @@ def process_g1_model(input_path=None, output_path=None):
                 if "inheritrange" in actuator.attrib:
                     del actuator.attrib["inheritrange"]
                 actuator.set("inheritrange", "0")
-                actuator.set("kp", "250")
-                actuator.set("dampratio", "1")
+                kp = KP_MAP.get(joint_name, 120)  
+                actuator.set("kp", str(kp))
+                actuator.set("dampratio", "1.0")
+                if "kd" in actuator.attrib:
+                    del actuator.attrib["kd"]
 
                 joint = root.find(f".//joint[@name='{joint_name}']")
                 if joint is not None:
@@ -88,6 +107,14 @@ def process_g1_model(input_path=None, output_path=None):
                         actuator.set("ctrlrange", joint_range)
                     else:
                         print(f"Warning: joint '{joint_name}' has no range, ctrlrange not set.")
+
+                    # 设置力矩限幅
+                    joint_force_range = joint.get("actuatorfrcrange")
+                    if joint_force_range:
+                        actuator.set("forcerange", joint_force_range)
+                    else:
+                        print(f"Warning: joint '{joint_name}' has no actuatorfrcrange, forcerange not set.")
+                
                 else:
                     print(f"Warning: no joint found for actuator '{joint_name}', ctrlrange not set.")
 

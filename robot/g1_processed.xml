@@ -255,28 +255,28 @@
                 </body>
               </body>
             </body>
-          <camera name="chest_camera" pos="0.1 0 0" euler="0.0 -0.5236 -1.5708" fovy="60" /></body>
+          <camera name="chest_camera" pos="0.1 0 0" euler="0 -0.5236 -1.5708" fovy="60" /></body>
         </body>
       </body>
     </body>
   </worldbody>
 
   <actuator>
-    <position class="g1" name="left_hip_pitch_joint" joint="left_hip_pitch_joint" inheritrange="0" kp="250" dampratio="1" ctrlrange="-2.5307 2.8798" />
-    <position class="g1" name="left_hip_roll_joint" joint="left_hip_roll_joint" inheritrange="0" kp="250" dampratio="1" ctrlrange="-0.5236 2.9671" />
-    <position class="g1" name="left_hip_yaw_joint" joint="left_hip_yaw_joint" inheritrange="0" kp="250" dampratio="1" ctrlrange="-2.7576 2.7576" />
-    <position class="g1" name="left_knee_joint" joint="left_knee_joint" inheritrange="0" kp="250" dampratio="1" ctrlrange="-0.087267 2.8798" />
-    <position class="g1" name="left_ankle_pitch_joint" joint="left_ankle_pitch_joint" inheritrange="0" kp="250" dampratio="1" ctrlrange="-0.87267 0.5236" />
-    <position class="g1" name="left_ankle_roll_joint" joint="left_ankle_roll_joint" inheritrange="0" kp="250" dampratio="1" ctrlrange="-0.2618 0.2618" />
+    <position class="g1" name="left_hip_pitch_joint" joint="left_hip_pitch_joint" inheritrange="0" kp="116" dampratio="1.0" ctrlrange="-2.5307 2.8798" forcerange="-88 88" />
+    <position class="g1" name="left_hip_roll_joint" joint="left_hip_roll_joint" inheritrange="0" kp="116" dampratio="1.0" ctrlrange="-0.5236 2.9671" forcerange="-139 139" />
+    <position class="g1" name="left_hip_yaw_joint" joint="left_hip_yaw_joint" inheritrange="0" kp="116" dampratio="1.0" ctrlrange="-2.7576 2.7576" forcerange="-88 88" />
+    <position class="g1" name="left_knee_joint" joint="left_knee_joint" inheritrange="0" kp="145" dampratio="1.0" ctrlrange="-0.087267 2.8798" forcerange="-139 139" />
+    <position class="g1" name="left_ankle_pitch_joint" joint="left_ankle_pitch_joint" inheritrange="0" kp="46" dampratio="1.0" ctrlrange="-0.87267 0.5236" forcerange="-50 50" />
+    <position class="g1" name="left_ankle_roll_joint" joint="left_ankle_roll_joint" inheritrange="0" kp="46" dampratio="1.0" ctrlrange="-0.2618 0.2618" forcerange="-50 50" />
 
-    <position class="g1" name="right_hip_pitch_joint" joint="right_hip_pitch_joint" inheritrange="0" kp="250" dampratio="1" ctrlrange="-2.5307 2.8798" />
-    <position class="g1" name="right_hip_roll_joint" joint="right_hip_roll_joint" inheritrange="0" kp="250" dampratio="1" ctrlrange="-2.9671 0.5236" />
-    <position class="g1" name="right_hip_yaw_joint" joint="right_hip_yaw_joint" inheritrange="0" kp="250" dampratio="1" ctrlrange="-2.7576 2.7576" />
-    <position class="g1" name="right_knee_joint" joint="right_knee_joint" inheritrange="0" kp="250" dampratio="1" ctrlrange="-0.087267 2.8798" />
-    <position class="g1" name="right_ankle_pitch_joint" joint="right_ankle_pitch_joint" inheritrange="0" kp="250" dampratio="1" ctrlrange="-0.87267 0.5236" />
-    <position class="g1" name="right_ankle_roll_joint" joint="right_ankle_roll_joint" inheritrange="0" kp="250" dampratio="1" ctrlrange="-0.2618 0.2618" />
+    <position class="g1" name="right_hip_pitch_joint" joint="right_hip_pitch_joint" inheritrange="0" kp="116" dampratio="1.0" ctrlrange="-2.5307 2.8798" forcerange="-88 88" />
+    <position class="g1" name="right_hip_roll_joint" joint="right_hip_roll_joint" inheritrange="0" kp="116" dampratio="1.0" ctrlrange="-2.9671 0.5236" forcerange="-139 139" />
+    <position class="g1" name="right_hip_yaw_joint" joint="right_hip_yaw_joint" inheritrange="0" kp="116" dampratio="1.0" ctrlrange="-2.7576 2.7576" forcerange="-88 88" />
+    <position class="g1" name="right_knee_joint" joint="right_knee_joint" inheritrange="0" kp="145" dampratio="1.0" ctrlrange="-0.087267 2.8798" forcerange="-139 139" />
+    <position class="g1" name="right_ankle_pitch_joint" joint="right_ankle_pitch_joint" inheritrange="0" kp="46" dampratio="1.0" ctrlrange="-0.87267 0.5236" forcerange="-50 50" />
+    <position class="g1" name="right_ankle_roll_joint" joint="right_ankle_roll_joint" inheritrange="0" kp="46" dampratio="1.0" ctrlrange="-0.2618 0.2618" forcerange="-50 50" />
 
-    <position class="g1" name="waist_pitch_joint" joint="waist_pitch_joint" inheritrange="0" kp="250" dampratio="1" ctrlrange="-0.52 0.52" />
+    <position class="g1" name="waist_pitch_joint" joint="waist_pitch_joint" inheritrange="0" kp="100" dampratio="1.0" ctrlrange="-0.52 0.52" forcerange="-50 50" />
 
     </actuator>
 

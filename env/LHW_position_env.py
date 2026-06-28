@@ -12,7 +12,7 @@ obs为两个时钟信号
 使用LHW的步点跟踪奖励函数
 加入标称姿态奖励函数
 站立模式下足部速度奖励max_vel = 0.2
-骨盆高度 = 世界坐标系下骨盆高度 - 双足的最低高度
+使用position控制
 '''
 
 import os
@@ -459,12 +459,14 @@ class G1TerrainEnv(gym.Env):
         return obs, reward, terminated, truncated, info
 
     def _apply_action(self, action):
-        qpos = self.data.qpos
-        max_delta = 0.1
-        target_qpos = qpos[self.joint_indices] + action * max_delta
+        """将动作直接映射为关节目标角度（位置控制）。"""
+        # action 是 [-1, 1] 的归一化值，映射到每个关节的物理限位
+        target_qpos = np.zeros_like(action)
         for i, idx in enumerate(self.actuator_indices):
             low, high = self.model.actuator_ctrlrange[idx]
-            target_qpos[i] = np.clip(target_qpos[i], low, high)
+            # 将 [-1, 1] 线性映射到 [low, high]
+            target_qpos[i] = low + (action[i] + 1.0) * 0.5 * (high - low)
+        # 直接设置目标角度
         self.data.ctrl[self.actuator_indices] = target_qpos
 
     def _compute_reward(self, action):
@@ -475,13 +477,15 @@ class G1TerrainEnv(gym.Env):
         right_vel = self._get_body_linvel(self.right_foot_id)
 
         pelvis_z = self.data.qpos[2]
-        foot_z = min(self.data.xpos[self.left_foot_id][2], self.data.xpos[self.right_foot_id][2])
+        stance_foot_id = self.left_foot_id if self.current_stance == -1 else self.right_foot_id
+        foot_z = self.data.xpos[stance_foot_id][2]
 
         pelvis_yaw = self._get_pelvis_yaw()
         target_yaw = self.target_footstep['yaw'] if self.target_footstep is not None else 0.0
 
         # ---------- LHW 风格步点跟踪奖励：不再需要 swing_pos ----------
         pelvis_xy = self.data.xpos[self.pelvis_id][:2]
+        goal_xy = self.goal_pos[:2]
         head_xy = self.data.xpos[self.head_id][:2]
 
         total_mass = sum(self.model.body_mass)
@@ -506,7 +510,7 @@ class G1TerrainEnv(gym.Env):
             r_vel = calc_foot_vel_clock_reward(left_vel, right_vel, self.phase, 0.7)
 
         r_orient = calc_body_orient_reward(pelvis_yaw, target_yaw)
-        r_height = calc_height_reward(pelvis_z, foot_z, goal_height=0.75, deadzone=0.023)
+        r_height = calc_height_reward(pelvis_z, foot_z, goal_height=0.75, deadzone=0.0235)
 
         # ---------- 使用新的 LHW 风格步点跟踪奖励 ----------
         if self.target_footstep is not None:
@@ -535,7 +539,7 @@ class G1TerrainEnv(gym.Env):
             'height': 0.050,
             'step': 0.450, 
             'stability': 0.050, 
-            'posture': 0.100, 
+            'posture': 0.10, 
             'action': 0.000, 
             'torque': 0.000
         }
@@ -558,7 +562,8 @@ class G1TerrainEnv(gym.Env):
         joint_vels = qvel[self.joint_vel_indices]
 
         pelvis_z = self.data.qpos[2]
-        foot_z = min(self.data.xpos[self.left_foot_id][2], self.data.xpos[self.right_foot_id][2])
+        stance_foot = self.left_foot_id if self.current_stance == -1 else self.right_foot_id
+        foot_z = self.data.xpos[stance_foot][2]
         pelvis_height = pelvis_z - foot_z
 
         if self.target_footstep is not None:
@@ -609,7 +614,8 @@ class G1TerrainEnv(gym.Env):
 
     def _check_termination(self):
         pelvis_z = self.data.qpos[2]
-        foot_z = min(self.data.xpos[self.left_foot_id][2], self.data.xpos[self.right_foot_id][2])
+        stance_foot = self.left_foot_id if self.current_stance == -1 else self.right_foot_id
+        foot_z = self.data.xpos[stance_foot][2]
         height = pelvis_z - foot_z
         if height < self.fall_height_threshold:
             return True

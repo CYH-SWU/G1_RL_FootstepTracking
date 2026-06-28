@@ -120,25 +120,6 @@ def calc_height_reward(pelvis_z, foot_z, goal_height=0.75, deadzone=0.0235, k_he
     return np.exp(-k_height * error**2)
 
 
-def calc_step_reward(swing_foot_pos, target_pos, pelvis_xy, goal_xy):
-    """
-    步点跟踪奖励。
-    
-    :param swing_foot_pos: 摆动脚世界坐标 (3,)
-    :param target_pos: 目标步点世界坐标 (3,)
-    :param pelvis_xy: 骨盆 XY 坐标 (2,)
-    :param goal_xy: 终点 XY 坐标 (2,)
-    :return: 奖励值
-    """
-    d = np.linalg.norm(swing_foot_pos - target_pos)
-    hit_reward = 0.8 * np.exp(-d / 0.25)
-
-    dist_root_to_goal = np.linalg.norm(pelvis_xy - goal_xy)
-    progress_reward = 0.2 * np.exp(-dist_root_to_goal / 2.0)
-
-    return hit_reward + progress_reward
-
-
 def calc_upper_body_stability(head_xy, pelvis_xy):
     """
     上身稳定性奖励 (头部与骨盆 XY 距离)。
