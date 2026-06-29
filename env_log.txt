@@ -13,6 +13,160 @@ approx_kl	初期波动，后期稳定 < 0.02
 合理范围通常在 0.005 到 0.02 之间，一个比较理想的区间是 0.008 到 0.013
 
 
+policy_kwargs = dict(
+    net_arch=dict(pi=[256, 128], vf=[256, 128]),
+    activation_fn=torch.nn.ReLU,
+)
+
+model = PPO(
+    policy="MlpPolicy",
+    env=vec_env,
+    policy_kwargs=policy_kwargs,
+    verbose=1,
+    n_steps=500,    
+    tensorboard_log=str(LOG_DIR),
+    device='cpu',
+    ent_coef=0.01
+)
+
+
+# 定义与宇树 G1 官方配置匹配的网络结构
+policy_kwargs = dict(
+    activation_fn=torch.nn.ELU,
+    net_arch=dict(pi=[32], vf=[32]),
+    lstm_hidden_size=64,
+    n_lstm_layers=1,
+    enable_critic_lstm=True,
+    ortho_init=False,
+)
+
+model = RecurrentPPO(
+    policy="MlpLstmPolicy",
+    env=vec_env,
+    policy_kwargs=policy_kwargs,
+    verbose=1,
+    n_steps=500,
+    tensorboard_log=str(LOG_DIR),
+    device='cpu',
+    ent_coef=0.01,
+)
+
+
+
+STAND_ANGLES = {
+    "left_hip_pitch_joint": 0.0,
+    "left_hip_roll_joint": 0.0,
+    "left_hip_yaw_joint": 0.0,
+    "left_knee_joint": 0.0,          
+    "left_ankle_pitch_joint": 0.0,
+    "left_ankle_roll_joint": 0.0,
+    "right_hip_pitch_joint": 0.0,
+    "right_hip_roll_joint": 0.0,
+    "right_hip_yaw_joint": 0.0,
+    "right_knee_joint": 0.0,
+    "right_ankle_pitch_joint": 0.0,
+    "right_ankle_roll_joint": 0.0,
+    "waist_yaw_joint": 0.0,
+    "waist_roll_joint": 0.0,
+    "waist_pitch_joint": 0.0,
+    "left_shoulder_pitch_joint": 0.2000,
+    "left_shoulder_roll_joint": 0.2000,
+    "left_shoulder_yaw_joint": 0.0,
+    "left_elbow_joint": 1.2800,
+    "left_wrist_roll_joint": 0.0,
+    "left_wrist_pitch_joint": 0.0,
+    "left_wrist_yaw_joint": 0.0,
+    "right_shoulder_pitch_joint": 0.2000,
+    "right_shoulder_roll_joint": -0.2000,
+    "right_shoulder_yaw_joint": 0.0,
+    "right_elbow_joint": 1.2800,
+    "right_wrist_roll_joint": 0.0,
+    "right_wrist_pitch_joint": 0.0,
+    "right_wrist_yaw_joint": 0.0,
+}
+
+
+STAND_ANGLES = {
+    "left_hip_pitch_joint": -0.5235987756,
+    "left_hip_roll_joint": 0.0,
+    "left_hip_yaw_joint": 0.0,
+    "left_knee_joint": 0.872664626,
+    "left_ankle_pitch_joint": -0.34906585,
+    "left_ankle_roll_joint": 0.0,
+    "right_hip_pitch_joint": -0.5235987756,
+    "right_hip_roll_joint": 0.0,
+    "right_hip_yaw_joint": 0.0,
+    "right_knee_joint": 0.872664626,
+    "right_ankle_pitch_joint": -0.34906585,
+    "right_ankle_roll_joint": 0.0,
+    "waist_yaw_joint": 0.0,
+    "waist_roll_joint": 0.0,
+    "waist_pitch_joint": 0.0,
+    "left_shoulder_pitch_joint": 0.2000,
+    "left_shoulder_roll_joint": 0.2000,
+    "left_shoulder_yaw_joint": 0.0,
+    "left_elbow_joint": 0.5235987756,
+    "left_wrist_roll_joint": 0.0,
+    "left_wrist_pitch_joint": 0.0,
+    "left_wrist_yaw_joint": 0.0,
+    "right_shoulder_pitch_joint": 0.2000,
+    "right_shoulder_roll_joint": -0.2000,
+    "right_shoulder_yaw_joint": 0.0,
+    "right_elbow_joint": 0.5235987756,
+    "right_wrist_roll_joint": 0.0,
+    "right_wrist_pitch_joint": 0.0,
+    "right_wrist_yaw_joint": 0.0,
+}
+
+KP_MAP = {
+    "left_hip_pitch_joint": 200,
+    "left_hip_roll_joint": 200,
+    "left_hip_yaw_joint": 200,
+    "left_knee_joint": 250,
+    "left_ankle_pitch_joint": 80,
+    "left_ankle_roll_joint": 80,
+    "right_hip_pitch_joint": 200,
+    "right_hip_roll_joint": 200,
+    "right_hip_yaw_joint": 200,
+    "right_knee_joint": 250,
+    "right_ankle_pitch_joint": 80,
+    "right_ankle_roll_joint": 80,
+    "waist_pitch_joint": 200,   # 保留原有值
+}
+
+KP_MAP = {
+    "left_hip_pitch_joint": 116,
+    "left_hip_roll_joint": 116,
+    "left_hip_yaw_joint": 116,
+    "left_knee_joint": 145,
+    "left_ankle_pitch_joint": 46,
+    "left_ankle_roll_joint": 46,
+    "right_hip_pitch_joint": 116,
+    "right_hip_roll_joint": 116,
+    "right_hip_yaw_joint": 116,
+    "right_knee_joint": 145,
+    "right_ankle_pitch_joint": 46,
+    "right_ankle_roll_joint": 46,
+    "waist_pitch_joint": 100,  
+}
+
+KP_MAP = {
+    "left_hip_pitch_joint": 100,
+    "left_hip_roll_joint": 100,
+    "left_hip_yaw_joint": 100,
+    "left_knee_joint": 150,
+    "left_ankle_pitch_joint": 40,
+    "left_ankle_roll_joint": 40,
+    "right_hip_pitch_joint": 100,
+    "right_hip_roll_joint": 100,
+    "right_hip_yaw_joint": 100,
+    "right_knee_joint": 150,
+    "right_ankle_pitch_joint": 40,
+    "right_ankle_roll_joint": 40,
+    "waist_pitch_joint": 100,   # 与髋关节保持一致
+}
+
+
 6.25
 但难度因子小于0.1时，强制使用站立模式，先让机器人站稳
 代码修改： env.reset中使用if语句进行强制转换
@@ -92,52 +246,24 @@ LHW_env使用position控制器 -> LHW_position_env
 取消惩罚项，posture为0.1, 使用LHW换算kp与kd
 获取了一套标称姿态，自然下不能稳定站立
 使用比例缩小的LHWkp系数
-尝试position控制
+尝试position控制     难以收敛
+参考其他项目
 
-STAND_ANGLES = {
-    "left_hip_pitch_joint": 0.0,
-    "left_hip_roll_joint": 0.0,
-    "left_hip_yaw_joint": 0.0,
-    "left_knee_joint": 0.0,          
-    "left_ankle_pitch_joint": 0.0,
-    "left_ankle_roll_joint": 0.0,
-    "right_hip_pitch_joint": 0.0,
-    "right_hip_roll_joint": 0.0,
-    "right_hip_yaw_joint": 0.0,
-    "right_knee_joint": 0.0,
-    "right_ankle_pitch_joint": 0.0,
-    "right_ankle_roll_joint": 0.0,
-    "waist_yaw_joint": 0.0,
-    "waist_roll_joint": 0.0,
-    "waist_pitch_joint": 0.0,
-    "left_shoulder_pitch_joint": 0.2000,
-    "left_shoulder_roll_joint": 0.2000,
-    "left_shoulder_yaw_joint": 0.0,
-    "left_elbow_joint": 1.2800,
-    "left_wrist_roll_joint": 0.0,
-    "left_wrist_pitch_joint": 0.0,
-    "left_wrist_yaw_joint": 0.0,
-    "right_shoulder_pitch_joint": 0.2000,
-    "right_shoulder_roll_joint": -0.2000,
-    "right_shoulder_yaw_joint": 0.0,
-    "right_elbow_joint": 1.2800,
-    "right_wrist_roll_joint": 0.0,
-    "right_wrist_pitch_joint": 0.0,
-    "right_wrist_yaw_joint": 0.0,
-}
+使用宇树参考标称姿态 LHW项目相同kp
+使用宇树g1的控制方法
+换为宇树g1的kp
 
-KP_MAP = {
-    "left_hip_pitch_joint": 200,
-    "left_hip_roll_joint": 200,
-    "left_hip_yaw_joint": 200,
-    "left_knee_joint": 250,
-    "left_ankle_pitch_joint": 80,
-    "left_ankle_roll_joint": 80,
-    "right_hip_pitch_joint": 200,
-    "right_hip_roll_joint": 200,
-    "right_hip_yaw_joint": 200,
-    "right_knee_joint": 250,
-    "right_ankle_pitch_joint": 80,
-    "right_ankle_roll_joint": 80,
-    "waist_pitch_joint": 200,   # 保留原有值
-}
+使用与宇树一样的网络设置
+
+
+
+后续规划：（env，policy双线）
+env：
+    继续调整env配置，让机器人学会站立
+    修改obs，网络结构采用基于宇树网络的非对称actor-critic结构
+    如果站立效果不错则开始尝试行走
+    训练过程中，验证现有的步态周期与步幅是否合适
+policy：
+    学习参考宇树网络结构
+    设计合理obs信息采取非对称actor-critic结构
+

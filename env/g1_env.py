@@ -14,6 +14,8 @@ obs为两个时钟信号
 站立模式下足部速度奖励max_vel = 0.2
 骨盆高度 = 世界坐标系下骨盆高度 - 双足的最低高度 + 0.0431
 使用宇树g1标称姿态
+使用宇树g1的控制方法
+posture奖励为0.050
 '''
 
 import os
@@ -157,8 +159,10 @@ class G1TerrainEnv(gym.Env):
         ]
         self.nominal_angles = np.array(nominal_list)
 
-        self.nominal_pelvis_height = 0.79   # 标称骨盆高度，单位米
-        self.foot_ankle_offset = 0.0431      # 脚踝到脚底的垂直偏移，单位米
+        self.nominal_pelvis_height = 0.7823   # 标称骨盆高度，单位米
+        self.foot_ankle_offset = 0.0331      # 脚踝到脚底的垂直偏移，单位米
+
+        self.action_scale = 0.25
 
     def _get_body_linvel(self, body_id):
         vel = np.zeros(6)
@@ -326,7 +330,7 @@ class G1TerrainEnv(gym.Env):
             z_terrain = 0.18 * self.difficulty
         else:
             z_terrain = 0
-        self.data.qpos[2] = z_terrain + self.nominal_pelvis_height
+        self.data.qpos[2] = z_terrain + self.nominal_pelvis_height + 0.01
 
     def _set_goal(self):
         if "slope" in self.terrain_mode or "step" in self.terrain_mode:
@@ -463,9 +467,9 @@ class G1TerrainEnv(gym.Env):
         return obs, reward, terminated, truncated, info
 
     def _apply_action(self, action):
-        qpos = self.data.qpos
-        max_delta = 0.1
-        target_qpos = qpos[self.joint_indices] + action * max_delta
+        # 目标角度 = 标称角度 + 动作 * 缩放因子
+        target_qpos = self.nominal_angles + action * self.action_scale
+        # 裁剪到关节限位
         for i, idx in enumerate(self.actuator_indices):
             low, high = self.model.actuator_ctrlrange[idx]
             target_qpos[i] = np.clip(target_qpos[i], low, high)
@@ -540,7 +544,7 @@ class G1TerrainEnv(gym.Env):
             'height': 0.050,
             'step': 0.450, 
             'stability': 0.050, 
-            'posture': 0.100, 
+            'posture': 0.050, 
             'action': 0.000, 
             'torque': 0.000
         }

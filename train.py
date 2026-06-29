@@ -18,12 +18,15 @@ from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_util import make_vec_env
 from policies.sb3_lhw_policy import LHWPolicy
+import torch
+from sb3_contrib import RecurrentPPO
+from sb3_contrib.common.recurrent.policies import RecurrentActorCriticPolicy
 
 # 将项目根目录加入 Python 路径（确保能导入自定义模块）
 project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
-from env.LHW_position_env import G1TerrainEnv
+from env.g1_env import G1TerrainEnv
 
 # -------------------- 配置参数 --------------------
 ROBOT_XML = project_root / "robot" / "g1_processed.xml"
@@ -100,20 +103,30 @@ checkpoint_callback = CheckpointCallback(
 from stable_baselines3 import PPO
 from policies.sb3_lhw_policy import LHWPolicy  # 你的自定义策略
 
+
+
+import torch
+from sb3_contrib import RecurrentPPO
+
+# 定义与宇树 G1 官方配置匹配的网络结构
 policy_kwargs = dict(
-    net_arch=dict(pi=[256, 128], vf=[256, 128]),
-    activation_fn=torch.nn.ReLU,
+    activation_fn=torch.nn.ELU,
+    net_arch=dict(pi=[32], vf=[32]),
+    lstm_hidden_size=64,
+    n_lstm_layers=1,
+    enable_critic_lstm=True,
+    ortho_init=False,
 )
 
-model = PPO(
-    policy="MlpPolicy",
+model = RecurrentPPO(
+    policy="MlpLstmPolicy",
     env=vec_env,
     policy_kwargs=policy_kwargs,
     verbose=1,
-    n_steps=500,    
+    n_steps=500,
     tensorboard_log=str(LOG_DIR),
     device='cpu',
-    ent_coef=0.05
+    ent_coef=0.01,
 )
 
 # -------------------- 训练 --------------------

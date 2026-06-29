@@ -9,23 +9,25 @@ DEFAULT_OUTPUT = Path(__file__).parent / "g1_processed.xml"
 KEEP_JOINT_KEYWORDS = ["hip", "knee", "ankle", "waist_pitch"]
 
 # keyframe数据
+
+
 STAND_ANGLES = {
-    "left_hip_pitch_joint": -0.5235987756,
-    "left_hip_roll_joint": 0.0,
     "left_hip_yaw_joint": 0.0,
-    "left_knee_joint": 0.872664626,
-    "left_ankle_pitch_joint": -0.34906585,
+    "left_hip_roll_joint": 0.0,
+    "left_hip_pitch_joint": -0.1,
+    "left_knee_joint": 0.3,
+    "left_ankle_pitch_joint": -0.2,
     "left_ankle_roll_joint": 0.0,
-    "right_hip_pitch_joint": -0.5235987756,
-    "right_hip_roll_joint": 0.0,
     "right_hip_yaw_joint": 0.0,
-    "right_knee_joint": 0.872664626,
-    "right_ankle_pitch_joint": -0.34906585,
+    "right_hip_roll_joint": 0.0,
+    "right_hip_pitch_joint": -0.1,
+    "right_knee_joint": 0.3,
+    "right_ankle_pitch_joint": -0.2,
     "right_ankle_roll_joint": 0.0,
     "waist_yaw_joint": 0.0,
     "waist_roll_joint": 0.0,
-    "waist_pitch_joint": 0.0,
-    "left_shoulder_pitch_joint": 0.2000,
+    "waist_pitch_joint": 0.0,          # torso_joint -> waist_pitch
+    "left_shoulder_pitch_joint": 0.2000,   # 保留原有上肢角度（宇树未指定，保持原样）
     "left_shoulder_roll_joint": 0.2000,
     "left_shoulder_yaw_joint": 0.0,
     "left_elbow_joint": 0.5235987756,
@@ -42,20 +44,34 @@ STAND_ANGLES = {
 }
 
 KP_MAP = {
-    "left_hip_pitch_joint": 116,
-    "left_hip_roll_joint": 116,
-    "left_hip_yaw_joint": 116,
-    "left_knee_joint": 145,
-    "left_ankle_pitch_joint": 46,
-    "left_ankle_roll_joint": 46,
-    "right_hip_pitch_joint": 116,
-    "right_hip_roll_joint": 116,
-    "right_hip_yaw_joint": 116,
-    "right_knee_joint": 145,
-    "right_ankle_pitch_joint": 46,
-    "right_ankle_roll_joint": 46,
-    "waist_pitch_joint": 100,  
+    "left_hip_pitch_joint": 100,
+    "left_hip_roll_joint": 100,
+    "left_hip_yaw_joint": 100,
+    "left_knee_joint": 150,
+    "left_ankle_pitch_joint": 40,
+    "left_ankle_roll_joint": 40,
+    "right_hip_pitch_joint": 100,
+    "right_hip_roll_joint": 100,
+    "right_hip_yaw_joint": 100,
+    "right_knee_joint": 150,
+    "right_ankle_pitch_joint": 40,
+    "right_ankle_roll_joint": 40,
+    "waist_pitch_joint": 100,   
 }
+
+# 阻尼比配置
+def get_dampratio(joint_name: str) -> float:
+    """根据关节名称返回推荐的 dampratio 值"""
+    if "hip" in joint_name.lower():
+        return 0.9
+    elif "knee" in joint_name.lower():
+        return 1.0
+    elif "ankle" in joint_name.lower():
+        return 1.2
+    elif "waist" in joint_name.lower():
+        return 0.9
+    else:
+        return 1.0 
 
 def process_g1_model(input_path=None, output_path=None):
     in_path = Path(input_path) if input_path else DEFAULT_INPUT
@@ -96,7 +112,8 @@ def process_g1_model(input_path=None, output_path=None):
                 actuator.set("inheritrange", "0")
                 kp = KP_MAP.get(joint_name, 120)  
                 actuator.set("kp", str(kp))
-                actuator.set("dampratio", "1.0")
+                dampratio = get_dampratio(joint_name)
+                actuator.set("dampratio", str(dampratio))
                 if "kd" in actuator.attrib:
                     del actuator.attrib["kd"]
 
