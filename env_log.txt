@@ -85,15 +85,59 @@ LHW_env使用position控制器 -> LHW_position_env
 问题：
     抖动明显，重心偏低，略微劈叉，腰微弯曲
 
-
+第一次粗调 过软
 
 6.29
+基准线ppo_7
 取消惩罚项，posture为0.1, 使用LHW换算kp与kd
-解决站立抖动与劈叉问题
-思路：（基于站立模式）
-    1.粗设置一套pd控制参数
-    2.修改标称姿态，机器人整体膝盖微微弯曲 
-    3.精调pd控制器参数 更改gen_xml文件
-    5.改用position控制并且使用LHW定义的策略网络
-建议：
-    1，2，3步的调整先使用max_delta = 0.1，之后略微提高max_delta
+获取了一套标称姿态，自然下不能稳定站立
+使用比例缩小的LHWkp系数
+尝试position控制
+
+STAND_ANGLES = {
+    "left_hip_pitch_joint": 0.0,
+    "left_hip_roll_joint": 0.0,
+    "left_hip_yaw_joint": 0.0,
+    "left_knee_joint": 0.0,          
+    "left_ankle_pitch_joint": 0.0,
+    "left_ankle_roll_joint": 0.0,
+    "right_hip_pitch_joint": 0.0,
+    "right_hip_roll_joint": 0.0,
+    "right_hip_yaw_joint": 0.0,
+    "right_knee_joint": 0.0,
+    "right_ankle_pitch_joint": 0.0,
+    "right_ankle_roll_joint": 0.0,
+    "waist_yaw_joint": 0.0,
+    "waist_roll_joint": 0.0,
+    "waist_pitch_joint": 0.0,
+    "left_shoulder_pitch_joint": 0.2000,
+    "left_shoulder_roll_joint": 0.2000,
+    "left_shoulder_yaw_joint": 0.0,
+    "left_elbow_joint": 1.2800,
+    "left_wrist_roll_joint": 0.0,
+    "left_wrist_pitch_joint": 0.0,
+    "left_wrist_yaw_joint": 0.0,
+    "right_shoulder_pitch_joint": 0.2000,
+    "right_shoulder_roll_joint": -0.2000,
+    "right_shoulder_yaw_joint": 0.0,
+    "right_elbow_joint": 1.2800,
+    "right_wrist_roll_joint": 0.0,
+    "right_wrist_pitch_joint": 0.0,
+    "right_wrist_yaw_joint": 0.0,
+}
+
+KP_MAP = {
+    "left_hip_pitch_joint": 200,
+    "left_hip_roll_joint": 200,
+    "left_hip_yaw_joint": 200,
+    "left_knee_joint": 250,
+    "left_ankle_pitch_joint": 80,
+    "left_ankle_roll_joint": 80,
+    "right_hip_pitch_joint": 200,
+    "right_hip_roll_joint": 200,
+    "right_hip_yaw_joint": 200,
+    "right_knee_joint": 250,
+    "right_ankle_pitch_joint": 80,
+    "right_ankle_roll_joint": 80,
+    "waist_pitch_joint": 200,   # 保留原有值
+}

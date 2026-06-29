@@ -12,7 +12,7 @@ obs为两个时钟信号
 使用LHW的步点跟踪奖励函数
 加入标称姿态奖励函数
 站立模式下足部速度奖励max_vel = 0.2
-骨盆高度 = 世界坐标系下骨盆高度 - 双足的最低高度
+骨盆高度 = 世界坐标系下骨盆高度 - 双足的最低高度 + 0.0431
 '''
 
 import os
@@ -140,21 +140,24 @@ class G1TerrainEnv(gym.Env):
         self.fall_height_threshold = 0.35
 
         nominal_list = [
-        0.0,  # left_hip_pitch
-        0.0,  # left_hip_roll
-        0.0,  # left_hip_yaw
-        0.0,  # left_knee
-        0.0,  # left_ankle_pitch
-        0.0,  # left_ankle_roll
-        0.0,  # right_hip_pitch
-        0.0,  # right_hip_roll
-        0.0,  # right_hip_yaw
-        0.0,  # right_knee
-        0.0,  # right_ankle_pitch
-        0.0,  # right_ankle_roll
-        0.0   # waist_pitch
+            -0.5235987756,  # left_hip_pitch
+            0.0,            # left_hip_roll
+            0.0,            # left_hip_yaw
+            0.872664626,    # left_knee
+            -0.34906585,    # left_ankle_pitch
+            0.0,            # left_ankle_roll
+            -0.5235987756,  # right_hip_pitch
+            0.0,            # right_hip_roll
+            0.0,            # right_hip_yaw
+            0.872664626,    # right_knee
+            -0.34906585,    # right_ankle_pitch
+            0.0,            # right_ankle_roll
+            0.0             # waist_pitch
         ]
         self.nominal_angles = np.array(nominal_list)
+
+        self.nominal_pelvis_height = 0.7368   # 标称骨盆高度，单位米
+        self.foot_ankle_offset = 0.0431      # 脚踝到脚底的垂直偏移，单位米
 
     def _get_body_linvel(self, body_id):
         vel = np.zeros(6)
@@ -322,7 +325,7 @@ class G1TerrainEnv(gym.Env):
             z_terrain = 0.18 * self.difficulty
         else:
             z_terrain = 0
-        self.data.qpos[2] = z_terrain + 0.80
+        self.data.qpos[2] = z_terrain + self.nominal_pelvis_height
 
     def _set_goal(self):
         if "slope" in self.terrain_mode or "step" in self.terrain_mode:
@@ -475,7 +478,7 @@ class G1TerrainEnv(gym.Env):
         right_vel = self._get_body_linvel(self.right_foot_id)
 
         pelvis_z = self.data.qpos[2]
-        foot_z = min(self.data.xpos[self.left_foot_id][2], self.data.xpos[self.right_foot_id][2])
+        foot_z = min(self.data.xpos[self.left_foot_id][2], self.data.xpos[self.right_foot_id][2]) - self.foot_ankle_offset
 
         pelvis_yaw = self._get_pelvis_yaw()
         target_yaw = self.target_footstep['yaw'] if self.target_footstep is not None else 0.0
@@ -506,7 +509,8 @@ class G1TerrainEnv(gym.Env):
             r_vel = calc_foot_vel_clock_reward(left_vel, right_vel, self.phase, 0.7)
 
         r_orient = calc_body_orient_reward(pelvis_yaw, target_yaw)
-        r_height = calc_height_reward(pelvis_z, foot_z, goal_height=0.75, deadzone=0.023)
+        nominal_pelvis_height = self.nominal_pelvis_height
+        r_height = calc_height_reward(pelvis_z, foot_z, goal_height=nominal_pelvis_height, deadzone=0.023)
 
         # ---------- 使用新的 LHW 风格步点跟踪奖励 ----------
         if self.target_footstep is not None:
@@ -558,7 +562,7 @@ class G1TerrainEnv(gym.Env):
         joint_vels = qvel[self.joint_vel_indices]
 
         pelvis_z = self.data.qpos[2]
-        foot_z = min(self.data.xpos[self.left_foot_id][2], self.data.xpos[self.right_foot_id][2])
+        foot_z = min(self.data.xpos[self.left_foot_id][2], self.data.xpos[self.right_foot_id][2]) - self.foot_ankle_offset
         pelvis_height = pelvis_z - foot_z
 
         if self.target_footstep is not None:
@@ -609,7 +613,7 @@ class G1TerrainEnv(gym.Env):
 
     def _check_termination(self):
         pelvis_z = self.data.qpos[2]
-        foot_z = min(self.data.xpos[self.left_foot_id][2], self.data.xpos[self.right_foot_id][2])
+        foot_z = min(self.data.xpos[self.left_foot_id][2], self.data.xpos[self.right_foot_id][2]) - self.foot_ankle_offset
         height = pelvis_z - foot_z
         if height < self.fall_height_threshold:
             return True

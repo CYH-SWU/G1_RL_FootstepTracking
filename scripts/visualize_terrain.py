@@ -33,7 +33,7 @@ def main():
 
     print("生成平地地形...")
     model, data = terrain_gen.generate(
-        mode="rough",     # flat, rough, slope, steps  
+        mode="flat",     # flat, rough, slope, steps  
         difficulty=1,       
         goal_pos=(7.5, 0.0)    
     )
@@ -43,7 +43,7 @@ def main():
         mujoco.mj_resetDataKeyframe(model, data, key_id)
         # actuator_qpos_indices = [7,8,9,10,11,12,13,14,15,16,17,18,21]
         # data.ctrl[:] = data.qpos[actuator_qpos_indices]
-        data.qpos[2] = 0.95 #手动修改骨盆高度
+        data.qpos[2] = 0.7368 #手动修改骨盆高度
         print("已重置到 'stand' 关键帧并同步 ctrl。")
     else:
         print("警告: 未找到 'stand' 关键帧，使用默认重置。")

@@ -103,7 +103,7 @@ def calc_body_orient_reward(pelvis_yaw, target_yaw):
     return np.exp(-10.0 * delta**2)
 
 
-def calc_height_reward(pelvis_z, foot_z, goal_height=0.75, deadzone=0.0235, k_height=100.0):
+def calc_height_reward(pelvis_z, foot_z, goal_height=0.7368, deadzone=0.0235, k_height=100.0):
     """
     骨盆高度奖励。
     
