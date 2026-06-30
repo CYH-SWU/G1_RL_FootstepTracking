@@ -298,3 +298,13 @@ LHW_env使用position控制器 -> LHW_position_env
 action_scale = 0.4 控制频率100 kp
 
 使用非对称 与 LSTM网络
+
+非对称效果不错
+
+7.1
+解决抖动问题：
+    适当提高训练时长
+    使用记忆网络
+    启用惩罚项
+
+env与策略网络双线（参考宇树与LHW仓库）

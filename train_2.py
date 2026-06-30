@@ -21,7 +21,7 @@ from stable_baselines3.common.env_util import make_vec_env
 project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
-from env.g1_anti_env import G1TerrainEnv
+from env.g1_anti_vec_env import G1TerrainEnv
 
 # -------------------- 配置参数 --------------------
 ROBOT_XML = project_root / "robot" / "g1_processed.xml"
