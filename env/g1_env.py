@@ -62,7 +62,7 @@ class G1TerrainEnv(gym.Env):
         probabilities: list = None,
         total_timesteps_for_max: int = 11000 * 1500,
         max_episode_steps: int = 2000,
-        control_dt: float = 0.02,
+        control_dt: float = 0.005,   
         physics_dt: float = 0.001,
         goal_radius: float = 7.5,
         **kwargs

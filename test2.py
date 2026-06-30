@@ -18,18 +18,12 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
-from env.LHW_env import G1TerrainEnv
-
-# "ppo_g1_2.zip"
-# "vec_2.pkl"
-# "ppo_g1_final.zip"
-# "vec_normalize_final.pkl"
+from env.g1_env import G1TerrainEnv
 
 def main():
     # 文件路径
     model_path = project_root / "checkpoints" / "ppo_g1_final.zip"
     norm_path = project_root / "checkpoints" / "vec_normalize_final.pkl"
-
     
     robot_xml = project_root / "robot" / "g1_processed.xml"
     mesh_dir = project_root / "robot" / "assets"
@@ -43,7 +37,7 @@ def main():
         print(f"错误：模型文件不存在: {model_path}")
         return
 
-    # 1. 创建基础环境
+    # 1. 创建基础环境（确保与训练时的参数一致）
     base_env = G1TerrainEnv(
         robot_xml_path=str(robot_xml),
         mesh_dir=str(mesh_dir),
@@ -54,10 +48,12 @@ def main():
     # 2. 包装为 VecEnv（单环境）
     vec_env = DummyVecEnv([lambda: base_env])
 
-    # 3. 加载归一化参数（如果存在）
+    # 3. 加载归一化参数
     if norm_path.exists():
         vec_env = VecNormalize.load(str(norm_path), vec_env)
-        print("已加载 VecNormalize 统计量")
+        # ★★★ 关键修复：冻结归一化统计量的更新 ★★★
+        vec_env.training = False
+        print("已加载 VecNormalize 统计量，并设置为评估模式（training=False）")
     else:
         print("警告：未找到归一化文件，假设环境未归一化。")
 
@@ -72,7 +68,7 @@ def main():
     else:
         raw_env = vec_env.envs[0]
 
-    # 6. 重置环境
+    # 6. 重置环境（确保归一化统计量生效）
     obs = vec_env.reset()
     print("环境已重置，开始评估...")
 
@@ -124,8 +120,8 @@ def main():
             # 每100步打印状态
             if step % 100 == 0:
                 pelvis_z = raw_env.data.qpos[2]
-                stance_foot = raw_env.left_foot_id if raw_env.current_stance == -1 else raw_env.right_foot_id
-                foot_z = raw_env.data.xpos[stance_foot][2]
+                foot_z = min(raw_env.data.xpos[raw_env.left_foot_id][2],
+                             raw_env.data.xpos[raw_env.right_foot_id][2]) - raw_env.foot_ankle_offset
                 height = pelvis_z - foot_z
                 dist = np.linalg.norm(raw_env.data.xpos[raw_env.pelvis_id][:2] - raw_env.goal_pos[:2])
                 print(f"  步数 {step:4d}: 奖励={reward:6.2f}, 总奖励={episode_reward:7.2f}, "
@@ -134,7 +130,7 @@ def main():
         episode_rewards.append(episode_reward)
         print(f"Episode {episode} 结束: 总步数={step}, 总奖励={episode_reward:.2f}")
 
-        # 判断终止原因（从 info 中读取）
+        # 判断终止原因
         if done:
             if info.get('terminated', False):
                 dist = np.linalg.norm(raw_env.data.xpos[raw_env.pelvis_id][:2] - raw_env.goal_pos[:2])

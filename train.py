@@ -40,7 +40,7 @@ LOG_DIR.mkdir(exist_ok=True)
 
 # 训练超参数（仅保留环境相关，PPO算法参数使用默认值）
 N_ENVS = 8                    # 并行环境数量
-TOTAL_TIMESTEPS = 200 * 1500       # 总训练步数（可根据需要调整）
+TOTAL_TIMESTEPS = 4 * 200 * 1500       # 总训练步数（可根据需要调整）
 MAX_EPISODE_STEPS = 2000       # 单回合最大步数
 
 # 课程学习：达到最大难度所需的总步数（通常与总步数一致）
@@ -108,25 +108,20 @@ from policies.sb3_lhw_policy import LHWPolicy  # 你的自定义策略
 import torch
 from sb3_contrib import RecurrentPPO
 
-# 定义与宇树 G1 官方配置匹配的网络结构
 policy_kwargs = dict(
-    activation_fn=torch.nn.ELU,
-    net_arch=dict(pi=[32], vf=[32]),
-    lstm_hidden_size=64,
-    n_lstm_layers=1,
-    enable_critic_lstm=True,
-    ortho_init=False,
+    net_arch=dict(pi=[256, 128], vf=[256, 128]),
+    activation_fn=torch.nn.ReLU,
 )
 
-model = RecurrentPPO(
-    policy="MlpLstmPolicy",
+model = PPO(
+    policy="MlpPolicy",
     env=vec_env,
     policy_kwargs=policy_kwargs,
     verbose=1,
-    n_steps=500,
+    n_steps=500,    
     tensorboard_log=str(LOG_DIR),
     device='cpu',
-    ent_coef=0.01,
+    ent_coef=0.01
 )
 
 # -------------------- 训练 --------------------
