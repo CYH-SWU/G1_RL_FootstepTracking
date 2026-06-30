@@ -44,34 +44,33 @@ STAND_ANGLES = {
 }
 
 KP_MAP = {
-    "left_hip_pitch_joint": 100,
-    "left_hip_roll_joint": 100,
-    "left_hip_yaw_joint": 100,
-    "left_knee_joint": 150,
-    "left_ankle_pitch_joint": 40,
-    "left_ankle_roll_joint": 40,
-    "right_hip_pitch_joint": 100,
-    "right_hip_roll_joint": 100,
-    "right_hip_yaw_joint": 100,
-    "right_knee_joint": 150,
-    "right_ankle_pitch_joint": 40,
-    "right_ankle_roll_joint": 40,
-    "waist_pitch_joint": 100,   
+    "left_hip_pitch_joint": 85,
+    "left_hip_roll_joint": 85,
+    "left_hip_yaw_joint": 85,
+    "left_knee_joint": 127,
+    "left_ankle_pitch_joint": 34,
+    "left_ankle_roll_joint": 34,
+    "right_hip_pitch_joint": 85,
+    "right_hip_roll_joint": 85,
+    "right_hip_yaw_joint": 85,
+    "right_knee_joint": 127,
+    "right_ankle_pitch_joint": 34,
+    "right_ankle_roll_joint": 34,
+    "waist_pitch_joint": 85,   # 与髋一致
 }
 
-# 阻尼比配置
 def get_dampratio(joint_name: str) -> float:
-    """根据关节名称返回推荐的 dampratio 值"""
+    """根据关节名称返回推荐的 dampratio 值（action_scale=0.4 时）"""
     if "hip" in joint_name.lower():
-        return 0.9
-    elif "knee" in joint_name.lower():
-        return 1.0
-    elif "ankle" in joint_name.lower():
         return 1.2
+    elif "knee" in joint_name.lower():
+        return 1.3
+    elif "ankle" in joint_name.lower():
+        return 1.5
     elif "waist" in joint_name.lower():
-        return 0.9
+        return 1.2
     else:
-        return 1.0 
+        return 1.0
 
 def process_g1_model(input_path=None, output_path=None):
     in_path = Path(input_path) if input_path else DEFAULT_INPUT

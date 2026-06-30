@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
 人形机器人复杂地形行走训练脚本
-使用 Stable-Baselines3 PPO 算法，支持 DummyVecEnv 并行训练，
-带 VecNormalize 观测归一化和课程学习。
+使用 Stable-Baselines3 PPO + 非对称 Actor-Critic (MultiInputPolicy)
 """
 
 import os
@@ -17,16 +16,12 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_util import make_vec_env
-from policies.sb3_lhw_policy import LHWPolicy
-import torch
-from sb3_contrib import RecurrentPPO
-from sb3_contrib.common.recurrent.policies import RecurrentActorCriticPolicy
 
-# 将项目根目录加入 Python 路径（确保能导入自定义模块）
+
 project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
-from env.g1_env import G1TerrainEnv
+from env.g1_anti_env import G1TerrainEnv
 
 # -------------------- 配置参数 --------------------
 ROBOT_XML = project_root / "robot" / "g1_processed.xml"
@@ -34,21 +29,16 @@ MESH_DIR = project_root / "robot" / "assets"
 CHECKPOINT_DIR = project_root / "checkpoints"
 LOG_DIR = project_root / "logs"
 
-# 创建必要的目录
 CHECKPOINT_DIR.mkdir(exist_ok=True)
 LOG_DIR.mkdir(exist_ok=True)
 
-# 训练超参数（仅保留环境相关，PPO算法参数使用默认值）
-N_ENVS = 8                    # 并行环境数量
-TOTAL_TIMESTEPS = 4 * 200 * 1500       # 总训练步数（可根据需要调整）
-MAX_EPISODE_STEPS = 2000       # 单回合最大步数
-
-# 课程学习：达到最大难度所需的总步数（通常与总步数一致）
+N_ENVS = 8
+TOTAL_TIMESTEPS = 6 * 200 * 1500
+MAX_EPISODE_STEPS = 2000
 TOTAL_TIMESTEPS_FOR_MAX = 11000 * 1500
 
 # -------------------- 环境创建 --------------------
 def make_env():
-    """工厂函数：创建单个 G1 环境实例"""
     env = G1TerrainEnv(
         robot_xml_path=str(ROBOT_XML),
         mesh_dir=str(MESH_DIR),
@@ -57,27 +47,20 @@ def make_env():
     )
     return Monitor(env)
 
-# 创建并行环境（DummyVecEnv）
-vec_env = make_vec_env(
-    make_env,
-    n_envs=N_ENVS,
-    vec_env_cls=DummyVecEnv,
-)
+vec_env = make_vec_env(make_env, n_envs=N_ENVS, vec_env_cls=DummyVecEnv)
 
-# 包装 VecNormalize（观测归一化）
+# ★ 关键：只归一化 "actor_obs"，特权观测不参与 VecNormalize
 vec_env = VecNormalize(
     venv=vec_env,
     norm_obs=True,
+    norm_obs_keys=["actor_obs"],   # 仅归一化 actor 观测
     norm_reward=False,
     clip_obs=10.0,
-    gamma=0.99,  # 默认gamma也是0.99，但显式保留以避免歧义
+    gamma=0.99,
 )
 
-# -------------------- 课程学习回调 --------------------
+# -------------------- 回调 --------------------
 class CurriculumCallback(BaseCallback):
-    """
-    课程学习回调：根据当前总步数更新所有环境的难度因子。
-    """
     def __init__(self, total_timesteps_for_max: int, verbose=0):
         super().__init__(verbose)
         self.total_timesteps_for_max = total_timesteps_for_max
@@ -87,48 +70,38 @@ class CurriculumCallback(BaseCallback):
         self.training_env.env_method("set_difficulty", progress)
         return True
 
-# -------------------- 检查点回调 --------------------
-save_freq = TOTAL_TIMESTEPS / 1
 checkpoint_callback = CheckpointCallback(
-    save_freq=save_freq/N_ENVS,
+    save_freq=(TOTAL_TIMESTEPS / N_ENVS) / 1,  # 按需调整
     save_path=str(CHECKPOINT_DIR),
     name_prefix="ppo_g1",
     save_replay_buffer=False,
     save_vecnormalize=True,
 )
 
-# -------------------- 创建模型（使用PPO默认参数，仅指定网络结构） --------------------
-
-
-from stable_baselines3 import PPO
-from policies.sb3_lhw_policy import LHWPolicy  # 你的自定义策略
-
-
-
-import torch
-from sb3_contrib import RecurrentPPO
-
+# -------------------- 创建非对称策略 --------------------
 policy_kwargs = dict(
-    net_arch=dict(pi=[256, 128], vf=[256, 128]),
+    net_arch=dict(
+        pi=[256, 128],     # Actor 网络结构（使用 actor_obs）
+        vf=[256, 128]      # Critic 网络结构（使用 critic_obs，可更深更宽）
+    ),
     activation_fn=torch.nn.ReLU,
 )
 
 model = PPO(
-    policy="MlpPolicy",
+    policy="MultiInputPolicy",      # ★ 使用多输入策略
     env=vec_env,
     policy_kwargs=policy_kwargs,
     verbose=1,
-    n_steps=500,    
+    n_steps=500,
     tensorboard_log=str(LOG_DIR),
     device='cpu',
-    ent_coef=0.01
+    ent_coef=0.01,
 )
 
 # -------------------- 训练 --------------------
-print("开始训练...")
+print("开始训练（非对称 Actor-Critic）...")
 print(f"总步数: {TOTAL_TIMESTEPS}, 并行环境数: {N_ENVS}")
 
-# 课程回调
 curriculum_callback = CurriculumCallback(TOTAL_TIMESTEPS_FOR_MAX)
 
 model.learn(

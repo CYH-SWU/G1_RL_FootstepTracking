@@ -14,6 +14,11 @@ obs为两个时钟信号
 站立模式下足部速度奖励max_vel = 0.2
 骨盆高度 = 世界坐标系下骨盆高度 - 双足的最低高度 + 0.0431
 使用宇树g1标称姿态
+使用宇树g1的控制方法
+posture奖励为0.050
+非对称actor critic
+action_scale = 0.4
+控制频率100hz
 '''
 
 import os
@@ -60,8 +65,8 @@ class G1TerrainEnv(gym.Env):
         probabilities: list = None,
         total_timesteps_for_max: int = 11000 * 1500,
         max_episode_steps: int = 2000,
-        control_dt: float = 0.02,
-        physics_dt: float = 0.001,
+        control_dt: float = 0.010,   
+        physics_dt: float = 0.005,
         goal_radius: float = 7.5,
         **kwargs
     ):
@@ -98,10 +103,12 @@ class G1TerrainEnv(gym.Env):
         )
 
         # 观测空间（移除支撑脚标识，维度39）
-        obs_dim = 13 + 13 + 1 + 3 + 1 + 2 + 3 + 3  # 去掉1维支撑脚
-        self.observation_space = spaces.Box(
-            low=-np.inf, high=np.inf, shape=(obs_dim,), dtype=np.float32
-        )
+        actor_obs_dim = 13 + 13 + 1 + 3 + 1 + 2 + 3 + 3  # 去掉1维支撑脚
+        privileged_obs_dim = 2 + 3 + 13 
+        self.observation_space = spaces.Dict({
+            "actor_obs": spaces.Box(low=-np.inf, high=np.inf, shape=(actor_obs_dim,), dtype=np.float32),
+            "critic_obs": spaces.Box(low=-np.inf, high=np.inf, shape=(actor_obs_dim + privileged_obs_dim,), dtype=np.float32),
+        })
 
         # 内部状态变量
         self.model = None
@@ -157,8 +164,11 @@ class G1TerrainEnv(gym.Env):
         ]
         self.nominal_angles = np.array(nominal_list)
 
-        self.nominal_pelvis_height = 0.79   # 标称骨盆高度，单位米
-        self.foot_ankle_offset = 0.0431      # 脚踝到脚底的垂直偏移，单位米
+        self.nominal_pelvis_height = 0.7823   # 标称骨盆高度，单位米
+        self.foot_ankle_offset = 0.0331      # 脚踝到脚底的垂直偏移，单位米
+
+        self.action_scale = 0.40
+        
 
     def _get_body_linvel(self, body_id):
         vel = np.zeros(6)
@@ -268,7 +278,10 @@ class G1TerrainEnv(gym.Env):
             self._setup_stand_mode()
 
         # 构建观测并返回
-        obs = self._get_obs()
+        obs = {
+            "actor_obs": self._get_actor_obs(),
+            "critic_obs": self._get_critic_obs(),
+        }
         info = {"terrain_mode": self.terrain_mode, "difficulty": self.difficulty}
         return obs, info
 
@@ -326,7 +339,7 @@ class G1TerrainEnv(gym.Env):
             z_terrain = 0.18 * self.difficulty
         else:
             z_terrain = 0
-        self.data.qpos[2] = z_terrain + self.nominal_pelvis_height
+        self.data.qpos[2] = z_terrain + self.nominal_pelvis_height + 0.01
 
     def _set_goal(self):
         if "slope" in self.terrain_mode or "step" in self.terrain_mode:
@@ -453,7 +466,10 @@ class G1TerrainEnv(gym.Env):
         reward = self._compute_reward(action)
 
         # 构建观测
-        obs = self._get_obs()
+        obs = {
+            "actor_obs": self._get_actor_obs(),
+            "critic_obs": self._get_critic_obs(),
+        }
 
         # 终止判断
         terminated = self._check_termination()
@@ -463,9 +479,9 @@ class G1TerrainEnv(gym.Env):
         return obs, reward, terminated, truncated, info
 
     def _apply_action(self, action):
-        qpos = self.data.qpos
-        max_delta = 0.1
-        target_qpos = qpos[self.joint_indices] + action * max_delta
+        # 目标角度 = 标称角度 + 动作 * 缩放因子
+        target_qpos = self.nominal_angles + action * self.action_scale
+        # 裁剪到关节限位
         for i, idx in enumerate(self.actuator_indices):
             low, high = self.model.actuator_ctrlrange[idx]
             target_qpos[i] = np.clip(target_qpos[i], low, high)
@@ -540,7 +556,7 @@ class G1TerrainEnv(gym.Env):
             'height': 0.050,
             'step': 0.450, 
             'stability': 0.050, 
-            'posture': 0.100, 
+            'posture': 0.050, 
             'action': 0.000, 
             'torque': 0.000
         }
@@ -555,7 +571,7 @@ class G1TerrainEnv(gym.Env):
                  weights['torque'] * p_torque)
         return total
 
-    def _get_obs(self):
+    def _get_actor_obs(self):
         qpos = self.data.qpos
         joint_angles = qpos[self.joint_indices]
 
@@ -606,6 +622,40 @@ class G1TerrainEnv(gym.Env):
             pelvis_angvel
         ])
         return obs.astype(np.float32)
+    
+    def _get_critic_obs(self):
+        raw_actor_obs = self._get_actor_obs()
+        priv_info = self._get_privileged_info()
+        critic_obs = np.concatenate([raw_actor_obs, priv_info])
+        return critic_obs.astype(np.float32)
+    
+    def _get_privileged_info(self):
+        """返回特权信息向量（归一化后）"""
+        # 1. 足底力（法向）
+        left_frc = self.data.cfrc_ext[self.left_foot_id][2]
+        right_frc = self.data.cfrc_ext[self.right_foot_id][2]
+        max_force = sum(self.model.body_mass) * 9.81 * 0.5
+        norm_left_frc = np.clip(left_frc / max_force, -1.0, 1.0)
+        norm_right_frc = np.clip(right_frc / max_force, -1.0, 1.0)
+
+        # 2. 基座世界线速度（自由关节线速度）
+        lin_vel = self.data.qvel[0:3]
+        max_lin_vel = 2.0  # 根据任务调整
+        norm_lin_vel = np.clip(lin_vel / max_lin_vel, -1.0, 1.0)
+
+        # 3. 关节力矩（归一化到最大力矩）
+        torques = self.data.actuator_force[self.actuator_indices]
+        norm_torques = np.clip(torques / (self.max_torques + 1e-6), -1.0, 1.0)
+
+        # 可添加其他信息（如地面摩擦、坡度等）
+        # friction = np.array([self.current_friction])  # 需在 reset 时记录
+
+        return np.concatenate([
+            np.array([norm_left_frc]),   
+            np.array([norm_right_frc]),  
+            norm_lin_vel,                
+            norm_torques                 
+        ])
 
     def _get_pelvis_yaw(self):
         quat = self.data.xquat[self.pelvis_id].copy()

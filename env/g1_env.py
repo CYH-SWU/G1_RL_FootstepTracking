@@ -16,6 +16,8 @@ obs为两个时钟信号
 使用宇树g1标称姿态
 使用宇树g1的控制方法
 posture奖励为0.050
+action_scale = 0.4
+控制频率100hz
 '''
 
 import os
@@ -62,8 +64,8 @@ class G1TerrainEnv(gym.Env):
         probabilities: list = None,
         total_timesteps_for_max: int = 11000 * 1500,
         max_episode_steps: int = 2000,
-        control_dt: float = 0.005,   
-        physics_dt: float = 0.001,
+        control_dt: float = 0.010,   
+        physics_dt: float = 0.005,
         goal_radius: float = 7.5,
         **kwargs
     ):
@@ -162,7 +164,7 @@ class G1TerrainEnv(gym.Env):
         self.nominal_pelvis_height = 0.7823   # 标称骨盆高度，单位米
         self.foot_ankle_offset = 0.0331      # 脚踝到脚底的垂直偏移，单位米
 
-        self.action_scale = 0.25
+        self.action_scale = 0.40
 
     def _get_body_linvel(self, body_id):
         vel = np.zeros(6)

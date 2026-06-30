@@ -166,6 +166,36 @@ KP_MAP = {
     "waist_pitch_joint": 100,   # 与髋关节保持一致
 }
 
+KP_MAP = {
+    "left_hip_pitch_joint": 100,
+    "left_hip_roll_joint": 100,
+    "left_hip_yaw_joint": 100,
+    "left_knee_joint": 150,
+    "left_ankle_pitch_joint": 40,
+    "left_ankle_roll_joint": 40,
+    "right_hip_pitch_joint": 100,
+    "right_hip_roll_joint": 100,
+    "right_hip_yaw_joint": 100,
+    "right_knee_joint": 150,
+    "right_ankle_pitch_joint": 40,
+    "right_ankle_roll_joint": 40,
+    "waist_pitch_joint": 100,   
+}
+
+# 阻尼比配置
+def get_dampratio(joint_name: str) -> float:
+    """根据关节名称返回推荐的 dampratio 值"""
+    if "hip" in joint_name.lower():
+        return 0.9
+    elif "knee" in joint_name.lower():
+        return 1.0
+    elif "ankle" in joint_name.lower():
+        return 1.2
+    elif "waist" in joint_name.lower():
+        return 0.9
+    else:
+        return 1.0 
+
 
 6.25
 但难度因子小于0.1时，强制使用站立模式，先让机器人站稳
@@ -260,14 +290,11 @@ LHW_env使用position控制器 -> LHW_position_env
 改回0.25 提高控制频率 50 -> 100 -> 200
 
 
+6.30
+控制频率50 底层仿真频率200
 
-后续规划：（env，policy双线）
-env：
-    继续调整env配置，让机器人学会站立
-    修改obs，网络结构采用基于宇树网络的非对称actor-critic结构
-    如果站立效果不错则开始尝试行走
-    训练过程中，验证现有的步态周期与步幅是否合适
-policy：
-    学习参考宇树网络结构
-    设计合理obs信息采取非对称actor-critic结构
+创建非对称actor critic环境与训练脚本
 
+action_scale = 0.4 控制频率100 kp
+
+使用非对称 与 LSTM网络
