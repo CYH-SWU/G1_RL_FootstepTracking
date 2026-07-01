@@ -60,7 +60,7 @@
     <mesh file="right_wrist_pitch_link.STL" />
     <mesh file="right_wrist_yaw_link.STL" />
     <mesh file="right_rubber_hand.STL" />
-  </asset>
+  <texture name="ground_tex" type="2d" builtin="checker" rgb1="0.2 0.3 0.4" rgb2="0.6 0.7 0.8" width="300" height="300" mark="edge" random="0.01" /><material name="groundplane" texture="ground_tex" texrepeat="4 4" texuniform="true" reflectance="0.2" /></asset>
 
   <worldbody>
     <light pos="1 0 3.5" dir="0 0 -1" directional="true" />
@@ -161,7 +161,7 @@
           <geom class="visual" mesh="waist_roll_link" />
           <body name="torso_link">
             <inertial pos="0.00203158 0.000339683 0.184568" quat="0.999803 -6.03319e-05 0.0198256 0.00131986" mass="7.818" diaginertia="0.121847 0.109825 0.0273735" />
-            <joint name="waist_pitch_joint" axis="0 1 0" range="-0.52 0.52" actuatorfrcrange="-50 50" />
+            <joint name="waist_pitch_joint" axis="0 1 0" range="0 0" type="hinge" damping="10000" armature="0" />
             <geom class="visual" mesh="torso_link" />
             <geom class="collision" mesh="torso_link" />
             <geom pos="0.0039635 0 -0.044" quat="1 0 0 0" class="visual" material="black" mesh="logo_link" />
@@ -255,11 +255,11 @@
                 </body>
               </body>
             </body>
-          <camera name="chest_camera" pos="0.1 0 0" euler="0 -0.5236 -1.5708" fovy="60" /></body>
+          </body>
         </body>
       </body>
     </body>
-  </worldbody>
+  <geom type="plane" size="20 20 0.1" pos="0 0 0" material="groundplane" rgba="0.5 0.7 0.8 0.5" /></worldbody>
 
   <actuator>
     <position class="g1" name="left_hip_pitch_joint" joint="left_hip_pitch_joint" inheritrange="0" kp="85" dampratio="1.2" ctrlrange="-2.5307 2.8798" forcerange="-88 88" />
@@ -276,8 +276,6 @@
     <position class="g1" name="right_ankle_pitch_joint" joint="right_ankle_pitch_joint" inheritrange="0" kp="34" dampratio="1.5" ctrlrange="-0.87267 0.5236" forcerange="-50 50" />
     <position class="g1" name="right_ankle_roll_joint" joint="right_ankle_roll_joint" inheritrange="0" kp="34" dampratio="1.5" ctrlrange="-0.2618 0.2618" forcerange="-50 50" />
 
-    <position class="g1" name="waist_pitch_joint" joint="waist_pitch_joint" inheritrange="0" kp="85" dampratio="1.2" ctrlrange="-0.52 0.52" forcerange="-50 50" />
-
     </actuator>
 
   <sensor>
@@ -288,6 +286,6 @@
   </sensor>
 
   <keyframe>
-    <key name="stand" qpos="0.000000 0.000000 0.790000 1.000000 0.000000 0.000000 0.000000 -0.100000 0.000000 0.000000 0.300000 -0.200000 0.000000 -0.100000 0.000000 0.000000 0.300000 -0.200000 0.000000 0.000000 0.000000 0.000000 0.200000 0.200000 0.000000 0.523599 0.000000 0.000000 0.000000 0.200000 -0.200000 0.000000 0.523599 0.000000 0.000000 0.000000" ctrl="-0.100000 0.000000 0.000000 0.300000 -0.200000 0.000000 -0.100000 0.000000 0.000000 0.300000 -0.200000 0.000000 0.000000" />
+    <key name="stand" qpos="0.000000 0.000000 0.790000 1.000000 0.000000 0.000000 0.000000 -0.100000 0.000000 0.000000 0.300000 -0.200000 0.000000 -0.100000 0.000000 0.000000 0.300000 -0.200000 0.000000 0.000000 0.000000 0.000000 0.200000 0.200000 0.000000 0.523599 0.000000 0.000000 0.000000 0.200000 -0.200000 0.000000 0.523599 0.000000 0.000000 0.000000" ctrl="-0.100000 0.000000 0.000000 0.300000 -0.200000 0.000000 -0.100000 0.000000 0.000000 0.300000 -0.200000 0.000000" />
   </keyframe>
 <contact><exclude body1="torso_link" body2="left_shoulder_pitch_link" /><exclude body1="torso_link" body2="right_shoulder_pitch_link" /><exclude body1="left_shoulder_pitch_link" body2="left_elbow_link" /><exclude body1="right_shoulder_pitch_link" body2="right_elbow_link" /><exclude body1="left_shoulder_pitch_link" body2="pelvis" /><exclude body1="right_shoulder_pitch_link" body2="pelvis" /><exclude body1="left_wrist_yaw_link" body2="left_hip_pitch_link" /><exclude body1="right_wrist_yaw_link" body2="right_hip_pitch_link" /><exclude body1="left_elbow_link" body2="left_hip_pitch_link" /><exclude body1="right_elbow_link" body2="right_hip_pitch_link" /><exclude body1="left_hip_pitch_link" body2="right_hip_pitch_link" /><exclude body1="left_knee_link" body2="right_knee_link" /><exclude body1="pelvis" body2="waist_yaw_link" /><exclude body1="pelvis" body2="waist_roll_link" /><exclude body1="pelvis" body2="torso_link" /></contact></mujoco>

@@ -20,7 +20,6 @@ posture奖励为0.050
 action_scale = 0.4
 控制频率100hz
 critic基础观测归一化
-启用惩罚项
 '''
 
 import os
