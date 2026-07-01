@@ -20,6 +20,7 @@ posture奖励为0.050
 action_scale = 0.4
 控制频率100hz
 critic基础观测归一化
+启用惩罚项
 '''
 
 import os
@@ -90,7 +91,7 @@ class G1TerrainEnv(gym.Env):
                 "flat_walk", "rough_walk", "step_walk"
             ]
         if probabilities is None:
-            probabilities = [1, 0, 0, 0, 0, 0]
+            probabilities = [0.15, 0, 0, 0.85, 0, 0]
         # [0.05, 0.05, 0.05, 0.35, 0.30, 0.20]
         self.terrain_modes = terrain_modes
         self.probabilities = probabilities
@@ -178,7 +179,7 @@ class G1TerrainEnv(gym.Env):
             # 3. 骨盆高度 (相对脚底，范围 ~ 0.7~0.9，以 1.0 为缩放)
             1.0,
             # 4. 步点相对位置 (dx, dy, dz，最大距离约 0.5m)
-            0.5, 0.3, 0.8,
+            0.55, 0.3, 0.8,
             # 5. 步点偏航 (最大转向角约 0.1~0.2 rad)
             0.2,
             # 6. 相位 sin/cos (已为 [-1,1]，缩放为 1)
@@ -209,7 +210,7 @@ class G1TerrainEnv(gym.Env):
 
         # 根据难度选择地形模式
         if self.difficulty == 0:
-            self.terrain_mode = "flat_stand"
+            self.terrain_mode = "flat_walk"
         else:
             self.terrain_mode = np.random.choice(self.terrain_modes, p=self.probabilities)
 
