@@ -17,7 +17,7 @@ import mujoco
 import mujoco.viewer
 
 # 导入环境（根据实际文件名调整）
-from env.LHW_env import G1TerrainEnv  # 假设环境类在 env/g1_lhw_env.py
+from env.g1_env import G1TerrainEnv  # 假设环境类在 env/g1_lhw_env.py
 
 def main():
     # 配置环境参数

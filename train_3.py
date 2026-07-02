@@ -23,7 +23,7 @@ from sb3_contrib import RecurrentPPO
 project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
-from env.g1_anti_vec_env import G1TerrainEnv
+from HumanoidRLTerrain.env.old import G1TerrainEnv
 
 # -------------------- 配置参数 --------------------
 ROBOT_XML = project_root / "robot" / "g1_processed.xml"

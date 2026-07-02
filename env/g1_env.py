@@ -45,8 +45,6 @@ class G1TerrainEnv(gym.Env):
     def __init__(
         self,
         robot_xml_path: str,
-        mesh_dir: str,
-        total_timesteps_for_max: int = 11000 * 1500,
         max_episode_steps: int = 2000,
         control_dt: float = 0.010,
         physics_dt: float = 0.005,
@@ -60,11 +58,10 @@ class G1TerrainEnv(gym.Env):
         self.physics_dt = physics_dt
         self.n_substeps = int(control_dt / physics_dt)
         self.max_episode_steps = max_episode_steps
-        self.total_timesteps_for_max = total_timesteps_for_max
         self.difficulty = 0
 
         # 模式概率（与 LHW 完全一致）
-        self.mode_probs =  [0.05, 0.15, 0.20, 0.30, 0.30] # STANDING, CURVED, BACKWARD, LATERAL, FORWARD
+        self.mode_probs =  [1.0, 0, 0, 0, 0] # STANDING, CURVED, BACKWARD, LATERAL, FORWARD
         # [0.05, 0.15, 0.20, 0.30, 0.30]
         self.mode_list = [WalkModes.STANDING, WalkModes.CURVED, WalkModes.BACKWARD,
                           WalkModes.LATERAL, WalkModes.FORWARD]
@@ -126,6 +123,7 @@ class G1TerrainEnv(gym.Env):
         self.foot_ankle_offset = 0.0331
         self.action_scale = 0.40
         self.last_action = None
+        self.smooth_target = np.zeros(12)
 
         # 最大踏脚石数量
         self.max_boxes = max_boxes
@@ -184,7 +182,7 @@ class G1TerrainEnv(gym.Env):
             markers_xml += f'''
             <!-- 踏脚石 (box) -->
             <body name="step_{i}" pos="0 0 -10" quat="1 0 0 0">
-                <geom type="box" size="0.15 1.0 0.02" rgba="0.8 0.8 0.8 1" group="1"/>
+                <geom type="box" size="0.15 1.0 0.05" rgba="0.8 0.8 0.8 1" group="1"/>
             </body>
             <!-- 中心点 (小球) -->
             <body name="step_dot_{i}" pos="0 0 -10" quat="1 0 0 0">
@@ -267,7 +265,7 @@ class G1TerrainEnv(gym.Env):
             # 随机选择弯曲方向（1: 向左弯，-1: 向右弯）
             curve_dir = np.random.choice([-1, 1])
             # 圆弧半径（2~4 米）
-            R = np.random.uniform(2.0, 4.0)
+            R = np.random.uniform(2.5, 4.0)
             # 圆心在 y 轴上：使第一步落在圆弧上
             y0 = initial_y_sign * first_shift
             cy = y0 - curve_dir * R
@@ -606,10 +604,20 @@ class G1TerrainEnv(gym.Env):
         return obs, reward, terminated, truncated, info
 
     def _apply_action(self, action):
-        target_qpos = self.nominal_angles + action * self.action_scale
+        # 计算原始目标角度（标称姿态 + 动作缩放）
+        raw_target = self.nominal_angles + action * self.action_scale
+
+        # 指数移动平均平滑（平滑系数 0.5）
+        smooth = 0.5
+        self.smooth_target = smooth * raw_target + (1 - smooth) * self.smooth_target
+        target_qpos = self.smooth_target
+
+        # 裁剪到关节限位
         for i, idx in enumerate(self.actuator_indices):
             low, high = self.model.actuator_ctrlrange[idx]
             target_qpos[i] = np.clip(target_qpos[i], low, high)
+
+        # 发送到 MuJoCo 执行器
         self.data.ctrl[self.actuator_indices] = target_qpos
 
     def _compute_reward(self, action):
@@ -645,7 +653,7 @@ class G1TerrainEnv(gym.Env):
             )
         else:
             r_frc = calc_foot_frc_clock_reward(left_force, right_force, self.phase, max_force)
-            r_vel = calc_foot_vel_clock_reward(left_vel, right_vel, self.phase, 0.7)
+            r_vel = calc_foot_vel_clock_reward(left_vel, right_vel, self.phase, 0.2)
 
         r_orient = calc_body_orient_reward(pelvis_yaw, target_yaw)
         r_height = calc_height_reward(pelvis_z, foot_z, goal_height=self.nominal_pelvis_height, deadzone=0.023)

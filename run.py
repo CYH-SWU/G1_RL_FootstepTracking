@@ -2,6 +2,7 @@
 """
 人形机器人复杂地形行走训练脚本
 使用 Stable-Baselines3 PPO + 非对称 Actor-Critic (MultiInputPolicy)
+采用 SubprocVecEnv 多进程并行训练，大幅提升采样效率。
 """
 
 import os
@@ -12,16 +13,15 @@ import gymnasium as gym
 import numpy as np
 import torch
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_util import make_vec_env
 
-
 project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
-from env.g1_anti_vec_env import G1TerrainEnv
+from env.g1_env import G1TerrainEnv
 
 # -------------------- 配置参数 --------------------
 ROBOT_XML = project_root / "robot" / "g1_processed.xml"
@@ -32,13 +32,14 @@ LOG_DIR = project_root / "logs"
 CHECKPOINT_DIR.mkdir(exist_ok=True)
 LOG_DIR.mkdir(exist_ok=True)
 
-N_ENVS = 8
-TOTAL_TIMESTEPS = 6 * 200 * 1500
+N_ENVS = 16                          # 并行环境数量（建议 ≤ CPU 核心数）
+TOTAL_TIMESTEPS = 12 * 200 * 1500
 MAX_EPISODE_STEPS = 2000
 TOTAL_TIMESTEPS_FOR_MAX = 11000 * 1500
 
-# -------------------- 环境创建 --------------------
+# -------------------- 环境创建函数（必须可 pickle） --------------------
 def make_env():
+    """工厂函数：创建单个 G1 环境实例"""
     env = G1TerrainEnv(
         robot_xml_path=str(ROBOT_XML),
         mesh_dir=str(MESH_DIR),
@@ -47,13 +48,20 @@ def make_env():
     )
     return Monitor(env)
 
-vec_env = make_vec_env(make_env, n_envs=N_ENVS, vec_env_cls=DummyVecEnv)
+# -------------------- 创建 SubprocVecEnv（多进程并行） --------------------
+# 注意：必须在 `if __name__ == "__main__":` 块内调用，否则 Windows 下会出错
+vec_env = make_vec_env(
+    make_env,
+    n_envs=N_ENVS,
+    vec_env_cls=SubprocVecEnv,
+    vec_env_kwargs={"start_method": "fork"}   # Linux 推荐 fork，Windows 可用 spawn
+)
 
 # ★ 关键：只归一化 "actor_obs"，特权观测不参与 VecNormalize
 vec_env = VecNormalize(
     venv=vec_env,
     norm_obs=True,
-    norm_obs_keys=["actor_obs"],   # 仅归一化 actor 观测
+    norm_obs_keys=["actor_obs"],
     norm_reward=False,
     clip_obs=10.0,
     gamma=0.99,
@@ -71,7 +79,7 @@ class CurriculumCallback(BaseCallback):
         return True
 
 checkpoint_callback = CheckpointCallback(
-    save_freq=(TOTAL_TIMESTEPS / N_ENVS) / 1,  # 按需调整
+    save_freq=(TOTAL_TIMESTEPS // N_ENVS) // 1,  # 调整保存频率
     save_path=str(CHECKPOINT_DIR),
     name_prefix="ppo_g1",
     save_replay_buffer=False,
@@ -81,35 +89,37 @@ checkpoint_callback = CheckpointCallback(
 # -------------------- 创建非对称策略 --------------------
 policy_kwargs = dict(
     net_arch=dict(
-        pi=[256, 128],     # Actor 网络结构（使用 actor_obs）
-        vf=[256, 128]      # Critic 网络结构（使用 critic_obs，可更深更宽）
+        pi=[256, 128],
+        vf=[256, 128]
     ),
     activation_fn=torch.nn.ReLU,
 )
 
 model = PPO(
-    policy="MultiInputPolicy",      # ★ 使用多输入策略
+    policy="MultiInputPolicy",
     env=vec_env,
     policy_kwargs=policy_kwargs,
     verbose=1,
-    n_steps=500,
+    n_steps=600,
     tensorboard_log=str(LOG_DIR),
-    device='cpu',
+    device='cuda',
     ent_coef=0.01,
 )
 
-# -------------------- 训练 --------------------
-print("开始训练（非对称 Actor-Critic）...")
-print(f"总步数: {TOTAL_TIMESTEPS}, 并行环境数: {N_ENVS}")
+# -------------------- 训练主入口（必须包含 if __name__） --------------------
+if __name__ == "__main__":
+    print("开始训练（非对称 Actor-Critic + SubprocVecEnv）...")
+    print(f"总步数: {TOTAL_TIMESTEPS}, 并行环境数: {N_ENVS}")
 
-curriculum_callback = CurriculumCallback(TOTAL_TIMESTEPS_FOR_MAX)
+    curriculum_callback = CurriculumCallback(TOTAL_TIMESTEPS_FOR_MAX)
 
-model.learn(
-    total_timesteps=TOTAL_TIMESTEPS,
-    callback=[curriculum_callback, checkpoint_callback],
-    progress_bar=True,
-)
+    model.learn(
+        total_timesteps=TOTAL_TIMESTEPS,
+        callback=[curriculum_callback, checkpoint_callback],
+        progress_bar=True,
+    )
 
-print("=============正在保存模型=============")
-model.save(str(CHECKPOINT_DIR / "ppo_g1_final.zip"))
-vec_env.save(str(CHECKPOINT_DIR / "vec_normalize_final.pkl"))
+    print("=============正在保存模型=============")
+    model.save(str(CHECKPOINT_DIR / "ppo_g1_final.zip"))
+    vec_env.save(str(CHECKPOINT_DIR / "vec_normalize_final.pkl"))
+    print("✅ 训练完成！模型和归一化参数已保存。")

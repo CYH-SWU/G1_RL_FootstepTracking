@@ -54,7 +54,7 @@ KP_MAP = {
     "right_knee_joint": 127,
     "right_ankle_pitch_joint": 34,
     "right_ankle_roll_joint": 34,
-    "waist_pitch_joint": 85,
+    "waist_pitch_joint": 85,   
 }
 
 def get_dampratio(joint_name: str) -> float:

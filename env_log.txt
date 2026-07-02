@@ -197,6 +197,36 @@ def get_dampratio(joint_name: str) -> float:
         return 1.0 
 
 
+KP_MAP = {
+    "left_hip_pitch_joint": 85,
+    "left_hip_roll_joint": 85,
+    "left_hip_yaw_joint": 85,
+    "left_knee_joint": 127,
+    "left_ankle_pitch_joint": 34,
+    "left_ankle_roll_joint": 34,
+    "right_hip_pitch_joint": 85,
+    "right_hip_roll_joint": 85,
+    "right_hip_yaw_joint": 85,
+    "right_knee_joint": 127,
+    "right_ankle_pitch_joint": 34,
+    "right_ankle_roll_joint": 34,
+    "waist_pitch_joint": 85,   # 与髋关节保持一致
+}
+
+def get_dampratio(joint_name: str) -> float:
+    """根据关节名称返回推荐的 dampratio 值（action_scale=0.4 时）"""
+    if "hip" in joint_name.lower():
+        return 1.2
+    elif "knee" in joint_name.lower():
+        return 1.3
+    elif "ankle" in joint_name.lower():
+        return 1.5
+    elif "waist" in joint_name.lower():
+        return 1.2
+    else:
+        return 1.0
+
+
 6.25
 但难度因子小于0.1时，强制使用站立模式，先让机器人站稳
 代码修改： env.reset中使用if语句进行强制转换
@@ -307,7 +337,7 @@ action_scale = 0.4 控制频率100 kp
 启用惩罚项
 
 ======================================================================
-去除步点规划器，根据地形生成程序化生成步点序列
-去除起伏场地形
-obs中改为未来两步的步点序列
-参考LHW项目，修改env满足上述要求
+
+7.2
+检查g1_env代码逻辑
+尝试训练
