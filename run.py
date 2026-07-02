@@ -17,6 +17,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_util import make_vec_env
+from env.mirrorwrapper import MirrorWrapper
 
 project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
@@ -32,20 +33,21 @@ LOG_DIR = project_root / "logs"
 CHECKPOINT_DIR.mkdir(exist_ok=True)
 LOG_DIR.mkdir(exist_ok=True)
 
-N_ENVS = 16                          # 并行环境数量（建议 ≤ CPU 核心数）
-TOTAL_TIMESTEPS = 12 * 200 * 1500
+ITERATION = 300
+N_ENVS = 16   
+                       
+TOTAL_TIMESTEPS = ITERATION * N_ENVS * 400
 MAX_EPISODE_STEPS = 2000
-TOTAL_TIMESTEPS_FOR_MAX = 11000 * 1500
+TOTAL_TIMESTEPS_FOR_MAX = 11000 * N_ENVS * 400
 
 # -------------------- 环境创建函数（必须可 pickle） --------------------
 def make_env():
     """工厂函数：创建单个 G1 环境实例"""
     env = G1TerrainEnv(
         robot_xml_path=str(ROBOT_XML),
-        mesh_dir=str(MESH_DIR),
         max_episode_steps=MAX_EPISODE_STEPS,
-        total_timesteps_for_max=TOTAL_TIMESTEPS_FOR_MAX,
     )
+    env = MirrorWrapper(env, mirror_prob=0.5)
     return Monitor(env)
 
 # -------------------- 创建 SubprocVecEnv（多进程并行） --------------------
@@ -100,7 +102,7 @@ model = PPO(
     env=vec_env,
     policy_kwargs=policy_kwargs,
     verbose=1,
-    n_steps=600,
+    n_steps=400,
     tensorboard_log=str(LOG_DIR),
     device='cuda',
     ent_coef=0.01,
