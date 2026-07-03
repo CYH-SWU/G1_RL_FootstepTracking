@@ -42,32 +42,30 @@ STAND_ANGLES = {
 }
 
 KP_MAP = {
-    "left_hip_pitch_joint": 100,
-    "left_hip_roll_joint": 100,
-    "left_hip_yaw_joint": 100,
-    "left_knee_joint": 150,
-    "left_ankle_pitch_joint": 40,
-    "left_ankle_roll_joint": 40,
-    "right_hip_pitch_joint": 100,
-    "right_hip_roll_joint": 100,
-    "right_hip_yaw_joint": 100,
-    "right_knee_joint": 150,
-    "right_ankle_pitch_joint": 40,
-    "right_ankle_roll_joint": 40,
+    "left_hip_pitch_joint": 115,
+    "left_hip_roll_joint": 115,
+    "left_hip_yaw_joint": 115,
+    "left_knee_joint": 172,
+    "left_ankle_pitch_joint": 46,
+    "left_ankle_roll_joint": 46,
+    "right_hip_pitch_joint": 115,
+    "right_hip_roll_joint": 115,
+    "right_hip_yaw_joint": 115,
+    "right_knee_joint": 172,
+    "right_ankle_pitch_joint": 46,
+    "right_ankle_roll_joint": 46,
 }
 
 def get_dampratio(joint_name: str) -> float:
-    """根据关节名称返回推荐的 dampratio 值（action_scale=0.4 时）"""
+    """根据关节名称返回推荐的 dampratio 值（参考LHW比例）"""
     if "hip" in joint_name.lower():
-        return 1.2
+        return 0.65   # 髋部阻尼比参照 LHW hip yaw/pitch ≈ 0.707
     elif "knee" in joint_name.lower():
-        return 1.3
+        return 0.55   # 膝部阻尼比参照 LHW knee ≈ 0.612
     elif "ankle" in joint_name.lower():
-        return 1.5
-    elif "waist" in joint_name.lower():
-        return 1.2
+        return 0.40  # 踝部阻尼比参照 LHW ankle ≈ 0.447
     else:
-        return 1.0
+        return 0.55   # 默认值
 
 def process_g1_model(input_path=None, output_path=None):
     in_path = Path(input_path) if input_path else DEFAULT_INPUT

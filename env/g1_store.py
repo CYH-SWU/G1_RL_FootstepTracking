@@ -1,5 +1,86 @@
 '''
-测试env
+================================最终确定设置=============================
+# keyframe数据
+STAND_ANGLES = {
+    "left_hip_pitch_joint": -0.5235987756,
+    "left_hip_roll_joint": 0.0,
+    "left_hip_yaw_joint": 0.0,
+    "left_knee_joint": 0.872664626,
+    "left_ankle_pitch_joint": -0.34906585,
+    "left_ankle_roll_joint": 0.0,
+    "right_hip_pitch_joint": -0.5235987756,
+    "right_hip_roll_joint": 0.0,
+    "right_hip_yaw_joint": 0.0,
+    "right_knee_joint": 0.872664626,
+    "right_ankle_pitch_joint": -0.34906585,
+    "right_ankle_roll_joint": 0.0,
+    "waist_yaw_joint": 0.0,
+    "waist_roll_joint": 0.0,
+    "waist_pitch_joint": 0.0,
+    "left_shoulder_pitch_joint": 0.2000,
+    "left_shoulder_roll_joint": 0.2000,
+    "left_shoulder_yaw_joint": 0.0,
+    "left_elbow_joint": 0.5235987756,
+    "left_wrist_roll_joint": 0.0,
+    "left_wrist_pitch_joint": 0.0,
+    "left_wrist_yaw_joint": 0.0,
+    "right_shoulder_pitch_joint": 0.2000,
+    "right_shoulder_roll_joint": -0.2000,
+    "right_shoulder_yaw_joint": 0.0,
+    "right_elbow_joint": 0.5235987756,
+    "right_wrist_roll_joint": 0.0,
+    "right_wrist_pitch_joint": 0.0,
+    "right_wrist_yaw_joint": 0.0,
+}
+
+KP_MAP = {
+    "left_hip_pitch_joint": 115,
+    "left_hip_roll_joint": 115,
+    "left_hip_yaw_joint": 115,
+    "left_knee_joint": 172,
+    "left_ankle_pitch_joint": 46,
+    "left_ankle_roll_joint": 46,
+    "right_hip_pitch_joint": 115,
+    "right_hip_roll_joint": 115,
+    "right_hip_yaw_joint": 115,
+    "right_knee_joint": 172,
+    "right_ankle_pitch_joint": 46,
+    "right_ankle_roll_joint": 46,
+}
+
+def get_dampratio(joint_name: str) -> float:
+    """根据关节名称返回推荐的 dampratio 值（参考LHW比例）"""
+    if "hip" in joint_name.lower():
+        return 0.65   # 髋部阻尼比参照 LHW hip yaw/pitch ≈ 0.707
+    elif "knee" in joint_name.lower():
+        return 0.55   # 膝部阻尼比参照 LHW knee ≈ 0.612
+    elif "ankle" in joint_name.lower():
+        return 0.40  # 踝部阻尼比参照 LHW ankle ≈ 0.447
+    else:
+        return 0.55   # 默认值
+
+smooth = 0.5
+action_scale = 0.25
+control_dt: float = 0.015,
+physics_dt: float = 0.005,
+
+'frc': 0.15,
+'vel': 0.15,
+'orient': 0.05,
+'height': 0.05,
+'step': 0.45,
+'stability': 0.05,
+'posture': 0.05,
+'action': 0.00,
+'torque': 0.00
+
+model
+==================================================================
+
+'''
+
+'''
+保留env
 '''
 
 import os

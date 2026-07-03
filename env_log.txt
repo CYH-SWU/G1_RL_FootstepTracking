@@ -268,6 +268,79 @@ def get_dampratio(joint_name: str) -> float:
     else:
         return 1.0
 
+KP_MAP = {
+    "left_hip_pitch_joint": 120,
+    "left_hip_roll_joint": 120,
+    "left_hip_yaw_joint": 120,
+    "left_knee_joint": 180,
+    "left_ankle_pitch_joint": 48,
+    "left_ankle_roll_joint": 48,
+    "right_hip_pitch_joint": 120,
+    "right_hip_roll_joint": 120,
+    "right_hip_yaw_joint": 120,
+    "right_knee_joint": 180,
+    "right_ankle_pitch_joint": 48,
+    "right_ankle_roll_joint": 48,
+}
+
+def get_dampratio(joint_name: str) -> float:
+    """根据关节名称返回推荐的 dampratio 值（参考LHW比例）"""
+    if "hip" in joint_name.lower():
+        return 0.7   # 髋部阻尼比参照 LHW hip yaw/pitch ≈ 0.707
+    elif "knee" in joint_name.lower():
+        return 0.6   # 膝部阻尼比参照 LHW knee ≈ 0.612
+    elif "ankle" in joint_name.lower():
+        return 0.45  # 踝部阻尼比参照 LHW ankle ≈ 0.447
+    elif "waist" in joint_name.lower():
+        return 0.6   # 腰部可参考膝部
+    else:
+        return 0.6   # 默认值
+
+
+KP_MAP = {
+    "left_hip_pitch_joint": 115,
+    "left_hip_roll_joint": 115,
+    "left_hip_yaw_joint": 115,
+    "left_knee_joint": 172,
+    "left_ankle_pitch_joint": 46,
+    "left_ankle_roll_joint": 46,
+    "right_hip_pitch_joint": 115,
+    "right_hip_roll_joint": 115,
+    "right_hip_yaw_joint": 115,
+    "right_knee_joint": 172,
+    "right_ankle_pitch_joint": 46,
+    "right_ankle_roll_joint": 46,
+}
+
+
+
+KP_MAP = {
+    "left_hip_pitch_joint": 115,
+    "left_hip_roll_joint": 115,
+    "left_hip_yaw_joint": 115,
+    "left_knee_joint": 172,
+    "left_ankle_pitch_joint": 46,
+    "left_ankle_roll_joint": 46,
+    "right_hip_pitch_joint": 115,
+    "right_hip_roll_joint": 115,
+    "right_hip_yaw_joint": 115,
+    "right_knee_joint": 172,
+    "right_ankle_pitch_joint": 46,
+    "right_ankle_roll_joint": 46,
+}
+
+def get_dampratio(joint_name: str) -> float:
+    """根据关节名称返回推荐的 dampratio 值（参考LHW比例）"""
+    if "hip" in joint_name.lower():
+        return 0.65   # 髋部阻尼比参照 LHW hip yaw/pitch ≈ 0.707
+    elif "knee" in joint_name.lower():
+        return 0.55   # 膝部阻尼比参照 LHW knee ≈ 0.612
+    elif "ankle" in joint_name.lower():
+        return 0.40  # 踝部阻尼比参照 LHW ankle ≈ 0.447
+    else:
+        return 0.55   # 默认值
+
+
 
 6.25
 但难度因子小于0.1时，强制使用站立模式，先让机器人站稳
@@ -388,3 +461,12 @@ action_scale = 0.4 控制频率100 kp
 后续：
     找问题 调参数 看项目
     注意：镜像包装器
+
+7.3
+机器人站立不抖动但会左右交替小幅度抬脚
+复原kd  训练
+尝试50hz  训练
+后期可能要提高kp 
+
+7.4
+开始行走训练
