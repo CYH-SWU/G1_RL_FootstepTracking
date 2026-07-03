@@ -25,8 +25,8 @@ from planner_pipeline.reward_functions import (
     calc_body_orient_reward,
     calc_height_reward,
     calc_upper_body_stability,
-    calc_action_penalty,
-    calc_torque_penalty,
+    calc_torque_reward,
+    calc_action_reward,
     calc_step_reward,
     calc_posture_error_reward,
 )
@@ -115,14 +115,16 @@ class G1TerrainEnv(gym.Env):
 
         # 标称姿态（12个关节）
         self.nominal_angles = np.array([
-            -0.1, 0.0, 0.0, 0.3, -0.2, 0.0,
-            -0.1, 0.0, 0.0, 0.3, -0.2, 0.0
+            -0.5235987756, 0.0, 0.0, 0.872664626, -0.34906585, 0.0,
+            -0.5235987756, 0.0, 0.0, 0.872664626, -0.34906585, 0.0
         ])
 
-        self.nominal_pelvis_height = 0.7823
+        self.nominal_pelvis_height = 0.6937 + 0.0331
         self.foot_ankle_offset = 0.0331
-        self.action_scale = 0.40
+        self.action_scale = 0.25
+        self.smooth = 0.5
         self.last_action = None
+        self.last_torque = None 
         self.smooth_target = np.zeros(12)
 
         # 最大踏脚石数量
@@ -463,6 +465,7 @@ class G1TerrainEnv(gym.Env):
         self.phase = random.choice([0.0, 0.5])
         self.step_counter = 0
         self.last_action = None
+        self.last_torque = None
         self.t1 = 0
         self.t2 = min(1, len(self.sequence)-1) if len(self.sequence) > 1 else 0
 
@@ -608,7 +611,7 @@ class G1TerrainEnv(gym.Env):
         raw_target = self.nominal_angles + action * self.action_scale
 
         # 指数移动平均平滑（平滑系数 0.5）
-        smooth = 0.5
+        smooth = self.smooth
         self.smooth_target = smooth * raw_target + (1 - smooth) * self.smooth_target
         target_qpos = self.smooth_target
 
@@ -668,23 +671,26 @@ class G1TerrainEnv(gym.Env):
 
         r_stability = calc_upper_body_stability(head_xy, pelvis_xy)
 
-        p_action, self.last_action = calc_action_penalty(action, self.last_action)
+        r_action = calc_action_reward(action, self.last_action)
+        self.last_action = action.copy()
+
         torques = self.data.actuator_force[self.actuator_indices]
-        p_torque = calc_torque_penalty(torques, self.max_torques)
+        r_torque = calc_torque_reward(torques, self.last_torque)
+        self.last_torque = torques.copy()
 
         current_joint_angles = self.data.qpos[self.joint_indices]
         r_posture = calc_posture_error_reward(current_joint_angles, self.nominal_angles)
 
         weights = {
-            'frc': 0.150,
-            'vel': 0.150,
-            'orient': 0.050,
-            'height': 0.050,
-            'step': 0.450,
-            'stability': 0.050,
-            'posture': 0.050,
-            'action': 0.000,
-            'torque': 0.000
+            'frc': 0.15,
+            'vel': 0.15,
+            'orient': 0.05,
+            'height': 0.05,
+            'step': 0.45,
+            'stability': 0.05,
+            'posture': 0.05,
+            'action': 0.00,
+            'torque': 0.00
         }
         total = (weights['frc'] * r_frc +
                  weights['vel'] * r_vel +
@@ -693,8 +699,8 @@ class G1TerrainEnv(gym.Env):
                  weights['step'] * r_step +
                  weights['stability'] * r_stability +
                  weights['posture'] * r_posture +
-                 weights['action'] * p_action +
-                 weights['torque'] * p_torque)
+                 weights['action'] * r_action +
+                 weights['torque'] * r_torque)
         return total
 
     def _check_termination(self):

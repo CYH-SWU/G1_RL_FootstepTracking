@@ -132,31 +132,17 @@ def calc_upper_body_stability(head_xy, pelvis_xy):
     return np.exp(-10.0 * dist**2)
 
 
-def calc_action_penalty(action, last_action):
-    """
-    动作平滑度惩罚。
-    
-    :param action: 当前动作 (np.ndarray)
-    :param last_action: 上次动作 (np.ndarray)，若为 None 则返回 0
-    :return: (惩罚值, 更新后的 last_action)
-    """
-    if last_action is None:
-        return 0.0, action
-    diff = action - last_action
-    penalty = -np.mean(diff**2)
-    return penalty, action
+def calc_action_reward(action, prev_action):
+    if prev_action is None:
+        return 0.0  # 或者 1.0，习惯返回 0 表示无惩罚
+    penalty = 5 * np.sum(np.abs(prev_action - action)) / len(action)
+    return np.exp(-penalty)
 
-
-def calc_torque_penalty(torques, max_torques):
-    """
-    关节力矩惩罚。
-    
-    :param torques: 当前各关节力矩 (np.ndarray)
-    :param max_torques: 各关节最大力矩 (np.ndarray)
-    :return: 惩罚值
-    """
-    norm_torques = torques / (max_torques + 1e-6)
-    return -np.mean(norm_torques**2)
+def calc_torque_reward(torque, prev_torque):
+    if prev_torque is None:
+        return 0.0
+    penalty = 0.25 * (np.sum(np.abs(prev_torque - torque)) / len(torque))
+    return np.exp(-penalty)
 
 
 def calc_step_reward(left_pos, right_pos, target_pos, pelvis_xy, target_reached):

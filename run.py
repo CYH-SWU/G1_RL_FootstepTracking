@@ -91,8 +91,8 @@ checkpoint_callback = CheckpointCallback(
 # -------------------- 创建非对称策略 --------------------
 policy_kwargs = dict(
     net_arch=dict(
-        pi=[256, 128],
-        vf=[256, 128]
+        pi=[256, 256],
+        vf=[256, 256]
     ),
     activation_fn=torch.nn.ReLU,
 )
