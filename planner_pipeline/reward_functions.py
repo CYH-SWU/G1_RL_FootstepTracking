@@ -36,7 +36,7 @@ def get_pelvis_yaw(data, pelvis_id):
     return euler[2]
 
 
-def calc_foot_frc_clock_reward(left_force, right_force, phase, max_force,
+def calc_foot_frc_clock_reward(swing_frac, left_force, right_force, phase, max_force,
                                clock_left=None, clock_right=None):
     """
     足底力相位匹配奖励。
@@ -53,9 +53,9 @@ def calc_foot_frc_clock_reward(left_force, right_force, phase, max_force,
     norm_right = np.clip(right_force / max_force, -1.0, 1.0)
 
     if clock_left is None:
-        clock_left = clock_frc(phase)
+        clock_left = clock_frc(phase, swing_frac)
     if clock_right is None:
-        clock_right = clock_frc((phase + 0.5) % 1.0)
+        clock_right = clock_frc((phase + 0.5) % 1.0, swing_frac)
 
     score_left = np.tan(np.pi / 4 * clock_left * norm_left)
     score_right = np.tan(np.pi / 4 * clock_right * norm_right)
@@ -63,7 +63,7 @@ def calc_foot_frc_clock_reward(left_force, right_force, phase, max_force,
     return (score_left + score_right) / 2.0
 
 
-def calc_foot_vel_clock_reward(left_vel, right_vel, phase, max_vel,
+def calc_foot_vel_clock_reward(swing_frac, left_vel, right_vel, phase, max_vel,
                                clock_left=None, clock_right=None):
     """
     足部速度相位匹配奖励。
@@ -80,9 +80,9 @@ def calc_foot_vel_clock_reward(left_vel, right_vel, phase, max_vel,
     norm_right = np.clip(right_vel / max_vel, -1.0, 1.0)
 
     if clock_left is None:
-        clock_left = clock_frc(phase)
+        clock_left = clock_frc(phase, swing_frac)
     if clock_right is None:
-        clock_right = clock_frc((phase + 0.5) % 1.0)
+        clock_right = clock_frc((phase + 0.5) % 1.0, swing_frac)
 
     score_left = np.tan(np.pi / 4 * clock_left * norm_left)
     score_right = np.tan(np.pi / 4 * clock_right * norm_right)

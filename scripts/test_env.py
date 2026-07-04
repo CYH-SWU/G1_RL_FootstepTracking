@@ -32,7 +32,7 @@ def main():
         control_dt=0.01,
         physics_dt=0.005,
     )
-    env.model.opt.gravity = np.zeros(3)
+    #env.model.opt.gravity = np.zeros(3)
 
     # 重置环境
     obs, info = env.reset()
@@ -46,6 +46,7 @@ def main():
     total_reward = 0.0
     done = False
     zero_action = np.zeros(12, dtype=np.float32)  # 动作空间为12维
+    #zero_action = np.array([-1,0,0,-1,1,1,0,0,0,0,0,0])
 
     print("开始零动作测试，按 Esc 退出...")
     while viewer.is_running() and not done and step < 2000:

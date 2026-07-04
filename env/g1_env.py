@@ -38,7 +38,7 @@ class G1TerrainEnv(gym.Env):
     def __init__(
         self,
         robot_xml_path: str,
-        max_episode_steps: int = 2000,
+        max_episode_steps: int = 2500,
         control_dt: float = 0.015,
         physics_dt: float = 0.005,
         max_boxes: int = 30,  # 最大踏脚石数量
@@ -54,7 +54,7 @@ class G1TerrainEnv(gym.Env):
         self.difficulty = 0
 
         # 模式概率（与 LHW 完全一致）
-        self.mode_probs =  [1.0, 0, 0, 0, 0] # STANDING, CURVED, BACKWARD, LATERAL, FORWARD
+        self.mode_probs =  [0.05, 0.15, 0.20, 0.30, 0.30] # STANDING, CURVED, BACKWARD, LATERAL, FORWARD
         # [0.05, 0.15, 0.20, 0.30, 0.30]
         self.mode_list = [WalkModes.STANDING, WalkModes.CURVED, WalkModes.BACKWARD,
                           WalkModes.LATERAL, WalkModes.FORWARD]
@@ -81,16 +81,16 @@ class G1TerrainEnv(gym.Env):
         self.sequence = []          # 世界坐标步点 (x,y,z,theta)
         self.t1 = 0
         self.t2 = 1
-        self.target_radius = 0.17
+        self.target_radius = 0.20
         self.delay_frames = int(np.floor(0.5 / self.control_dt))
         self.target_reached = False
         self.target_reached_frames = 0
 
         # 步态参数
         self.total_duration = 1.1
-        self.swing_duration = 0.5
-        self.stance_duration = 0.6
-        self.step_length = 0.3
+        self.swing_duration = 0.75
+        self.stance_duration = 0.35
+        self.step_length = 0.25
         self.step_width = 0.237
 
         # 缓存ID
@@ -128,9 +128,9 @@ class G1TerrainEnv(gym.Env):
             "joint_vels_max": 10.0,
             "pelvis_height_max": 1.0,
             # T1 步点位置 (dx, dy, dz)
-            "t1_pos_max": [0.5, 0.25, 0.9],      # 当前步点位置范围
+            "t1_pos_max": [0.30, 0.25, 0.9],      # 当前步点位置范围
             # T2 步点位置 (dx, dy, dz)
-            "t2_pos_max": [0.6, 0.3, 0.9],      # 下一步点位置范围（可稍大）
+            "t2_pos_max": [0.5, 0.30, 0.9],      # 下一步点位置范围（可稍大）
             # T1 偏航
             "t1_yaw_max": 0.2,
             # T2 偏航
@@ -177,7 +177,7 @@ class G1TerrainEnv(gym.Env):
             markers_xml += f'''
             <!-- 踏脚石 (box) -->
             <body name="step_{i}" pos="0 0 -10" quat="1 0 0 0">
-                <geom type="box" size="0.15 1.0 0.05" rgba="0.8 0.8 0.8 1" group="1"/>
+                <geom type="box" size="0.125 1.0 0.05" rgba="0.8 0.8 0.8 1" group="1"/>
             </body>
             <!-- 中心点 (小球) -->
             <body name="step_dot_{i}" pos="0 0 -10" quat="1 0 0 0">
@@ -441,8 +441,9 @@ class G1TerrainEnv(gym.Env):
 
         # 设置骨盆位置为第一个步点上方
         if len(self.sequence) > 0:
-            first_step = self.sequence[0]
-            self.data.qpos[0] = first_step[0]
+            offset_back = -0.12  # 向后偏移 5cm
+            first_step = self.sequence[0] 
+            self.data.qpos[0] = first_step[0] + offset_back
             self.data.qpos[1] = first_step[1]
             self.data.qpos[2] = first_step[2] + self.nominal_pelvis_height
             yaw = first_step[3]
@@ -634,22 +635,26 @@ class G1TerrainEnv(gym.Env):
         total_mass = sum(self.model.body_mass)
         max_force = total_mass * 9.81 * 0.5
 
+        swing_frac = self.swing_duration / self.total_duration
+
         is_stand = (self.mode == WalkModes.STANDING)
 
         if is_stand:
             r_frc = calc_foot_frc_clock_reward(
+                swing_frac,
                 left_force, right_force,
                 self.phase, max_force,
                 clock_left=1.0, clock_right=1.0
             )
             r_vel = calc_foot_vel_clock_reward(
+                swing_frac,
                 left_vel, right_vel,
-                self.phase, 0.2,
+                self.phase, 0.3,
                 clock_left=-1.0, clock_right=-1.0
             )
         else:
-            r_frc = calc_foot_frc_clock_reward(left_force, right_force, self.phase, max_force)
-            r_vel = calc_foot_vel_clock_reward(left_vel, right_vel, self.phase, 0.2)
+            r_frc = calc_foot_frc_clock_reward(swing_frac, left_force, right_force, self.phase, max_force)
+            r_vel = calc_foot_vel_clock_reward(swing_frac, left_vel, right_vel, self.phase, 0.3)
 
         r_orient = calc_body_orient_reward(pelvis_yaw, target_yaw)
         r_height = calc_height_reward(pelvis_z, foot_z, goal_height=self.nominal_pelvis_height, deadzone=0.023)
@@ -681,7 +686,7 @@ class G1TerrainEnv(gym.Env):
             'height': 0.05,
             'step': 0.45,
             'stability': 0.05,
-            'posture': 0.05,
+            'posture': 0.00,
             'action': 0.00,
             'torque': 0.00
         }
