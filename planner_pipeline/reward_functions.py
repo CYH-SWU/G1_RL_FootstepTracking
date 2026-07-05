@@ -324,7 +324,7 @@ def calc_foot_frc_clock_reward0(swing_frac, left_force, right_force, phase, max_
     if clock_left is None:
         clock_left = -clock_frc(phase, swing_frac)
     if clock_right is None:
-        clock_right = -clock_frc(phase+0.5, swing_frac)
+        clock_right = -clock_frc((phase+0.5)%1, swing_frac)
 
     score_left = np.tan(np.pi / 4 * clock_left * norm_left)
     score_right = np.tan(np.pi / 4 * clock_right * norm_right)
@@ -353,7 +353,7 @@ def calc_foot_vel_clock_reward0(swing_frac, left_vel, right_vel, phase, max_vel,
     if clock_left is None:
         clock_left = clock_frc(phase, swing_frac)
     if clock_right is None:
-        clock_right = clock_frc(phase+0.5, swing_frac)
+        clock_right = clock_frc((phase+0.5)%1, swing_frac)
 
     score_left = np.tan(np.pi / 4 * clock_left * norm_left)
     score_right = np.tan(np.pi / 4 * clock_right * norm_right)
