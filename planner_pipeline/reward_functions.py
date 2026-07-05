@@ -5,29 +5,6 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
-
-def clock_frc(phase, swing_frac=0.4545, relax=0.1):
-    """
-    计算足底力/速度期望时钟信号。
-    返回 -1 (支撑相) 到 +1 (摆动相) 之间的值。
-    
-    :param phase: 步态相位 [0, 1)
-    :param swing_frac: 摆动相占周期比例
-    :param relax: 过渡区松弛度
-    :return: 时钟信号 [-1, 1]
-    """
-    lower = swing_frac * (1 - relax)
-    upper = swing_frac * (1 + relax)
-
-    if phase < lower:
-        return -1.0
-    elif phase < upper:
-        t = (phase - lower) / (upper - lower)
-        return -1.0 + 2.0 * t
-    else:
-        return 1.0
-
-
 def get_pelvis_yaw(data, pelvis_id):
     """从 MuJoCo data 中提取骨盆偏航角"""
     quat = data.xquat[pelvis_id].copy()  # (w,x,y,z)
@@ -36,7 +13,7 @@ def get_pelvis_yaw(data, pelvis_id):
     return euler[2]
 
 
-def calc_foot_frc_clock_reward(swing_frac, left_force, right_force, phase, max_force,
+def calc_foot_frc_clock_reward(left_force, right_force, phase, max_force,
                                clock_left=None, clock_right=None):
     """
     足底力相位匹配奖励。
@@ -49,13 +26,23 @@ def calc_foot_frc_clock_reward(swing_frac, left_force, right_force, phase, max_f
     :param clock_right: 可选，右腿期望时钟信号（若为 None 则自动计算）
     :return: 奖励值
     """
-    norm_left = np.clip(left_force / max_force, -1.0, 1.0)
-    norm_right = np.clip(right_force / max_force, -1.0, 1.0)
+    left_force = max(0, left_force)
+    right_force = max(0, right_force)
+
+    norm_left = min(left_force, max_force) / max_force
+    norm_right = min(right_force, max_force) / max_force
+    norm_left = norm_left * 2 - 1
+    norm_right = norm_right * 2 - 1
 
     if clock_left is None:
-        clock_left = clock_frc(phase, swing_frac)
+        raise ValueError("clock_left must be provided (function or numeric)")
     if clock_right is None:
-        clock_right = clock_frc((phase + 0.5) % 1.0, swing_frac)
+        raise ValueError("clock_right must be provided (function or numeric)")
+
+    if callable(clock_left):
+        clock_left = clock_left(phase)
+    if callable(clock_right):
+        clock_right = clock_right(phase)
 
     score_left = np.tan(np.pi / 4 * clock_left * norm_left)
     score_right = np.tan(np.pi / 4 * clock_right * norm_right)
@@ -63,7 +50,7 @@ def calc_foot_frc_clock_reward(swing_frac, left_force, right_force, phase, max_f
     return (score_left + score_right) / 2.0
 
 
-def calc_foot_vel_clock_reward(swing_frac, left_vel, right_vel, phase, max_vel,
+def calc_foot_vel_clock_reward(left_vel, right_vel, phase, max_vel,
                                clock_left=None, clock_right=None):
     """
     足部速度相位匹配奖励。
@@ -76,13 +63,20 @@ def calc_foot_vel_clock_reward(swing_frac, left_vel, right_vel, phase, max_vel,
     :param clock_right: 可选，右腿期望时钟信号（若为 None 则自动计算）
     :return: 奖励值
     """
-    norm_left = np.clip(left_vel / max_vel, -1.0, 1.0)
-    norm_right = np.clip(right_vel / max_vel, -1.0, 1.0)
+    norm_left = min(left_vel, max_vel) / max_vel
+    norm_right = min(right_vel, max_vel) / max_vel
+    norm_left = norm_left * 2 - 1
+    norm_right = norm_right * 2 - 1
 
     if clock_left is None:
-        clock_left = clock_frc(phase, swing_frac)
+        raise ValueError("clock_left must be provided (function or numeric)")
     if clock_right is None:
-        clock_right = clock_frc((phase + 0.5) % 1.0, swing_frac)
+        raise ValueError("clock_right must be provided (function or numeric)")
+
+    if callable(clock_left):
+        clock_left = clock_left(phase)
+    if callable(clock_right):
+        clock_right = clock_right(phase)
 
     score_left = np.tan(np.pi / 4 * clock_left * norm_left)
     score_right = np.tan(np.pi / 4 * clock_right * norm_right)
@@ -191,3 +185,199 @@ def calc_posture_error_reward(current_joint_angles, nominal_angles):
     """
     error = np.linalg.norm(current_joint_angles - nominal_angles)
     return np.exp(-error)
+
+
+
+def create_phase_reward(swing_duration, stance_duration, strict_relaxer, stance_mode, FREQ=40):
+    """Create phase-based reward functions for gait timing.
+
+    Args:
+        swing_duration: Duration of swing phase in seconds.
+        stance_duration: Duration of stance phase in seconds.
+        strict_relaxer: Fraction to relax phase boundaries.
+        stance_mode: One of "grounded", "aerial", or "zero".
+        FREQ: Control frequency in Hz.
+
+    Returns:
+        Tuple of (right_clock, left_clock) where each is [force_fn, velocity_fn].
+    """
+    from scipy.interpolate import PchipInterpolator
+
+    right_swing = np.array([0.0, swing_duration]) * FREQ
+    first_dblstance = np.array([swing_duration, swing_duration + stance_duration]) * FREQ
+    left_swing = np.array([swing_duration + stance_duration, 2 * swing_duration + stance_duration]) * FREQ
+    second_dblstance = np.array([2 * swing_duration + stance_duration, 2 * (swing_duration + stance_duration)]) * FREQ
+
+    r_frc_phase_points = np.zeros((2, 8))
+    r_vel_phase_points = np.zeros((2, 8))
+    l_frc_phase_points = np.zeros((2, 8))
+    l_vel_phase_points = np.zeros((2, 8))
+
+    right_swing_relax_offset = (right_swing[1] - right_swing[0]) * strict_relaxer
+    l_frc_phase_points[0, 0] = r_frc_phase_points[0, 0] = right_swing[0] + right_swing_relax_offset
+    l_frc_phase_points[0, 1] = r_frc_phase_points[0, 1] = right_swing[1] - right_swing_relax_offset
+    l_vel_phase_points[0, 0] = r_vel_phase_points[0, 0] = right_swing[0] + right_swing_relax_offset
+    l_vel_phase_points[0, 1] = r_vel_phase_points[0, 1] = right_swing[1] - right_swing_relax_offset
+    l_vel_phase_points[1, :2] = r_frc_phase_points[1, :2] = np.negative(np.ones(2))
+    l_frc_phase_points[1, :2] = r_vel_phase_points[1, :2] = np.ones(2)
+
+    dbl_stance_relax_offset = (first_dblstance[1] - first_dblstance[0]) * strict_relaxer
+    l_frc_phase_points[0, 2] = r_frc_phase_points[0, 2] = first_dblstance[0] + dbl_stance_relax_offset
+    l_frc_phase_points[0, 3] = r_frc_phase_points[0, 3] = first_dblstance[1] - dbl_stance_relax_offset
+    l_vel_phase_points[0, 2] = r_vel_phase_points[0, 2] = first_dblstance[0] + dbl_stance_relax_offset
+    l_vel_phase_points[0, 3] = r_vel_phase_points[0, 3] = first_dblstance[1] - dbl_stance_relax_offset
+    if stance_mode == "aerial":
+        l_frc_phase_points[1, 2:4] = r_frc_phase_points[1, 2:4] = np.negative(np.ones(2))
+        l_vel_phase_points[1, 2:4] = r_vel_phase_points[1, 2:4] = np.ones(2)
+    elif stance_mode == "zero":
+        l_frc_phase_points[1, 2:4] = r_frc_phase_points[1, 2:4] = np.zeros(2)
+        l_vel_phase_points[1, 2:4] = r_vel_phase_points[1, 2:4] = np.zeros(2)
+    else:
+        l_frc_phase_points[1, 2:4] = r_frc_phase_points[1, 2:4] = np.ones(2)
+        l_vel_phase_points[1, 2:4] = r_vel_phase_points[1, 2:4] = np.negative(np.ones(2))
+
+    left_swing_relax_offset = (left_swing[1] - left_swing[0]) * strict_relaxer
+    l_frc_phase_points[0, 4] = r_frc_phase_points[0, 4] = left_swing[0] + left_swing_relax_offset
+    l_frc_phase_points[0, 5] = r_frc_phase_points[0, 5] = left_swing[1] - left_swing_relax_offset
+    l_vel_phase_points[0, 4] = r_vel_phase_points[0, 4] = left_swing[0] + left_swing_relax_offset
+    l_vel_phase_points[0, 5] = r_vel_phase_points[0, 5] = left_swing[1] - left_swing_relax_offset
+    l_vel_phase_points[1, 4:6] = r_frc_phase_points[1, 4:6] = np.ones(2)
+    l_frc_phase_points[1, 4:6] = r_vel_phase_points[1, 4:6] = np.negative(np.ones(2))
+
+    dbl_stance_relax_offset = (second_dblstance[1] - second_dblstance[0]) * strict_relaxer
+    l_frc_phase_points[0, 6] = r_frc_phase_points[0, 6] = second_dblstance[0] + dbl_stance_relax_offset
+    l_frc_phase_points[0, 7] = r_frc_phase_points[0, 7] = second_dblstance[1] - dbl_stance_relax_offset
+    l_vel_phase_points[0, 6] = r_vel_phase_points[0, 6] = second_dblstance[0] + dbl_stance_relax_offset
+    l_vel_phase_points[0, 7] = r_vel_phase_points[0, 7] = second_dblstance[1] - dbl_stance_relax_offset
+    if stance_mode == "aerial":
+        l_frc_phase_points[1, 6:] = r_frc_phase_points[1, 6:] = np.negative(np.ones(2))
+        l_vel_phase_points[1, 6:] = r_vel_phase_points[1, 6:] = np.ones(2)
+    elif stance_mode == "zero":
+        l_frc_phase_points[1, 6:] = r_frc_phase_points[1, 6:] = np.zeros(2)
+        l_vel_phase_points[1, 6:] = r_vel_phase_points[1, 6:] = np.zeros(2)
+    else:
+        l_frc_phase_points[1, 6:] = r_frc_phase_points[1, 6:] = np.ones(2)
+        l_vel_phase_points[1, 6:] = r_vel_phase_points[1, 6:] = np.negative(np.ones(2))
+
+    # Extend data to three cycles for continuity
+    r_frc_prev_cycle = np.copy(r_frc_phase_points)
+    r_vel_prev_cycle = np.copy(r_vel_phase_points)
+    l_frc_prev_cycle = np.copy(l_frc_phase_points)
+    l_vel_prev_cycle = np.copy(l_vel_phase_points)
+    l_frc_prev_cycle[0] = r_frc_prev_cycle[0] = (
+        r_frc_phase_points[0] - r_frc_phase_points[0, -1] - dbl_stance_relax_offset
+    )
+    l_vel_prev_cycle[0] = r_vel_prev_cycle[0] = (
+        r_vel_phase_points[0] - r_vel_phase_points[0, -1] - dbl_stance_relax_offset
+    )
+
+    r_frc_second_cycle = np.copy(r_frc_phase_points)
+    r_vel_second_cycle = np.copy(r_vel_phase_points)
+    l_frc_second_cycle = np.copy(l_frc_phase_points)
+    l_vel_second_cycle = np.copy(l_vel_phase_points)
+    l_frc_second_cycle[0] = r_frc_second_cycle[0] = (
+        r_frc_phase_points[0] + r_frc_phase_points[0, -1] + dbl_stance_relax_offset
+    )
+    l_vel_second_cycle[0] = r_vel_second_cycle[0] = (
+        r_vel_phase_points[0] + r_vel_phase_points[0, -1] + dbl_stance_relax_offset
+    )
+
+    r_frc_phase_points_repeated = np.hstack((r_frc_prev_cycle, r_frc_phase_points, r_frc_second_cycle))
+    r_vel_phase_points_repeated = np.hstack((r_vel_prev_cycle, r_vel_phase_points, r_vel_second_cycle))
+    l_frc_phase_points_repeated = np.hstack((l_frc_prev_cycle, l_frc_phase_points, l_frc_second_cycle))
+    l_vel_phase_points_repeated = np.hstack((l_vel_prev_cycle, l_vel_phase_points, l_vel_second_cycle))
+
+    r_frc_phase_spline = PchipInterpolator(r_frc_phase_points_repeated[0], r_frc_phase_points_repeated[1])
+    r_vel_phase_spline = PchipInterpolator(r_vel_phase_points_repeated[0], r_vel_phase_points_repeated[1])
+    l_frc_phase_spline = PchipInterpolator(l_frc_phase_points_repeated[0], l_frc_phase_points_repeated[1])
+    l_vel_phase_spline = PchipInterpolator(l_vel_phase_points_repeated[0], l_vel_phase_points_repeated[1])
+
+    return [r_frc_phase_spline, r_vel_phase_spline], [l_frc_phase_spline, l_vel_phase_spline]
+
+
+
+
+
+'''最初版本'''
+
+def calc_foot_frc_clock_reward0(swing_frac, left_force, right_force, phase, max_force,
+                               clock_left=None, clock_right=None):
+    """
+    足底力相位匹配奖励。
+    
+    :param left_force: 左脚法向力 
+    :param right_force: 右脚法向力 
+    :param phase: 当前步态相位 [0, 1)
+    :param max_force: 最大足底力归一化基准
+    :param clock_left: 可选，左腿期望时钟信号（若为 None 则自动计算）
+    :param clock_right: 可选，右腿期望时钟信号（若为 None 则自动计算）
+    :return: 奖励值
+    """
+    left_force = max(0, left_force)
+    right_force = max(0, right_force)
+
+    norm_left = min(left_force, max_force) / max_force
+    norm_right = min(right_force, max_force) / max_force
+    norm_left = norm_left * 2 - 1
+    norm_right = norm_right * 2 - 1
+
+    if clock_left is None:
+        clock_left = -clock_frc(phase, swing_frac)
+    if clock_right is None:
+        clock_right = -clock_frc(phase+0.5, swing_frac)
+
+    score_left = np.tan(np.pi / 4 * clock_left * norm_left)
+    score_right = np.tan(np.pi / 4 * clock_right * norm_right)
+
+    return (score_left + score_right) / 2.0
+
+
+def calc_foot_vel_clock_reward0(swing_frac, left_vel, right_vel, phase, max_vel,
+                               clock_left=None, clock_right=None):
+    """
+    足部速度相位匹配奖励。
+    
+    :param left_vel: 左脚速度模长
+    :param right_vel: 右脚速度模长
+    :param phase: 当前步态相位 [0, 1)
+    :param max_vel: 最大速度归一化基准 
+    :param clock_left: 可选，左腿期望时钟信号（若为 None 则自动计算）
+    :param clock_right: 可选，右腿期望时钟信号（若为 None 则自动计算）
+    :return: 奖励值
+    """
+    norm_left = min(left_vel, max_vel) / max_vel
+    norm_right = min(right_vel, max_vel) / max_vel
+    norm_left = norm_left * 2 - 1
+    norm_right = norm_right * 2 - 1
+
+    if clock_left is None:
+        clock_left = clock_frc(phase, swing_frac)
+    if clock_right is None:
+        clock_right = clock_frc(phase+0.5, swing_frac)
+
+    score_left = np.tan(np.pi / 4 * clock_left * norm_left)
+    score_right = np.tan(np.pi / 4 * clock_right * norm_right)
+
+    return (score_left + score_right) / 2.0
+
+
+def clock_frc(phase, swing_frac=0.682, relax=0.1):
+    """
+    计算足底力/速度期望时钟信号。
+    返回 -1 (支撑相) 到 +1 (摆动相) 之间的值。
+    
+    :param phase: 步态相位 [0, 1)
+    :param swing_frac: 摆动相占周期比例
+    :param relax: 过渡区松弛度
+    :return: 时钟信号 [-1, 1]
+    """
+    lower = (1 - swing_frac) * (1 - relax)
+    upper = (1 - swing_frac) * (1 + relax)
+
+    if phase < lower:
+        return -1.0
+    elif phase < upper:
+        t = (phase - lower) / (upper - lower)
+        return -1.0 + 2.0 * t
+    else:
+        return 1.0

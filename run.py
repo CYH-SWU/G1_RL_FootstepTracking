@@ -22,7 +22,7 @@ from env.mirrorwrapper import MirrorWrapper
 project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
-from env.g1_env import G1TerrainEnv
+from env.g1_base import G1TerrainEnv
 
 # -------------------- 配置参数 --------------------
 ROBOT_XML = project_root / "robot" / "g1_processed.xml"

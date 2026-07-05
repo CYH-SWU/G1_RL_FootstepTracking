@@ -17,7 +17,7 @@ import mujoco
 import mujoco.viewer
 
 # 导入环境（根据实际文件名调整）
-from env.g1_env import G1TerrainEnv  # 假设环境类在 env/g1_lhw_env.py
+from env.g1_test3 import G1TerrainEnv  # 假设环境类在 env/g1_lhw_env.py
 
 def main():
     # 配置环境参数
@@ -32,7 +32,7 @@ def main():
         control_dt=0.01,
         physics_dt=0.005,
     )
-    #env.model.opt.gravity = np.zeros(3)
+    env.model.opt.gravity = np.zeros(3)
 
     # 重置环境
     obs, info = env.reset()

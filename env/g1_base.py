@@ -1,5 +1,86 @@
 '''
-测试env
+================================最终确定设置=============================
+# keyframe数据
+STAND_ANGLES = {
+    "left_hip_pitch_joint": -0.5235987756,
+    "left_hip_roll_joint": 0.0,
+    "left_hip_yaw_joint": 0.0,
+    "left_knee_joint": 0.872664626,
+    "left_ankle_pitch_joint": -0.34906585,
+    "left_ankle_roll_joint": 0.0,
+    "right_hip_pitch_joint": -0.5235987756,
+    "right_hip_roll_joint": 0.0,
+    "right_hip_yaw_joint": 0.0,
+    "right_knee_joint": 0.872664626,
+    "right_ankle_pitch_joint": -0.34906585,
+    "right_ankle_roll_joint": 0.0,
+    "waist_yaw_joint": 0.0,
+    "waist_roll_joint": 0.0,
+    "waist_pitch_joint": 0.0,
+    "left_shoulder_pitch_joint": 0.2000,
+    "left_shoulder_roll_joint": 0.2000,
+    "left_shoulder_yaw_joint": 0.0,
+    "left_elbow_joint": 0.5235987756,
+    "left_wrist_roll_joint": 0.0,
+    "left_wrist_pitch_joint": 0.0,
+    "left_wrist_yaw_joint": 0.0,
+    "right_shoulder_pitch_joint": 0.2000,
+    "right_shoulder_roll_joint": -0.2000,
+    "right_shoulder_yaw_joint": 0.0,
+    "right_elbow_joint": 0.5235987756,
+    "right_wrist_roll_joint": 0.0,
+    "right_wrist_pitch_joint": 0.0,
+    "right_wrist_yaw_joint": 0.0,
+}
+
+KP_MAP = {
+    "left_hip_pitch_joint": 115,
+    "left_hip_roll_joint": 115,
+    "left_hip_yaw_joint": 115,
+    "left_knee_joint": 172,
+    "left_ankle_pitch_joint": 46,
+    "left_ankle_roll_joint": 46,
+    "right_hip_pitch_joint": 115,
+    "right_hip_roll_joint": 115,
+    "right_hip_yaw_joint": 115,
+    "right_knee_joint": 172,
+    "right_ankle_pitch_joint": 46,
+    "right_ankle_roll_joint": 46,
+}
+
+def get_dampratio(joint_name: str) -> float:
+    """根据关节名称返回推荐的 dampratio 值（参考LHW比例）"""
+    if "hip" in joint_name.lower():
+        return 0.65   # 髋部阻尼比参照 LHW hip yaw/pitch ≈ 0.707
+    elif "knee" in joint_name.lower():
+        return 0.55   # 膝部阻尼比参照 LHW knee ≈ 0.612
+    elif "ankle" in joint_name.lower():
+        return 0.40  # 踝部阻尼比参照 LHW ankle ≈ 0.447
+    else:
+        return 0.55   # 默认值
+
+smooth = 0.5
+action_scale = 0.25
+control_dt: float = 0.015,
+physics_dt: float = 0.005,
+
+'frc': 0.15,
+'vel': 0.15,
+'orient': 0.05,
+'height': 0.05,
+'step': 0.45,
+'stability': 0.05,
+'posture': 0.05,
+'action': 0.00,
+'torque': 0.00
+
+model
+==================================================================
+
+'''
+
+'''
+保留env
 '''
 
 import os
@@ -13,8 +94,8 @@ from pathlib import Path
 import random
 
 from planner_pipeline.reward_functions import (
-    calc_foot_frc_clock_reward,
-    calc_foot_vel_clock_reward,
+    calc_foot_frc_clock_reward0,
+    calc_foot_vel_clock_reward0,
     calc_body_orient_reward,
     calc_height_reward,
     calc_upper_body_stability,
@@ -54,7 +135,7 @@ class G1TerrainEnv(gym.Env):
         self.difficulty = 0
 
         # 模式概率（与 LHW 完全一致）
-        self.mode_probs =  [0.05, 0.15, 0.20, 0.30, 0.30] # STANDING, CURVED, BACKWARD, LATERAL, FORWARD
+        self.mode_probs = [0.05, 0.15, 0.20, 0.30, 0.30] # STANDING, CURVED, BACKWARD, LATERAL, FORWARD
         # [0.05, 0.15, 0.20, 0.30, 0.30]
         self.mode_list = [WalkModes.STANDING, WalkModes.CURVED, WalkModes.BACKWARD,
                           WalkModes.LATERAL, WalkModes.FORWARD]
@@ -114,7 +195,7 @@ class G1TerrainEnv(gym.Env):
 
         self.nominal_pelvis_height = 0.6937 + 0.0331
         self.foot_ankle_offset = 0.0331
-        self.action_scale = 0.25
+        self.action_scale = 0.30
         self.smooth = 0.5
         self.last_action = None
         self.last_torque = None 
@@ -253,12 +334,12 @@ class G1TerrainEnv(gym.Env):
             if np.isclose(self.phase, 0.0):
                 seq.append([0.0, -first_shift, 0.0, 0.0])
                 initial_y_sign = -1
+                curve_dir = -1
             else:
                 seq.append([0.0, first_shift, 0.0, 0.0])
                 initial_y_sign = 1
+                curve_dir = 1
 
-            # 随机选择弯曲方向（1: 向左弯，-1: 向右弯）
-            curve_dir = np.random.choice([-1, 1])
             # 圆弧半径（2~4 米）
             R = np.random.uniform(2.5, 4.0)
             # 圆心在 y 轴上：使第一步落在圆弧上
@@ -412,7 +493,7 @@ class G1TerrainEnv(gym.Env):
         # 计算台阶高度（仅 FORWARD 模式）
         step_height = 0.0
         if self.mode == WalkModes.FORWARD:
-            max_h = 0.1 * self.difficulty
+            max_h = 0.1 * max(0.0, (self.difficulty - 0.273) / (1.0 - 0.273))
             step_height = np.random.choice([-max_h, max_h])
 
         num_steps = 20
@@ -640,21 +721,21 @@ class G1TerrainEnv(gym.Env):
         is_stand = (self.mode == WalkModes.STANDING)
 
         if is_stand:
-            r_frc = calc_foot_frc_clock_reward(
+            r_frc = calc_foot_frc_clock_reward0(
                 swing_frac,
                 left_force, right_force,
                 self.phase, max_force,
                 clock_left=1.0, clock_right=1.0
             )
-            r_vel = calc_foot_vel_clock_reward(
+            r_vel = calc_foot_vel_clock_reward0(
                 swing_frac,
                 left_vel, right_vel,
                 self.phase, 0.3,
                 clock_left=-1.0, clock_right=-1.0
             )
         else:
-            r_frc = calc_foot_frc_clock_reward(swing_frac, left_force, right_force, self.phase, max_force)
-            r_vel = calc_foot_vel_clock_reward(swing_frac, left_vel, right_vel, self.phase, 0.3)
+            r_frc = calc_foot_frc_clock_reward0(swing_frac, left_force, right_force, self.phase, max_force)
+            r_vel = calc_foot_vel_clock_reward0(swing_frac, left_vel, right_vel, self.phase, 0.3)
 
         r_orient = calc_body_orient_reward(pelvis_yaw, target_yaw)
         r_height = calc_height_reward(pelvis_z, foot_z, goal_height=self.nominal_pelvis_height, deadzone=0.023)
