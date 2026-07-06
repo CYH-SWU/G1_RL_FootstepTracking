@@ -94,8 +94,8 @@ from pathlib import Path
 import random
 
 from planner_pipeline.reward_functions import (
-    calc_foot_frc_clock_reward0,
-    calc_foot_vel_clock_reward0,
+    calc_foot_frc_clock_reward,
+    calc_foot_vel_clock_reward,
     calc_body_orient_reward,
     calc_height_reward,
     calc_upper_body_stability,
@@ -195,7 +195,7 @@ class G1TerrainEnv(gym.Env):
 
         self.nominal_pelvis_height = 0.6937 + 0.0331
         self.foot_ankle_offset = 0.0331
-        self.action_scale = 0.30
+        self.action_scale = 0.25
         self.smooth = 0.5
         self.last_action = None
         self.last_torque = None 
@@ -721,21 +721,21 @@ class G1TerrainEnv(gym.Env):
         is_stand = (self.mode == WalkModes.STANDING)
 
         if is_stand:
-            r_frc = calc_foot_frc_clock_reward0(
+            r_frc = calc_foot_frc_clock_reward(
                 swing_frac,
                 left_force, right_force,
                 self.phase, max_force,
                 clock_left=1.0, clock_right=1.0
             )
-            r_vel = calc_foot_vel_clock_reward0(
+            r_vel = calc_foot_vel_clock_reward(
                 swing_frac,
                 left_vel, right_vel,
                 self.phase, 0.3,
                 clock_left=-1.0, clock_right=-1.0
             )
         else:
-            r_frc = calc_foot_frc_clock_reward0(swing_frac, left_force, right_force, self.phase, max_force)
-            r_vel = calc_foot_vel_clock_reward0(swing_frac, left_vel, right_vel, self.phase, 0.3)
+            r_frc = calc_foot_frc_clock_reward(swing_frac, left_force, right_force, self.phase, max_force)
+            r_vel = calc_foot_vel_clock_reward(swing_frac, left_vel, right_vel, self.phase, 0.3)
 
         r_orient = calc_body_orient_reward(pelvis_yaw, target_yaw)
         r_height = calc_height_reward(pelvis_z, foot_z, goal_height=self.nominal_pelvis_height, deadzone=0.023)

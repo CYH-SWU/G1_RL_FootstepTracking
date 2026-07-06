@@ -5,6 +5,29 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
+
+def clock_frc(phase, swing_frac=0.682, relax=0.1):
+    """
+    计算足底力/速度期望时钟信号。
+    返回 -1 (支撑相) 到 +1 (摆动相) 之间的值。
+    
+    :param phase: 步态相位 [0, 1)
+    :param swing_frac: 摆动相占周期比例
+    :param relax: 过渡区松弛度
+    :return: 时钟信号 [-1, 1]
+    """
+    lower = (1 - swing_frac) * (1 - relax)
+    upper = (1 - swing_frac) * (1 + relax)
+
+    if phase < lower:
+        return -1.0
+    elif phase < upper:
+        t = (phase - lower) / (upper - lower)
+        return -1.0 + 2.0 * t
+    else:
+        return 1.0
+    
+
 def get_pelvis_yaw(data, pelvis_id):
     """从 MuJoCo data 中提取骨盆偏航角"""
     quat = data.xquat[pelvis_id].copy()  # (w,x,y,z)
@@ -13,7 +36,7 @@ def get_pelvis_yaw(data, pelvis_id):
     return euler[2]
 
 
-def calc_foot_frc_clock_reward(left_force, right_force, phase, max_force,
+def calc_foot_frc_clock_reward(swing_frac, left_force, right_force, phase, max_force,
                                clock_left=None, clock_right=None):
     """
     足底力相位匹配奖励。
@@ -35,14 +58,9 @@ def calc_foot_frc_clock_reward(left_force, right_force, phase, max_force,
     norm_right = norm_right * 2 - 1
 
     if clock_left is None:
-        raise ValueError("clock_left must be provided (function or numeric)")
+        clock_left = -clock_frc(phase, swing_frac)
     if clock_right is None:
-        raise ValueError("clock_right must be provided (function or numeric)")
-
-    if callable(clock_left):
-        clock_left = clock_left(phase)
-    if callable(clock_right):
-        clock_right = clock_right(phase)
+        clock_right = -clock_frc((phase + 0.5) % 1.0, swing_frac)
 
     score_left = np.tan(np.pi / 4 * clock_left * norm_left)
     score_right = np.tan(np.pi / 4 * clock_right * norm_right)
@@ -50,7 +68,7 @@ def calc_foot_frc_clock_reward(left_force, right_force, phase, max_force,
     return (score_left + score_right) / 2.0
 
 
-def calc_foot_vel_clock_reward(left_vel, right_vel, phase, max_vel,
+def calc_foot_vel_clock_reward(swing_frac, left_vel, right_vel, phase, max_vel,
                                clock_left=None, clock_right=None):
     """
     足部速度相位匹配奖励。
@@ -69,14 +87,9 @@ def calc_foot_vel_clock_reward(left_vel, right_vel, phase, max_vel,
     norm_right = norm_right * 2 - 1
 
     if clock_left is None:
-        raise ValueError("clock_left must be provided (function or numeric)")
+        clock_left = clock_frc(phase, swing_frac)
     if clock_right is None:
-        raise ValueError("clock_right must be provided (function or numeric)")
-
-    if callable(clock_left):
-        clock_left = clock_left(phase)
-    if callable(clock_right):
-        clock_right = clock_right(phase)
+        clock_right = clock_frc((phase + 0.5) % 1.0, swing_frac)
 
     score_left = np.tan(np.pi / 4 * clock_left * norm_left)
     score_right = np.tan(np.pi / 4 * clock_right * norm_right)
@@ -188,6 +201,46 @@ def calc_posture_error_reward(current_joint_angles, nominal_angles):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ===============================================================================================
 def create_phase_reward(swing_duration, stance_duration, strict_relaxer, stance_mode, FREQ=40):
     """Create phase-based reward functions for gait timing.
 
@@ -295,12 +348,7 @@ def create_phase_reward(swing_duration, stance_duration, strict_relaxer, stance_
     return [r_frc_phase_spline, r_vel_phase_spline], [l_frc_phase_spline, l_vel_phase_spline]
 
 
-
-
-
-'''最初版本'''
-
-def calc_foot_frc_clock_reward0(swing_frac, left_force, right_force, phase, max_force,
+def calc_foot_frc_clock_reward0(left_force, right_force, phase, max_force,
                                clock_left=None, clock_right=None):
     """
     足底力相位匹配奖励。
@@ -322,9 +370,14 @@ def calc_foot_frc_clock_reward0(swing_frac, left_force, right_force, phase, max_
     norm_right = norm_right * 2 - 1
 
     if clock_left is None:
-        clock_left = -clock_frc(phase, swing_frac)
+        raise ValueError("clock_left must be provided (function or numeric)")
     if clock_right is None:
-        clock_right = -clock_frc((phase+0.5)%1, swing_frac)
+        raise ValueError("clock_right must be provided (function or numeric)")
+
+    if callable(clock_left):
+        clock_left = clock_left(phase)
+    if callable(clock_right):
+        clock_right = clock_right(phase)
 
     score_left = np.tan(np.pi / 4 * clock_left * norm_left)
     score_right = np.tan(np.pi / 4 * clock_right * norm_right)
@@ -332,7 +385,7 @@ def calc_foot_frc_clock_reward0(swing_frac, left_force, right_force, phase, max_
     return (score_left + score_right) / 2.0
 
 
-def calc_foot_vel_clock_reward0(swing_frac, left_vel, right_vel, phase, max_vel,
+def calc_foot_vel_clock_reward0(left_vel, right_vel, phase, max_vel,
                                clock_left=None, clock_right=None):
     """
     足部速度相位匹配奖励。
@@ -351,33 +404,16 @@ def calc_foot_vel_clock_reward0(swing_frac, left_vel, right_vel, phase, max_vel,
     norm_right = norm_right * 2 - 1
 
     if clock_left is None:
-        clock_left = clock_frc(phase, swing_frac)
+        raise ValueError("clock_left must be provided (function or numeric)")
     if clock_right is None:
-        clock_right = clock_frc((phase+0.5)%1, swing_frac)
+        raise ValueError("clock_right must be provided (function or numeric)")
+
+    if callable(clock_left):
+        clock_left = clock_left(phase)
+    if callable(clock_right):
+        clock_right = clock_right(phase)
 
     score_left = np.tan(np.pi / 4 * clock_left * norm_left)
     score_right = np.tan(np.pi / 4 * clock_right * norm_right)
 
     return (score_left + score_right) / 2.0
-
-
-def clock_frc(phase, swing_frac=0.682, relax=0.1):
-    """
-    计算足底力/速度期望时钟信号。
-    返回 -1 (支撑相) 到 +1 (摆动相) 之间的值。
-    
-    :param phase: 步态相位 [0, 1)
-    :param swing_frac: 摆动相占周期比例
-    :param relax: 过渡区松弛度
-    :return: 时钟信号 [-1, 1]
-    """
-    lower = (1 - swing_frac) * (1 - relax)
-    upper = (1 - swing_frac) * (1 + relax)
-
-    if phase < lower:
-        return -1.0
-    elif phase < upper:
-        t = (phase - lower) / (upper - lower)
-        return -1.0 + 2.0 * t
-    else:
-        return 1.0
