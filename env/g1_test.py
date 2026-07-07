@@ -117,7 +117,7 @@ class G1TerrainEnv(gym.Env):
 
         self.nominal_pelvis_height = 0.6937 + 0.0331
         self.foot_ankle_offset = 0.0331
-        self.action_scale = 0.50
+        self.action_scale = 0.30
         self.smooth = 0.30
         self.last_action = None
         self.last_torque = None 
