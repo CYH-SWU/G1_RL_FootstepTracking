@@ -81,7 +81,7 @@ class CurriculumCallback(BaseCallback):
         return True
 
 checkpoint_callback = CheckpointCallback(
-    save_freq=(TOTAL_TIMESTEPS / N_ENVS) / 3 ,  # 调整保存频率
+    save_freq=(TOTAL_TIMESTEPS / N_ENVS) / 6 ,  # 调整保存频率
     save_path=str(CHECKPOINT_DIR),
     name_prefix="ppo_g1",
     save_replay_buffer=False,

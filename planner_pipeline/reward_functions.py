@@ -6,7 +6,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 
-def clock_frc(phase, swing_frac=0.682, relax=0.1):
+def clock_frc(phase, swing_frac, relax=0.1):
     """
     计算足底力/速度期望时钟信号。
     返回 -1 (支撑相) 到 +1 (摆动相) 之间的值。
