@@ -94,7 +94,7 @@ class G1TerrainEnv(gym.Env):
         self.stance_duration = 0.35
         self.step_length = 0.25
         self.step_width = 0.237
-        self.max_foot_vel = 0.20
+        self.max_foot_vel = 0.30
 
         # 缓存ID
         self.pelvis_id = None
@@ -117,7 +117,7 @@ class G1TerrainEnv(gym.Env):
 
         self.nominal_pelvis_height = 0.6937 + 0.0331
         self.foot_ankle_offset = 0.0331
-        self.action_scale = 0.30
+        self.action_scale = 0.50
         self.smooth = 0.30
         self.last_action = None
         self.last_torque = None 

@@ -506,13 +506,12 @@ g1_test3使用LHW步态生成函数   非常差  不可取
 提高action_scale 0.3  soomth 0.3   表现不错  可取⭐
 以上基础，提高步态周期 1.4 1.0 0.4   效果不如以上基础搭配原始步态周期
 
-以上基础 1.25 0.85 0.40
-以上基础 1.1 0.75 0.35 max_vel = 0.2
+以上基础 1.25 0.85 0.40   效果不好，没有1.1 与 1.4好
 
 
 7.7
 基准：
-    ppo_g1_3  action_scale 0.3 soomth 0.3 1.1 0.75 0.35
+    ppo_g1_3  action_scale 0.3 soomth 0.3 1.1 0.75 0.35 max_vel = 0.30
 
 后续：
     提高回调保存模型次数
@@ -521,3 +520,15 @@ g1_test3使用LHW步态生成函数   非常差  不可取
     适当提高max_force
     使用LSTM网络
     找出支撑力负数与较小的原因
+
+action_scale = 0.3 soomth 0.3 1.1 0.75 0.35 max_vel = 0.20  g1_test.py   良好
+
+action_scale = 0.3 soomth 0.3 1.4 1.0 0.4 max_vel = 0.20  较差
+
+action_scale = 0.3 soomth 0.3 1.1 0.75 0.35 max_vel = 0.4  较差
+
+1.1 0.75 0.35 max_vel = 0.30 最优
+
+action_scale 0.4 soomth 0.3
+action_scale 0.35 soomth 0.3/
+action_scale 0.45 soomth 0.3
