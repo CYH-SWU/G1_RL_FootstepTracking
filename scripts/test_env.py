@@ -17,7 +17,7 @@ import mujoco
 import mujoco.viewer
 
 # 导入环境（根据实际文件名调整）
-from env.g1_test3 import G1TerrainEnv  # 假设环境类在 env/g1_lhw_env.py
+from env.g1_test import G1TerrainEnv  # 假设环境类在 env/g1_lhw_env.py
 
 def main():
     # 配置环境参数
@@ -32,7 +32,7 @@ def main():
         control_dt=0.01,
         physics_dt=0.005,
     )
-    env.model.opt.gravity = np.zeros(3)
+    #env.model.opt.gravity = np.zeros(3)
 
     # 重置环境
     obs, info = env.reset()
@@ -45,7 +45,7 @@ def main():
     step = 0
     total_reward = 0.0
     done = False
-    zero_action = np.zeros(12, dtype=np.float32)  # 动作空间为12维
+    zero_action = np.zeros(13, dtype=np.float32)  # 动作空间为12维
     #zero_action = np.array([-1,0,0,-1,1,1,0,0,0,0,0,0])
 
     print("开始零动作测试，按 Esc 退出...")

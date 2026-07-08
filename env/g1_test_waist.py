@@ -1,7 +1,8 @@
 '''
 以g1_base为基础
 action_scale 0.3 soomth 0.3
-步态周期1.4 1.0 0.4
+步态周期1.1 0.75 0.35
+添加腰部控制
 '''
 
 import os
@@ -61,12 +62,12 @@ class G1TerrainEnv(gym.Env):
         self.mode_list = [WalkModes.STANDING, WalkModes.CURVED, WalkModes.BACKWARD,
                           WalkModes.LATERAL, WalkModes.FORWARD]
 
-        # 动作空间：12 个关节（移除腰部）
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(12,), dtype=np.float32)
+        # 动作空间：13 个关节（移除腰部）
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(13,), dtype=np.float32)
 
         # 观测空间：actor_obs + critic_obs（非对称）
-        actor_obs_dim = 12 + 12 + 1 + 8 + 2 + 3 + 3
-        privileged_obs_dim = 2 + 3 + 12
+        actor_obs_dim = 13 + 13 + 1 + 8 + 2 + 3 + 3
+        privileged_obs_dim = 2 + 3 + 13
         self.observation_space = spaces.Dict({
             "actor_obs": spaces.Box(low=-np.inf, high=np.inf, shape=(actor_obs_dim,), dtype=np.float32),
             "critic_obs": spaces.Box(low=-np.inf, high=np.inf, shape=(actor_obs_dim + privileged_obs_dim,), dtype=np.float32),
@@ -109,10 +110,11 @@ class G1TerrainEnv(gym.Env):
         # 摔倒阈值
         self.fall_height_threshold = 0.35
 
-        # 标称姿态（12个关节）
+        # 标称姿态（13个关节）
         self.nominal_angles = np.array([
             -0.5235987756, 0.0, 0.0, 0.872664626, -0.34906585, 0.0,
-            -0.5235987756, 0.0, 0.0, 0.872664626, -0.34906585, 0.0
+            -0.5235987756, 0.0, 0.0, 0.872664626, -0.34906585, 0.0,
+            0.15   # 腰部俯仰标称
         ])
 
         self.nominal_pelvis_height = 0.6937 + 0.0331
@@ -121,7 +123,7 @@ class G1TerrainEnv(gym.Env):
         self.smooth = 0.20
         self.last_action = None
         self.last_torque = None 
-        self.smooth_target = np.zeros(12)
+        self.smooth_target = np.zeros(13)
 
         # 最大踏脚石数量
         self.max_boxes = max_boxes
@@ -146,8 +148,8 @@ class G1TerrainEnv(gym.Env):
 
         # 构建缩放数组（顺序与 actor_obs 完全对应）
         self.critic_obs_scale = np.concatenate([
-            [self.norm_params["joint_angles_max"]] * 12,
-            [self.norm_params["joint_vels_max"]] * 12,
+            [self.norm_params["joint_angles_max"]] * 13,
+            [self.norm_params["joint_vels_max"]] * 13,
             [self.norm_params["pelvis_height_max"]],
             self.norm_params["t1_pos_max"],      # 3 个值
             self.norm_params["t2_pos_max"],      # 3 个值
@@ -157,8 +159,8 @@ class G1TerrainEnv(gym.Env):
             [self.norm_params["pelvis_orient_max"]] * 3,
             [self.norm_params["pelvis_angvel_max"]] * 3,
         ])
-        # 长度应为 12+12+1+3+3+1+1+2+3+3 = 41
-        assert len(self.critic_obs_scale) == 41
+        # 长度应为 13+13+1+3+3+1+1+2+3+3 = 41
+        assert len(self.critic_obs_scale) == 43
 
         # ---------- 加载模型并预定义踏脚石 ----------
         self._load_model_with_boxes()
@@ -208,7 +210,8 @@ class G1TerrainEnv(gym.Env):
             "left_hip_pitch_joint", "left_hip_roll_joint", "left_hip_yaw_joint",
             "left_knee_joint", "left_ankle_pitch_joint", "left_ankle_roll_joint",
             "right_hip_pitch_joint", "right_hip_roll_joint", "right_hip_yaw_joint",
-            "right_knee_joint", "right_ankle_pitch_joint", "right_ankle_roll_joint"
+            "right_knee_joint", "right_ankle_pitch_joint", "right_ankle_roll_joint",
+            "waist_pitch_joint"   # 新增
         ]
         self.joint_indices = []
         self.joint_vel_indices = []
@@ -221,10 +224,11 @@ class G1TerrainEnv(gym.Env):
         for name in joint_names:
             self.actuator_indices.append(model.actuator(name).id)
 
-        # 最大力矩（12个关节）
+        # 最大力矩（13个关节）
         self.max_torques = np.array([
             88, 139, 88, 139, 50, 50,
-            88, 139, 88, 139, 50, 50
+            88, 139, 88, 139, 50, 50,
+            50,
         ])
 
     def _get_body_linvel(self, body_id):
@@ -543,7 +547,7 @@ class G1TerrainEnv(gym.Env):
         lin_vel = self.data.qvel[0:3]
         norm_lin_vel = np.clip(lin_vel / 2.0, -1.0, 1.0)
 
-        # 特权信息：关节力矩（12个关节）
+        # 特权信息：关节力矩（13个关节）
         torques = self.data.actuator_force[self.actuator_indices]
         norm_torques = np.clip(torques / (self.max_torques + 1e-6), -1.0, 1.0)
 

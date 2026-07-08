@@ -6,7 +6,7 @@ DEFAULT_INPUT = Path(__file__).parent / "unitree_g1.xml"
 DEFAULT_OUTPUT = Path(__file__).parent / "g1_processed.xml"
 
 # 保留的关键词：髋、膝、踝、以及腰部俯仰
-KEEP_JOINT_KEYWORDS = ["hip", "knee", "ankle"]
+KEEP_JOINT_KEYWORDS = ["hip", "knee", "ankle", "waist_pitch"]
 
 # keyframe数据
 STAND_ANGLES = {
@@ -54,18 +54,21 @@ KP_MAP = {
     "right_knee_joint": 172,
     "right_ankle_pitch_joint": 46,
     "right_ankle_roll_joint": 46,
+    "waist_pitch_joint": 100,          # 新增腰部俯仰增益
 }
 
 def get_dampratio(joint_name: str) -> float:
     """根据关节名称返回推荐的 dampratio 值（参考LHW比例）"""
     if "hip" in joint_name.lower():
-        return 0.65   # 髋部阻尼比参照 LHW hip yaw/pitch ≈ 0.707
+        return 0.65
     elif "knee" in joint_name.lower():
-        return 0.55   # 膝部阻尼比参照 LHW knee ≈ 0.612
+        return 0.55
     elif "ankle" in joint_name.lower():
-        return 0.40  # 踝部阻尼比参照 LHW ankle ≈ 0.447
+        return 0.40
+    elif "waist" in joint_name.lower():   # 新增腰部阻尼
+        return 0.65
     else:
-        return 0.55   # 默认值
+        return 0.55
 
 def process_g1_model(input_path=None, output_path=None):
     in_path = Path(input_path) if input_path else DEFAULT_INPUT
@@ -162,7 +165,6 @@ def process_g1_model(input_path=None, output_path=None):
     ET.SubElement(contact, "exclude", body1="pelvis", body2="waist_roll_link")
     ET.SubElement(contact, "exclude", body1="pelvis", body2="torso_link")
 
-
     # ---- 清理 keyframe 中的 ctrl 属性 ----
     keyframe = root.find(".//keyframe")
     if keyframe is not None:
@@ -238,8 +240,6 @@ def process_g1_model(input_path=None, output_path=None):
     if worldbody is None:
         worldbody = ET.SubElement(root, "worldbody")
     # 添加光源（如果已存在则跳过，这里直接添加，确保位置正确）
-    # 注意：原 XML 可能已有光源，但为了统一，我们添加一个平行光
-    # 检查是否已有 light，若没有则添加
     light_exists = False
     for light in worldbody.findall("light"):
         light_exists = True
@@ -256,7 +256,6 @@ def process_g1_model(input_path=None, output_path=None):
     ground_geom.set("size", "20 20 0.1")
     ground_geom.set("pos", "0 0 0")
     ground_geom.set("material", "groundplane")
-    # 半透明使地面更美观（可选）
     ground_geom.set("rgba", "0.5 0.7 0.8 0.5")
 
     # 输出处理后的模型
