@@ -22,8 +22,8 @@ from env.g1_test import G1TerrainEnv
 
 def main():
     # 文件路径
-    model_path = project_root / "checkpoints" / "ppo_g1_12.zip"
-    norm_path = project_root / "checkpoints" / "vec_12.pkl"
+    model_path = project_root / "checkpoints" / "ppo_g1_w015.zip"
+    norm_path = project_root / "checkpoints" / "vec_w015.pkl"
     
     robot_xml = project_root / "robot" / "g1_processed.xml"
     mesh_dir = project_root / "robot" / "assets"

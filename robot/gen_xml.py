@@ -24,7 +24,7 @@ STAND_ANGLES = {
     "right_ankle_roll_joint": 0.0,
     "waist_yaw_joint": 0.0,
     "waist_roll_joint": 0.0,
-    "waist_pitch_joint": 0.15,
+    "waist_pitch_joint": 0.150,
     "left_shoulder_pitch_joint": 0.2000,
     "left_shoulder_roll_joint": 0.2000,
     "left_shoulder_yaw_joint": 0.0,
