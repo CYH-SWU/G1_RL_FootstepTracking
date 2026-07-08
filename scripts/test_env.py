@@ -45,7 +45,7 @@ def main():
     step = 0
     total_reward = 0.0
     done = False
-    zero_action = np.zeros(13, dtype=np.float32)  # 动作空间为12维
+    zero_action = np.zeros(12, dtype=np.float32)  # 动作空间为12维
     #zero_action = np.array([-1,0,0,-1,1,1,0,0,0,0,0,0])
 
     print("开始零动作测试，按 Esc 退出...")
