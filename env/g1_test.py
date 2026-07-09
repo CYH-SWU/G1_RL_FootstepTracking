@@ -269,7 +269,7 @@ class G1TerrainEnv(gym.Env):
             cy = y0 - curve_dir * R
 
             # 计算总角度，使每步弧长 ≈ step_length
-            total_angle = (num_steps - 1) * (self.step_length - 0.05) / R
+            total_angle = (num_steps - 1) * (self.step_length - 0.025) / R
             # 增加随机扰动（可选）
             total_angle *= np.random.uniform(0.9, 1.1)
 
@@ -277,7 +277,7 @@ class G1TerrainEnv(gym.Env):
 
             for i in range(1, num_steps):
                 theta_i = i * dtheta
-                radius_offset = ((-1) ** i) * ((self.step_width - 0.05) / 2)
+                radius_offset = ((-1) ** i) * ((self.step_width - 0.025) / 2)
                 R_i = R + radius_offset
                 x_local = R_i * np.sin(theta_i)
                 y_local = curve_dir * R_i * np.cos(theta_i)
