@@ -79,15 +79,6 @@ class G1TerrainEnv(gym.Env):
         self.phase = 0.0
         self.mode = None
 
-        # 步点序列相关
-        self.sequence = []          # 世界坐标步点 (x,y,z,theta)
-        self.t1 = 0
-        self.t2 = 1
-        self.target_radius = 0.20
-        self.delay_frames = int(np.floor(0.5 / self.control_dt))
-        self.target_reached = False
-        self.target_reached_frames = 0
-
         # 步态参数
         self.total_duration = 1.1
         self.swing_duration = 0.75
@@ -95,6 +86,15 @@ class G1TerrainEnv(gym.Env):
         self.step_length = 0.25
         self.step_width = 0.237
         self.max_foot_vel = 0.30
+
+        # 步点序列相关
+        self.sequence = []          # 世界坐标步点 (x,y,z,theta)
+        self.t1 = 0
+        self.t2 = 1
+        self.target_radius = 0.20
+        self.delay_frames = int(np.floor(self.swing_duration / self.control_dt))
+        self.target_reached = False
+        self.target_reached_frames = 0
 
         # 缓存ID
         self.pelvis_id = None
@@ -118,7 +118,7 @@ class G1TerrainEnv(gym.Env):
         self.nominal_pelvis_height = 0.6937 + 0.0331
         self.foot_ankle_offset = 0.0331
         self.action_scale = 0.30
-        self.smooth = 0.50
+        self.smooth = 0.40
         self.last_action = None
         self.last_torque = None 
         self.smooth_target = np.zeros(12)

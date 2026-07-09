@@ -555,6 +555,10 @@ soomth - 0.2  优秀
 0.150 最优
 
 1.1 0.75 0.35 max_vel = 0.30 action_scale = 0.30 waist = 0.150 基准
-soomth 0.5
+soomth 0.5  非常差，机器人滑步
+
+修复 self.delay_frames = int(np.floor(self.swing_duration / self.control_dt))
+
+soomth 0.4
 
 
