@@ -85,7 +85,7 @@ class G1TerrainEnv(gym.Env):
         self.stance_duration = 0.35
         self.step_length = 0.25
         self.step_width = 0.237
-        self.max_foot_vel = 0.30
+        self.max_foot_vel = 0.20
 
         # 步点序列相关
         self.sequence = []          # 世界坐标步点 (x,y,z,theta)
@@ -118,7 +118,7 @@ class G1TerrainEnv(gym.Env):
         self.nominal_pelvis_height = 0.6937 + 0.0331
         self.foot_ankle_offset = 0.0331
         self.action_scale = 0.30
-        self.smooth = 0.35
+        self.smooth = 0.30
         self.last_action = None
         self.last_torque = None 
         self.smooth_target = np.zeros(12)
