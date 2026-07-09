@@ -37,7 +37,6 @@ ITERATION = 1500
 N_ENVS = 16   
                        
 TOTAL_TIMESTEPS = ITERATION * N_ENVS * 400
-MAX_EPISODE_STEPS = 2500
 TOTAL_TIMESTEPS_FOR_MAX = 11000 * N_ENVS * 400
 
 # -------------------- 环境创建函数（必须可 pickle） --------------------
@@ -45,7 +44,6 @@ def make_env():
     """工厂函数：创建单个 G1 环境实例"""
     env = G1TerrainEnv(
         robot_xml_path=str(ROBOT_XML),
-        max_episode_steps=MAX_EPISODE_STEPS,
     )
     env = MirrorWrapper(env, mirror_prob=0.5)
     return Monitor(env)
