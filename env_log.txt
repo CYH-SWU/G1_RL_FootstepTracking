@@ -564,6 +564,12 @@ soomth 0.4   较差   机器人能迈大步 不滑步
 soomth 0.3   良好
 
 1.1 0.75 0.35 action_scale = 0.30 waist = 0.150 基准
-max_vel = 0.20  soomth = 0.30
+max_vel = 0.20  soomth = 0.30  良好，步幅足够
+curve模式步长调整为0.20
+max_vel = 0.20  soomth = 0.50 控制频率40hz  抖动幅度过大
 
+env最大步数修改 
+curve模式步长调整为0.225
+
+1.1 0.75 0.35 action_scale = 0.30 soomth = 0.30 控制dt = 0.015 waist = 0.150 max_vel = 0.20基准
 
