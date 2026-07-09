@@ -559,6 +559,9 @@ soomth 0.5  非常差，机器人滑步
 
 修复 self.delay_frames = int(np.floor(self.swing_duration / self.control_dt))
 
-soomth 0.4
+soomth 0.4   较差   机器人能迈大步 不滑步
+soomth 0.3   良好
+
+soomth 0.25
 
 
