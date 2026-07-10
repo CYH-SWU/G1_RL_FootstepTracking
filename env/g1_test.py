@@ -1,9 +1,3 @@
-'''
-以g1_base为基础
-action_scale 0.3 soomth 0.3
-步态周期1.4 1.0 0.4
-'''
-
 import os
 import gymnasium as gym
 import numpy as np
