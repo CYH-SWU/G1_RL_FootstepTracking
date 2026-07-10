@@ -637,29 +637,14 @@ def get_dampratio(joint_name: str) -> float:
 
 机器人有明显较大抖动
 
-配置2:
-KP_MAP = {
-    "left_hip_pitch_joint": 130,
-    "left_hip_roll_joint": 130,
-    "left_hip_yaw_joint": 130,
-    "left_knee_joint": 195,
-    "left_ankle_pitch_joint": 52,
-    "left_ankle_roll_joint": 52,
-    "right_hip_pitch_joint": 130,
-    "right_hip_roll_joint": 130,
-    "right_hip_yaw_joint": 130,
-    "right_knee_joint": 195,
-    "right_ankle_pitch_joint": 52,
-    "right_ankle_roll_joint": 52,
-}
+7.10
+LHW网络，效果极差
 
-def get_dampratio(joint_name: str) -> float:
-    """根据关节名称返回推荐的 dampratio 值（参考LHW比例）"""
-    if "hip" in joint_name.lower():
-        return 0.65   # 髋部阻尼比参照 LHW hip yaw/pitch ≈ 0.707
-    elif "knee" in joint_name.lower():
-        return 0.55   # 膝部阻尼比参照 LHW knee ≈ 0.612
-    elif "ankle" in joint_name.lower():
-        return 0.40  # 踝部阻尼比参照 LHW ankle ≈ 0.447
-    else:
-        return 0.55   # 默认值
+以g1_base2为基准
+步幅 0.20 半径 0.16 soomth 0.20  训练散度震动大
+
+步幅 0.20 半径 0.12 soomth 0.20  机器人内八
+
+以g1_base2为基准
+soomth 0.20 LSTM网络   幅度大 走路意愿高 但不稳定
+
