@@ -573,3 +573,93 @@ curve模式步长调整为0.225
 
 1.1 0.75 0.35 action_scale = 0.30 soomth = 0.30 控制dt = 0.015 waist = 0.150 max_vel = 0.20基准
 
+基准g1_base2.py    
+最大步数1500       训练2000轮次
+
+========================基准配置=====================================
+KP_MAP = {
+    "left_hip_pitch_joint": 115,
+    "left_hip_roll_joint": 115,
+    "left_hip_yaw_joint": 115,
+    "left_knee_joint": 172,
+    "left_ankle_pitch_joint": 46,
+    "left_ankle_roll_joint": 46,
+    "right_hip_pitch_joint": 115,
+    "right_hip_roll_joint": 115,
+    "right_hip_yaw_joint": 115,
+    "right_knee_joint": 172,
+    "right_ankle_pitch_joint": 46,
+    "right_ankle_roll_joint": 46,
+}
+
+def get_dampratio(joint_name: str) -> float:
+    """根据关节名称返回推荐的 dampratio 值（参考LHW比例）"""
+    if "hip" in joint_name.lower():
+        return 0.65   # 髋部阻尼比参照 LHW hip yaw/pitch ≈ 0.707
+    elif "knee" in joint_name.lower():
+        return 0.55   # 膝部阻尼比参照 LHW knee ≈ 0.612
+    elif "ankle" in joint_name.lower():
+        return 0.40  # 踝部阻尼比参照 LHW ankle ≈ 0.447
+    else:
+        return 0.55   # 默认值
+=================================================================
+
+
+以g1_base2.py为基准
+尝试不同kp kd配置
+
+配置1：
+KP_MAP = {
+    "left_hip_pitch_joint": 130,
+    "left_hip_roll_joint": 130,
+    "left_hip_yaw_joint": 130,
+    "left_knee_joint": 195,
+    "left_ankle_pitch_joint": 52,
+    "left_ankle_roll_joint": 52,
+    "right_hip_pitch_joint": 130,
+    "right_hip_roll_joint": 130,
+    "right_hip_yaw_joint": 130,
+    "right_knee_joint": 195,
+    "right_ankle_pitch_joint": 52,
+    "right_ankle_roll_joint": 52,
+}
+
+def get_dampratio(joint_name: str) -> float:
+    """根据关节名称返回推荐的 dampratio 值（参考LHW比例）"""
+    if "hip" in joint_name.lower():
+        return 0.40   # 髋部阻尼比参照 LHW hip yaw/pitch ≈ 0.707
+    elif "knee" in joint_name.lower():
+        return 0.45   # 膝部阻尼比参照 LHW knee ≈ 0.612
+    elif "ankle" in joint_name.lower():
+        return 0.40  # 踝部阻尼比参照 LHW ankle ≈ 0.447
+    else:
+        return 0.55   # 默认值
+
+机器人有明显较大抖动
+
+配置2:
+KP_MAP = {
+    "left_hip_pitch_joint": 130,
+    "left_hip_roll_joint": 130,
+    "left_hip_yaw_joint": 130,
+    "left_knee_joint": 195,
+    "left_ankle_pitch_joint": 52,
+    "left_ankle_roll_joint": 52,
+    "right_hip_pitch_joint": 130,
+    "right_hip_roll_joint": 130,
+    "right_hip_yaw_joint": 130,
+    "right_knee_joint": 195,
+    "right_ankle_pitch_joint": 52,
+    "right_ankle_roll_joint": 52,
+}
+
+def get_dampratio(joint_name: str) -> float:
+    """根据关节名称返回推荐的 dampratio 值（参考LHW比例）"""
+    if "hip" in joint_name.lower():
+        return 0.65   # 髋部阻尼比参照 LHW hip yaw/pitch ≈ 0.707
+    elif "knee" in joint_name.lower():
+        return 0.55   # 膝部阻尼比参照 LHW knee ≈ 0.612
+    elif "ankle" in joint_name.lower():
+        return 0.40  # 踝部阻尼比参照 LHW ankle ≈ 0.447
+    else:
+        return 0.55   # 默认值
