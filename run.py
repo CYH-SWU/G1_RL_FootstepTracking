@@ -33,7 +33,7 @@ LOG_DIR = project_root / "logs"
 CHECKPOINT_DIR.mkdir(exist_ok=True)
 LOG_DIR.mkdir(exist_ok=True)
 
-ITERATION = 6000
+ITERATION = 1500 * 5
 N_ENVS = 16   
                        
 TOTAL_TIMESTEPS = ITERATION * N_ENVS * 400
