@@ -33,7 +33,7 @@ LOG_DIR = project_root / "logs"
 CHECKPOINT_DIR.mkdir(exist_ok=True)
 LOG_DIR.mkdir(exist_ok=True)
 
-ITERATION = 1500 * 5
+ITERATION = 1500 * 2
 N_ENVS = 16   
                        
 TOTAL_TIMESTEPS = ITERATION * N_ENVS * 400
@@ -113,7 +113,7 @@ model = PPO(
     # --- PPO 裁剪 ---
     clip_range=0.2,                  # 与 LHW 默认 clip 一致
     # --- 熵与探索 ---
-    ent_coef=0.0,                    # LHW 默认熵系数为 0（不鼓励额外探索）
+    ent_coef=0.001,                    # LHW 默认熵系数为 0（不鼓励额外探索）
     max_grad_norm=0.5,               # 与 LHW 默认 grad norm 一致（SB3 默认也是 0.5）
     tensorboard_log=str(LOG_DIR),
     device='cuda',

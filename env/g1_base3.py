@@ -1,3 +1,5 @@
+'''以g1_base2为基准，步长设置为0.20'''
+
 import os
 import gymnasium as gym
 import numpy as np
@@ -51,7 +53,7 @@ class G1TerrainEnv(gym.Env):
 
         # 模式概率（与 LHW 完全一致）
         self.mode_probs = [0.05, 0.15, 0.20, 0.30, 0.30] # STANDING, CURVED, BACKWARD, LATERAL, FORWARD
-        # [0.05, 0.15, 0.20, 0.30, 0.30] [0.0, 0., 0., 0., 1]
+        # [0.05, 0.15, 0.20, 0.30, 0.30]
         self.mode_list = [WalkModes.STANDING, WalkModes.CURVED, WalkModes.BACKWARD,
                           WalkModes.LATERAL, WalkModes.FORWARD]
 

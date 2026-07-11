@@ -32,7 +32,7 @@ def main():
         control_dt=0.01,
         physics_dt=0.005,
     )
-    #env.model.opt.gravity = np.zeros(3)
+    env.model.opt.gravity = np.zeros(3)
 
     # 重置环境
     obs, info = env.reset()

@@ -33,11 +33,11 @@ LOG_DIR = project_root / "logs"
 CHECKPOINT_DIR.mkdir(exist_ok=True)
 LOG_DIR.mkdir(exist_ok=True)
 
-ITERATION = 1500
+ITERATION = 1500 * 2
 N_ENVS = 16   
                        
-TOTAL_TIMESTEPS = ITERATION * N_ENVS * 800
-TOTAL_TIMESTEPS_FOR_MAX = 11000 * N_ENVS * 400
+TOTAL_TIMESTEPS = ITERATION * N_ENVS * 256
+TOTAL_TIMESTEPS_FOR_MAX = 11000 * N_ENVS * 256
 
 # -------------------- 环境创建函数（必须可 pickle） --------------------
 def make_env():
@@ -79,7 +79,7 @@ class CurriculumCallback(BaseCallback):
         return True
 
 checkpoint_callback = CheckpointCallback(
-    save_freq=(TOTAL_TIMESTEPS / N_ENVS) / 16 ,  # 调整保存频率
+    save_freq=(TOTAL_TIMESTEPS // N_ENVS) // 32 ,  # 调整保存频率
     save_path=str(CHECKPOINT_DIR),
     name_prefix="ppo_g1",
     save_replay_buffer=False,
@@ -106,7 +106,7 @@ model = RecurrentPPO(
     policy_kwargs=policy_kwargs,
     verbose=1,
     # --- 采样参数 ---
-    n_steps=800,                     # 每个环境每次更新采集的步数（与 LHW 的 max_traj_len=400 对齐）
+    n_steps=256,                     # 每个环境每次更新采集的步数（与 LHW 的 max_traj_len=400 对齐）
     # --- 优化参数 ---
     learning_rate=3e-4,              # 与 LHW 默认 lr 一致
     batch_size=64,                   # 与 LHW 默认 minibatch_size 一致
@@ -117,7 +117,7 @@ model = RecurrentPPO(
     # --- PPO 裁剪 ---
     clip_range=0.2,                  # 与 LHW 默认 clip 一致
     # --- 熵与探索 ---
-    ent_coef=0.0,                    # LHW 默认熵系数为 0（不鼓励额外探索）
+    ent_coef=0.001,                    # LHW 默认熵系数为 0（不鼓励额外探索）
     max_grad_norm=0.5,               # 与 LHW 默认 grad norm 一致（SB3 默认也是 0.5）
     tensorboard_log=str(LOG_DIR),
     device='cuda',
