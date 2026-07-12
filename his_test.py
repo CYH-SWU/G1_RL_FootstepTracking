@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-评估训练好的 PPO 模型，加载 VecNormalize 参数，循环 10 个回合。
+评估训练好的 PPO 模型，支持 VecFrameStack，加载 VecNormalize 参数，循环 10 个回合。
 用法: python evaluate.py
 """
 
@@ -12,7 +12,7 @@ import mujoco
 import mujoco.viewer
 from pathlib import Path
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize, VecFrameStack
 
 # 项目根目录
 project_root = Path(__file__).parent.absolute()
@@ -22,8 +22,8 @@ from env.g1_test import G1TerrainEnv
 
 def main():
     # 文件路径
-    model_path = project_root / "checkpoints" / "ppo_g1_1600000_steps.zip"
-    norm_path = project_root / "checkpoints" / "ppo_g1_vecnormalize_1600000_steps.pkl"
+    model_path = project_root / "checkpoints" / "ppo_g1_3200000_steps.zip"
+    norm_path = project_root / "checkpoints" / "ppo_g1_vecnormalize_3200000_steps.pkl"
     
     robot_xml = project_root / "robot" / "g1_processed.xml"
     mesh_dir = project_root / "robot" / "assets"
@@ -48,8 +48,21 @@ def main():
     # 2. 包装为 VecEnv（单环境）
     vec_env = DummyVecEnv([lambda: base_env])
 
-    # 3. 加载归一化参数
+    # 3. 应用帧堆叠（必须与训练时一致，n_stack=3）
+    vec_env = VecFrameStack(vec_env, n_stack=3)
+
+    # 4. 加载归一化参数（如果存在）
     if norm_path.exists():
+        # 先创建 VecNormalize 包装（使用与训练时相同的键）
+        vec_env = VecNormalize(
+            venv=vec_env,
+            norm_obs=True,
+            norm_obs_keys=["actor_obs"],
+            norm_reward=False,
+            clip_obs=10.0,
+            gamma=0.99,
+        )
+        # 加载保存的统计量
         vec_env = VecNormalize.load(str(norm_path), vec_env)
         # ★★★ 关键修复：冻结归一化统计量的更新 ★★★
         vec_env.training = False
@@ -57,22 +70,33 @@ def main():
     else:
         print("警告：未找到归一化文件，假设环境未归一化。")
 
-    # 4. 加载模型
+    # 5. 加载模型
     model = PPO.load(str(model_path))
     print("模型加载成功")
 
-    # 5. 获取原始环境（用于渲染和状态读取）
-    # VecNormalize 包装了 DummyVecEnv，DummyVecEnv 内部有 envs 列表
+    # 6. 获取原始环境（用于渲染和状态读取）
+    # 注意：vec_env 是 VecNormalize 包装了 VecFrameStack，而 VecFrameStack 包装了 DummyVecEnv
+    # 要获取原始环境，需要层层解包
     if hasattr(vec_env, 'venv'):
-        raw_env = vec_env.venv.envs[0]
+        # VecNormalize 的 venv 是 VecFrameStack
+        stack_env = vec_env.venv
+        if hasattr(stack_env, 'venv'):
+            # VecFrameStack 的 venv 是 DummyVecEnv
+            dummy_env = stack_env.venv
+            if hasattr(dummy_env, 'envs'):
+                raw_env = dummy_env.envs[0]
+            else:
+                raw_env = stack_env.envs[0]  # 备用
+        else:
+            raw_env = stack_env
     else:
-        raw_env = vec_env.envs[0]
+        raw_env = vec_env.envs[0]  # 另一种情况
 
-    # 6. 重置环境
+    # 7. 重置环境
     obs = vec_env.reset()
     print("环境已重置，开始评估...")
 
-    # 7. 启动查看器
+    # 8. 启动查看器
     viewer = mujoco.viewer.launch_passive(raw_env.model, raw_env.data)
     print("按 Esc 或关闭窗口可提前退出评估。")
 
@@ -114,7 +138,7 @@ def main():
             if time_to_sleep > 0:
                 time.sleep(time_to_sleep)
 
-            # 每100步打印状态（打印更多有用信息）
+            # 每100步打印状态
             if step % 100 == 0:
                 # 骨盆高度
                 pelvis_z = raw_env.data.qpos[2]
@@ -147,7 +171,6 @@ def main():
             if height < raw_env.fall_height_threshold:
                 print("  → 摔倒终止。")
             else:
-                # 可能因为步点序列完成？环境不会因为完成序列而终止，只有摔倒或超时
                 print("  → 终止（未知原因）。")
         elif step >= max_steps_per_episode:
             truncated = True
