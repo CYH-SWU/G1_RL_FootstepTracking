@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-评估训练好的 PPO 模型，支持 VecFrameStack，加载 VecNormalize 参数，循环 10 个回合。
+评估训练好的 PPO 模型，加载 VecNormalize 参数，循环 10 个回合。
 用法: python evaluate.py
 """
 
@@ -12,21 +12,20 @@ import mujoco
 import mujoco.viewer
 from pathlib import Path
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize, VecFrameStack
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
 # 项目根目录
 project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
-from env.g1_test import G1TerrainEnv
+from f_env.g1_terrain_env import G1TerrainEnv
 
 def main():
     # 文件路径
-    model_path = project_root / "checkpoints" / "ppo_g1_14400000_steps.zip"
-    norm_path = project_root / "checkpoints" / "ppo_g1_vecnormalize_14400000_steps.pkl"
+    model_path = project_root / "checkpoints" / "ppo_g1_base.zip"
+    norm_path = project_root / "checkpoints" / "vec_base.pkl"
     
     robot_xml = project_root / "robot" / "g1_processed.xml"
-    mesh_dir = project_root / "robot" / "assets"
 
     # 评估参数
     num_episodes = 10
@@ -40,29 +39,13 @@ def main():
     # 1. 创建基础环境（确保与训练时的参数一致）
     base_env = G1TerrainEnv(
         robot_xml_path=str(robot_xml),
-        mesh_dir=str(mesh_dir),
-        max_episode_steps=max_steps_per_episode,
-        total_timesteps_for_max=11_000_000  # 不影响评估
     )
 
     # 2. 包装为 VecEnv（单环境）
     vec_env = DummyVecEnv([lambda: base_env])
 
-    # 3. 应用帧堆叠（必须与训练时一致，n_stack=3）
-    vec_env = VecFrameStack(vec_env, n_stack=2)
-
-    # 4. 加载归一化参数（如果存在）
+    # 3. 加载归一化参数
     if norm_path.exists():
-        # 先创建 VecNormalize 包装（使用与训练时相同的键）
-        vec_env = VecNormalize(
-            venv=vec_env,
-            norm_obs=True,
-            norm_obs_keys=["actor_obs"],
-            norm_reward=False,
-            clip_obs=10.0,
-            gamma=0.99,
-        )
-        # 加载保存的统计量
         vec_env = VecNormalize.load(str(norm_path), vec_env)
         # ★★★ 关键修复：冻结归一化统计量的更新 ★★★
         vec_env.training = False
@@ -70,33 +53,22 @@ def main():
     else:
         print("警告：未找到归一化文件，假设环境未归一化。")
 
-    # 5. 加载模型
+    # 4. 加载模型
     model = PPO.load(str(model_path))
     print("模型加载成功")
 
-    # 6. 获取原始环境（用于渲染和状态读取）
-    # 注意：vec_env 是 VecNormalize 包装了 VecFrameStack，而 VecFrameStack 包装了 DummyVecEnv
-    # 要获取原始环境，需要层层解包
+    # 5. 获取原始环境（用于渲染和状态读取）
+    # VecNormalize 包装了 DummyVecEnv，DummyVecEnv 内部有 envs 列表
     if hasattr(vec_env, 'venv'):
-        # VecNormalize 的 venv 是 VecFrameStack
-        stack_env = vec_env.venv
-        if hasattr(stack_env, 'venv'):
-            # VecFrameStack 的 venv 是 DummyVecEnv
-            dummy_env = stack_env.venv
-            if hasattr(dummy_env, 'envs'):
-                raw_env = dummy_env.envs[0]
-            else:
-                raw_env = stack_env.envs[0]  # 备用
-        else:
-            raw_env = stack_env
+        raw_env = vec_env.venv.envs[0]
     else:
-        raw_env = vec_env.envs[0]  # 另一种情况
+        raw_env = vec_env.envs[0]
 
-    # 7. 重置环境
+    # 6. 重置环境
     obs = vec_env.reset()
     print("环境已重置，开始评估...")
 
-    # 8. 启动查看器
+    # 7. 启动查看器
     viewer = mujoco.viewer.launch_passive(raw_env.model, raw_env.data)
     print("按 Esc 或关闭窗口可提前退出评估。")
 
@@ -104,6 +76,12 @@ def main():
     total_steps = 0
     episode_rewards = []
     success_count = 0
+
+    # 从配置中获取常用参数
+    config = raw_env.config
+    control_dt = config.control_dt
+    foot_ankle_offset = config.foot_ankle_offset
+    fall_height_threshold = config.fall_height_threshold
 
     while episode < num_episodes and viewer.is_running():
         episode += 1
@@ -134,7 +112,7 @@ def main():
 
             # 控制实时速度（模拟 real-time）
             elapsed = time.time() - step_start
-            time_to_sleep = raw_env.control_dt - elapsed
+            time_to_sleep = control_dt - elapsed
             if time_to_sleep > 0:
                 time.sleep(time_to_sleep)
 
@@ -143,7 +121,7 @@ def main():
                 # 骨盆高度
                 pelvis_z = raw_env.data.qpos[2]
                 foot_z = min(raw_env.data.xpos[raw_env.left_foot_id][2],
-                             raw_env.data.xpos[raw_env.right_foot_id][2]) - raw_env.foot_ankle_offset
+                             raw_env.data.xpos[raw_env.right_foot_id][2]) - foot_ankle_offset
                 height = pelvis_z - foot_z
                 # 当前步点索引和相位
                 t1 = raw_env.t1
@@ -167,8 +145,8 @@ def main():
         if done:
             # 检查是否由于摔倒
             height = raw_env.data.qpos[2] - (min(raw_env.data.xpos[raw_env.left_foot_id][2],
-                                                 raw_env.data.xpos[raw_env.right_foot_id][2]) - raw_env.foot_ankle_offset)
-            if height < raw_env.fall_height_threshold:
+                                                 raw_env.data.xpos[raw_env.right_foot_id][2]) - foot_ankle_offset)
+            if height < fall_height_threshold:
                 print("  → 摔倒终止。")
             else:
                 print("  → 终止（未知原因）。")

@@ -50,7 +50,7 @@ class G1TerrainEnv(gym.Env):
         self.difficulty = 0
 
         # 模式概率（与 LHW 完全一致）
-        self.mode_probs = [0.05, 0.15, 0.20, 0.30, 0.30] # STANDING, CURVED, BACKWARD, LATERAL, FORWARD
+        self.mode_probs = [0.0, 0., 0., 0., 1] # STANDING, CURVED, BACKWARD, LATERAL, FORWARD
         # [0.05, 0.15, 0.20, 0.30, 0.30] [0.0, 0., 0., 0., 1]
         self.mode_list = [WalkModes.STANDING, WalkModes.CURVED, WalkModes.BACKWARD,
                           WalkModes.LATERAL, WalkModes.FORWARD]
@@ -60,7 +60,7 @@ class G1TerrainEnv(gym.Env):
 
         # 观测空间：actor_obs + critic_obs（非对称）
         actor_obs_dim = 12 + 12 + 1 + 8 + 2 + 3 + 3
-        privileged_obs_dim = 2 + 3 + 12
+        privileged_obs_dim = 3 + 12
         self.observation_space = spaces.Dict({
             "actor_obs": spaces.Box(low=-np.inf, high=np.inf, shape=(actor_obs_dim,), dtype=np.float32),
             "critic_obs": spaces.Box(low=-np.inf, high=np.inf, shape=(actor_obs_dim + privileged_obs_dim,), dtype=np.float32),
@@ -111,7 +111,7 @@ class G1TerrainEnv(gym.Env):
 
         self.nominal_pelvis_height = 0.6937 + 0.0331
         self.foot_ankle_offset = 0.0331
-        self.action_scale = 0.25
+        self.action_scale = 0.30
         self.smooth = 0.20
         self.last_action = None
         self.last_torque = None 
@@ -526,13 +526,6 @@ class G1TerrainEnv(gym.Env):
         # 使用预构建的缩放数组归一化基础观测
         norm_actor_obs = np.clip(actor_obs / self.critic_obs_scale, -1.0, 1.0)
 
-        # 特权信息：足底力（法向）
-        left_force = self.data.cfrc_ext[self.left_foot_id][2]
-        right_force = self.data.cfrc_ext[self.right_foot_id][2]
-        max_force = sum(self.model.body_mass) * 9.81 * 0.5
-        norm_left_frc = np.clip(left_force / max_force, -1.0, 1.0)
-        norm_right_frc = np.clip(right_force / max_force, -1.0, 1.0)
-
         # 特权信息：基座线速度（世界坐标系）
         lin_vel = self.data.qvel[0:3]
         norm_lin_vel = np.clip(lin_vel / 2.0, -1.0, 1.0)
@@ -543,7 +536,6 @@ class G1TerrainEnv(gym.Env):
 
         # 拼接所有特权信息
         priv = np.concatenate([
-            [norm_left_frc, norm_right_frc],
             norm_lin_vel,
             norm_torques
         ])

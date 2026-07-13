@@ -33,7 +33,7 @@ LOG_DIR = project_root / "logs"
 CHECKPOINT_DIR.mkdir(exist_ok=True)
 LOG_DIR.mkdir(exist_ok=True)
 
-ITERATION = 1500 * 8
+ITERATION = 1500 * 2
 N_ENVS = 16   
                        
 TOTAL_TIMESTEPS = ITERATION * N_ENVS * 400
@@ -104,7 +104,7 @@ model = PPO(
     # --- 采样参数 ---
     n_steps=400,                     # 每个环境每次更新采集的步数（与 LHW 的 max_traj_len=400 对齐）
     # --- 优化参数 ---
-    learning_rate=3e-4,              # 与 LHW 默认 lr 一致
+    learning_rate=1e-4,              # 与 LHW 默认 lr 一致
     batch_size=64,                   # 与 LHW 默认 minibatch_size 一致
     n_epochs=3,                      # 与 LHW 默认 epochs 一致
     # --- 折扣与优势估计 ---
