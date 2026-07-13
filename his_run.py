@@ -57,8 +57,7 @@ vec_env = make_vec_env(
     vec_env_kwargs={"start_method": "fork"}   # Linux 推荐 fork，Windows 可用 spawn
 )
 
-# ★ 1. 先堆叠观测帧（n_stack=3，即使用过去3步的观测）
-vec_env = VecFrameStack(vec_env, n_stack=3)
+vec_env = VecFrameStack(vec_env, n_stack=2)
 
 # ★ 2. 再进行观测归一化（只归一化 "actor_obs"）
 vec_env = VecNormalize(

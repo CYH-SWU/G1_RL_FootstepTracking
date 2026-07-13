@@ -22,8 +22,8 @@ from env.g1_test import G1TerrainEnv
 
 def main():
     # 文件路径
-    model_path = project_root / "checkpoints" / "ppo_g1_3200000_steps.zip"
-    norm_path = project_root / "checkpoints" / "ppo_g1_vecnormalize_3200000_steps.pkl"
+    model_path = project_root / "checkpoints" / "ppo_g1_14400000_steps.zip"
+    norm_path = project_root / "checkpoints" / "ppo_g1_vecnormalize_14400000_steps.pkl"
     
     robot_xml = project_root / "robot" / "g1_processed.xml"
     mesh_dir = project_root / "robot" / "assets"
@@ -49,7 +49,7 @@ def main():
     vec_env = DummyVecEnv([lambda: base_env])
 
     # 3. 应用帧堆叠（必须与训练时一致，n_stack=3）
-    vec_env = VecFrameStack(vec_env, n_stack=3)
+    vec_env = VecFrameStack(vec_env, n_stack=2)
 
     # 4. 加载归一化参数（如果存在）
     if norm_path.exists():
