@@ -1,3 +1,10 @@
+"""
+Process the raw Unitree G1 MuJoCo model for reinforcement learning.
+Filters leg joints (hip, knee, ankle) as active actuators, locks other joints,
+assigns PD gains, updates the stand keyframe with nominal posture, and adds
+contact exclusions plus visual ground/light for debugging.
+"""
+
 import xml.etree.ElementTree as ET
 from pathlib import Path
 import numpy as np
@@ -5,10 +12,10 @@ import numpy as np
 DEFAULT_INPUT = Path(__file__).parent / "unitree_g1.xml"
 DEFAULT_OUTPUT = Path(__file__).parent / "g1_processed.xml"
 
-# 保留的关键词：髋、膝、踝、以及腰部俯仰
+# Joints to retain for leg actuation.
 KEEP_JOINT_KEYWORDS = ["hip", "knee", "ankle"]
 
-# keyframe数据
+# Stand keyframe target angles (rad).
 STAND_ANGLES = {
     "left_hip_pitch_joint": -0.5235987756,
     "left_hip_roll_joint": 0.0,
@@ -41,6 +48,7 @@ STAND_ANGLES = {
     "right_wrist_yaw_joint": 0.0,
 }
 
+# Position gain (KP) per joint.
 KP_MAP = {
     "left_hip_pitch_joint": 115,
     "left_hip_roll_joint": 115,
@@ -57,15 +65,14 @@ KP_MAP = {
 }
 
 def get_dampratio(joint_name: str) -> float:
-    """根据关节名称返回推荐的 dampratio 值（参考LHW比例）"""
     if "hip" in joint_name.lower():
-        return 0.65   # 髋部阻尼比参照 LHW hip yaw/pitch ≈ 0.707
+        return 0.65
     elif "knee" in joint_name.lower():
-        return 0.55   # 膝部阻尼比参照 LHW knee ≈ 0.612
+        return 0.55
     elif "ankle" in joint_name.lower():
-        return 0.40  # 踝部阻尼比参照 LHW ankle ≈ 0.447
+        return 0.40
     else:
-        return 0.55   # 默认值
+        return 0.55
 
 def process_g1_model(input_path=None, output_path=None):
     in_path = Path(input_path) if input_path else DEFAULT_INPUT
@@ -78,17 +85,17 @@ def process_g1_model(input_path=None, output_path=None):
     tree = ET.parse(in_path)
     root = tree.getroot()
 
-    # 收集所有铰链关节名称
+    # Collect all hinge joint names (excluding floating base).
     joint_order = []
     for joint in root.findall(".//joint"):
         jname = joint.get("name")
         if jname and jname != "floating_base_joint":
             joint_order.append(jname)
-    print(f"提取到 {len(joint_order)} 个铰链关节")
+    print(f"Extracted {len(joint_order)} hinge joints.")
 
-    # 处理执行器
+    # Process actuators: keep only leg-related ones.
     actuator_node = root.find(".//actuator")
-    kept_joint_names = []  # 按执行器顺序存储保留的关节名称
+    kept_joint_names = []  # In actuator order.
     if actuator_node is not None:
         kept = 0
         for actuator in list(actuator_node.findall("position")):
@@ -138,14 +145,14 @@ def process_g1_model(input_path=None, output_path=None):
                         del joint.attrib["actuatorfrcrange"]
                     if "frictionloss" in joint.attrib:
                         del joint.attrib["frictionloss"]
-        print(f"Kept {kept} actuators (legs + waist_pitch).")
+        print(f"Kept {kept} actuators (leg joints + waist_pitch).")
 
-    # ---- 添加接触排除 ----
+    # Add contact exclusions to prevent self-collision artifacts
     contact = root.find("contact")
     if contact is None:
         contact = ET.SubElement(root, "contact")
 
-    # 上肢与躯干
+    # Upper body vs. torso and leg cross-exclusions.
     ET.SubElement(contact, "exclude", body1="torso_link", body2="left_shoulder_pitch_link")
     ET.SubElement(contact, "exclude", body1="torso_link", body2="right_shoulder_pitch_link")
     ET.SubElement(contact, "exclude", body1="left_shoulder_pitch_link", body2="left_elbow_link")
@@ -162,8 +169,7 @@ def process_g1_model(input_path=None, output_path=None):
     ET.SubElement(contact, "exclude", body1="pelvis", body2="waist_roll_link")
     ET.SubElement(contact, "exclude", body1="pelvis", body2="torso_link")
 
-
-    # ---- 清理 keyframe 中的 ctrl 属性 ----
+    # Remove legacy "ctrl" attributes from keyframes
     keyframe = root.find(".//keyframe")
     if keyframe is not None:
         if "ctrl" in keyframe.attrib:
@@ -172,7 +178,7 @@ def process_g1_model(input_path=None, output_path=None):
             if "ctrl" in key.attrib:
                 del key.attrib["ctrl"]
 
-    # ---- 更新 stand keyframe ----
+    # Update the "stand" keyframe with target angles 
     stand_key = keyframe.find("key[@name='stand']") if keyframe is not None else None
     if stand_key is not None:
         qpos_str = stand_key.get("qpos")
@@ -187,35 +193,35 @@ def process_g1_model(input_path=None, output_path=None):
                     if idx < len(qpos_values):
                         qpos_values[idx] = angle
                     else:
-                        print(f"Warning: 关节 {name} 的索引 {idx} 超出 qpos 长度 {len(qpos_values)}")
+                        print(f"Warning: joint {name} index {idx} out of qpos length {len(qpos_values)}")
                 else:
-                    print(f"Warning: 关节 {name} 未在 joint_order 中找到，无法设置初始角度。")
-            print(f"更新后的 qpos (前10个): {qpos_values[:10]}")
+                    print(f"Warning: joint {name} not found in joint_order, cannot set initial angle.")
+            print(f"Updated qpos (first 10): {qpos_values[:10]}")
             new_qpos_str = ' '.join([f"{v:.6f}" for v in qpos_values])
             stand_key.set("qpos", new_qpos_str)
 
+            # Build control values for retained actuators.
             ctrl_values = []
             for name in kept_joint_names:
                 if name in STAND_ANGLES:
                     ctrl_values.append(STAND_ANGLES[name])
                 else:
-                    print(f"Warning: 关节 {name} 没有在 STAND_ANGLES 中，ctrl 设为 0")
+                    print(f"Warning: joint {name} missing in STAND_ANGLES, ctrl set to 0")
                     ctrl_values.append(0.0)
             ctrl_str = ' '.join([f"{v:.6f}" for v in ctrl_values])
             stand_key.set("ctrl", ctrl_str)
-            print(f"已设置 ctrl: {len(ctrl_values)} 个值，前5个: {ctrl_values[:5]}")
-            print("已更新 stand keyframe 的 qpos 和 ctrl 为官方站立姿态。")
+            print(f"Set ctrl: {len(ctrl_values)} values, first 5: {ctrl_values[:5]}")
+            print("Updated stand keyframe qpos and ctrl to official stand posture.")
         else:
-            print("Warning: stand keyframe 的 qpos 为空。")
+            print("Warning: stand keyframe qpos is empty.")
     else:
-        print("Warning: 未找到 stand keyframe，无法设置初始姿态。")
+        print("Warning: stand keyframe not found; initial posture not set.")
 
-    # ==================== 添加地面、纹理和光源 ====================
-    # 1. 创建 asset（如果不存在）
+    # Add ground, texture, and light
     asset = root.find("asset")
     if asset is None:
         asset = ET.SubElement(root, "asset")
-    # 添加纹理和材质
+    # Ground texture (checkerboard).
     tex = ET.SubElement(asset, "texture")
     tex.set("name", "ground_tex")
     tex.set("type", "2d")
@@ -233,13 +239,10 @@ def process_g1_model(input_path=None, output_path=None):
     mat.set("texuniform", "true")
     mat.set("reflectance", "0.2")
 
-    # 2. 添加光源和地面到 worldbody
     worldbody = root.find("worldbody")
     if worldbody is None:
         worldbody = ET.SubElement(root, "worldbody")
-    # 添加光源（如果已存在则跳过，这里直接添加，确保位置正确）
-    # 注意：原 XML 可能已有光源，但为了统一，我们添加一个平行光
-    # 检查是否已有 light，若没有则添加
+    # Add a directional light if none exists.
     light_exists = False
     for light in worldbody.findall("light"):
         light_exists = True
@@ -250,16 +253,14 @@ def process_g1_model(input_path=None, output_path=None):
         light.set("dir", "0 0 -1")
         light.set("directional", "true")
 
-    # 添加地面平面
+    # Ground plane with semi‑transparent material.
     ground_geom = ET.SubElement(worldbody, "geom")
     ground_geom.set("type", "plane")
     ground_geom.set("size", "20 20 0.1")
     ground_geom.set("pos", "0 0 0")
     ground_geom.set("material", "groundplane")
-    # 半透明使地面更美观（可选）
     ground_geom.set("rgba", "0.5 0.7 0.8 0.5")
 
-    # 输出处理后的模型
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tree.write(out_path, encoding="utf-8", xml_declaration=True)
     print(f"Processed model saved to: {out_path}")

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
 人形机器人复杂地形行走训练脚本
-使用 Stable-Baselines3 PPO + 非对称 Actor-Critic (MultiInputPolicy)
-采用 SubprocVecEnv 多进程并行训练，大幅提升采样效率。
+使用 Stable-Baselines3 PPO + 真正的非对称 Actor-Critic (自定义策略)
+Actor 仅使用 actor_obs，Critic 仅使用 critic_obs。
+采用 SubprocVecEnv 多进程并行训练。
 """
 
 import os
@@ -12,21 +13,29 @@ from pathlib import Path
 import gymnasium as gym
 import numpy as np
 import torch
+import torch.nn as nn
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.policies import ActorCriticPolicy
+from stable_baselines3.common.torch_layers import FlattenExtractor
+from gymnasium import spaces
+from typing import Dict, Callable, Optional, List, Tuple, Type, Union
+
 from g_env.mirrorwrapper import MirrorWrapper
 
 project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
-from g_env.g1_test import G1TerrainEnv
+from g_env.g1_test import G1TerrainEnv  # 你的环境
+from policies.policy import AsymmetricPolicy
 
+
+# ==================== 训练脚本 ====================
 # -------------------- 配置参数 --------------------
 ROBOT_XML = project_root / "robot" / "g1_processed.xml"
-MESH_DIR = project_root / "robot" / "assets"
 CHECKPOINT_DIR = project_root / "checkpoints"
 LOG_DIR = project_root / "logs"
 
@@ -34,30 +43,25 @@ CHECKPOINT_DIR.mkdir(exist_ok=True)
 LOG_DIR.mkdir(exist_ok=True)
 
 ITERATION = 1500 * 2
-N_ENVS = 16   
-                       
+N_ENVS = 16
 TOTAL_TIMESTEPS = ITERATION * N_ENVS * 400
 TOTAL_TIMESTEPS_FOR_MAX = 11000 * N_ENVS * 400
 
-# -------------------- 环境创建函数（必须可 pickle） --------------------
+# -------------------- 环境创建函数 --------------------
 def make_env():
-    """工厂函数：创建单个 G1 环境实例"""
-    env = G1TerrainEnv(
-        robot_xml_path=str(ROBOT_XML),
-    )
+    env = G1TerrainEnv(robot_xml_path=str(ROBOT_XML))
     env = MirrorWrapper(env, mirror_prob=0.5)
     return Monitor(env)
 
-# -------------------- 创建 SubprocVecEnv（多进程并行） --------------------
-# 注意：必须在 `if __name__ == "__main__":` 块内调用，否则 Windows 下会出错
+# -------------------- 创建并行环境 --------------------
 vec_env = make_vec_env(
     make_env,
     n_envs=N_ENVS,
     vec_env_cls=SubprocVecEnv,
-    vec_env_kwargs={"start_method": "fork"}   # Linux 推荐 fork，Windows 可用 spawn
+    vec_env_kwargs={"start_method": "fork"}   # Linux 推荐 fork
 )
 
-# ★ 关键：只归一化 "actor_obs"，特权观测不参与 VecNormalize
+# 只归一化 actor_obs
 vec_env = VecNormalize(
     venv=vec_env,
     norm_obs=True,
@@ -79,49 +83,41 @@ class CurriculumCallback(BaseCallback):
         return True
 
 checkpoint_callback = CheckpointCallback(
-    save_freq=(TOTAL_TIMESTEPS // N_ENVS) // 16 ,  # 调整保存频率
+    save_freq=(TOTAL_TIMESTEPS // N_ENVS) // 16,
     save_path=str(CHECKPOINT_DIR),
     name_prefix="ppo_g1",
     save_replay_buffer=False,
     save_vecnormalize=True,
 )
 
-# -------------------- 创建非对称策略 --------------------
+# -------------------- 策略参数 --------------------
 policy_kwargs = dict(
-    net_arch=dict(
-        pi=[256, 256],
-        vf=[256, 256]
-    ),
+    net_arch=dict(pi=[256, 256], vf=[256, 256]),  # 虽然自定义策略未使用 net_arch，但保留不影响
     activation_fn=torch.nn.ReLU,
 )
 
-
+# -------------------- 创建 PPO 模型（使用自定义非对称策略） --------------------
 model = PPO(
-    policy="MultiInputPolicy",
+    policy=AsymmetricPolicy,          # ★ 使用自定义非对称策略
     env=vec_env,
     policy_kwargs=policy_kwargs,
     verbose=1,
-    # --- 采样参数 ---
-    n_steps=400,                     # 每个环境每次更新采集的步数（与 LHW 的 max_traj_len=400 对齐）
-    # --- 优化参数 ---
-    learning_rate=8e-5,              # 与 LHW 默认 lr 一致
-    batch_size=64,                   # 与 LHW 默认 minibatch_size 一致
-    n_epochs=3,                      # 与 LHW 默认 epochs 一致
-    # --- 折扣与优势估计 ---
-    gamma=0.99,                      # 与 LHW 默认 gamma 一致
-    gae_lambda=0.95,                 # 与 LHW 默认 lam 一致
-    # --- PPO 裁剪 ---
-    clip_range=0.2,                  # 与 LHW 默认 clip 一致
-    # --- 熵与探索 ---
-    ent_coef=0.001,                    # LHW 默认熵系数为 0（不鼓励额外探索）
-    max_grad_norm=0.5,               # 与 LHW 默认 grad norm 一致（SB3 默认也是 0.5）
+    n_steps=400,
+    learning_rate=1e-4,
+    batch_size=64,
+    n_epochs=3,
+    gamma=0.99,
+    gae_lambda=0.95,
+    clip_range=0.2,
+    ent_coef=0.001,
+    max_grad_norm=0.5,
     tensorboard_log=str(LOG_DIR),
     device='cuda',
 )
 
-# -------------------- 训练主入口（必须包含 if __name__） --------------------
+# -------------------- 训练主入口 --------------------
 if __name__ == "__main__":
-    print("开始训练（非对称 Actor-Critic + SubprocVecEnv）...")
+    print("开始训练（真正的非对称 Actor-Critic + SubprocVecEnv）...")
     print(f"总步数: {TOTAL_TIMESTEPS}, 并行环境数: {N_ENVS}")
 
     curriculum_callback = CurriculumCallback(TOTAL_TIMESTEPS_FOR_MAX)

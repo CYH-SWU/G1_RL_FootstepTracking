@@ -1,5 +1,5 @@
 """
-奖励函数模块
+Reward function module for footstep tracking.
 """
 
 import numpy as np
@@ -8,13 +8,13 @@ from scipy.spatial.transform import Rotation as R
 
 def clock_frc(phase, swing_frac, relax=0.1):
     """
-    计算足底力/速度期望时钟信号。
-    返回 -1 (支撑相) 到 +1 (摆动相) 之间的值。
-    
-    :param phase: 步态相位 [0, 1)
-    :param swing_frac: 摆动相占周期比例
-    :param relax: 过渡区松弛度
-    :return: 时钟信号 [-1, 1]
+    Compute clock signal for foot force/velocity expectation.
+    Returns value between -1 (stance) and +1 (swing).
+
+    :param phase: Gait phase in [0, 1)
+    :param swing_frac: Swing phase fraction of the cycle
+    :param relax: Transition zone relaxation factor
+    :return: Clock signal in [-1, 1]
     """
     lower = (1 - swing_frac) * (1 - relax)
     upper = (1 - swing_frac) * (1 + relax)
@@ -29,7 +29,13 @@ def clock_frc(phase, swing_frac, relax=0.1):
     
 
 def get_pelvis_yaw(data, pelvis_id):
-    """从 MuJoCo data 中提取骨盆偏航角"""
+    """
+    Extract the yaw angle of the pelvis from MuJoCo data.
+
+    :param data: MuJoCo MjData object containing the simulation state.
+    :param pelvis_id: Body ID of the pelvis in the model.
+    :return: Pelvis yaw angle in radians.
+    """
     quat = data.xquat[pelvis_id].copy()  # (w,x,y,z)
     r = R.from_quat([quat[1], quat[2], quat[3], quat[0]])
     euler = r.as_euler('xyz')
@@ -39,15 +45,15 @@ def get_pelvis_yaw(data, pelvis_id):
 def calc_foot_frc_clock_reward(swing_frac, left_force, right_force, phase, max_force,
                                clock_left=None, clock_right=None):
     """
-    足底力相位匹配奖励。
-    
-    :param left_force: 左脚法向力 
-    :param right_force: 右脚法向力 
-    :param phase: 当前步态相位 [0, 1)
-    :param max_force: 最大足底力归一化基准
-    :param clock_left: 可选，左腿期望时钟信号（若为 None 则自动计算）
-    :param clock_right: 可选，右腿期望时钟信号（若为 None 则自动计算）
-    :return: 奖励值
+    Reward for matching foot normal forces with gait phase expectations.
+
+    :param left_force: Left foot normal force
+    :param right_force: Right foot normal force
+    :param phase: Current gait phase in [0, 1)
+    :param max_force: Normalization reference for maximum force
+    :param clock_left: Optional precomputed clock for left leg
+    :param clock_right: Optional precomputed clock for right leg
+    :return: Reward value
     """
     left_force = max(0, left_force)
     right_force = max(0, right_force)
@@ -71,15 +77,15 @@ def calc_foot_frc_clock_reward(swing_frac, left_force, right_force, phase, max_f
 def calc_foot_vel_clock_reward(swing_frac, left_vel, right_vel, phase, max_vel,
                                clock_left=None, clock_right=None):
     """
-    足部速度相位匹配奖励。
-    
-    :param left_vel: 左脚速度模长
-    :param right_vel: 右脚速度模长
-    :param phase: 当前步态相位 [0, 1)
-    :param max_vel: 最大速度归一化基准 
-    :param clock_left: 可选，左腿期望时钟信号（若为 None 则自动计算）
-    :param clock_right: 可选，右腿期望时钟信号（若为 None 则自动计算）
-    :return: 奖励值
+    Reward for matching foot velocity magnitude with gait phase expectations.
+
+    :param left_vel: Left foot speed magnitude
+    :param right_vel: Right foot speed magnitude
+    :param phase: Current gait phase in [0, 1)
+    :param max_vel: Normalization reference for maximum velocity
+    :param clock_left: Optional precomputed clock for left leg
+    :param clock_right: Optional precomputed clock for right leg
+    :return: Reward value
     """
     norm_left = min(left_vel, max_vel) / max_vel
     norm_right = min(right_vel, max_vel) / max_vel
@@ -99,27 +105,27 @@ def calc_foot_vel_clock_reward(swing_frac, left_vel, right_vel, phase, max_vel,
 
 def calc_body_orient_reward(pelvis_yaw, target_yaw):
     """
-    躯干姿态奖励 (偏航对齐)。
-    
-    :param pelvis_yaw: 当前骨盆偏航角 
-    :param target_yaw: 目标偏航角 
-    :return: 奖励值
+    Reward for pelvis yaw alignment with target.
+
+    :param pelvis_yaw: Current pelvis yaw angle
+    :param target_yaw: Target yaw angle
+    :return: Reward value
     """
     delta = pelvis_yaw - target_yaw
-    delta = np.arctan2(np.sin(delta), np.cos(delta))  # 归一化到 [-pi, pi]
+    delta = np.arctan2(np.sin(delta), np.cos(delta))  # Normalize to [-pi, pi]
     return np.exp(-10.0 * delta**2)
 
 
 def calc_height_reward(pelvis_z, foot_z, goal_height=0.7368, deadzone=0.0235, k_height=100.0):
     """
-    骨盆高度奖励。
-    
-    :param pelvis_z: 骨盆 Z 坐标 
-    :param foot_z: 支撑脚 Z 坐标 
-    :param goal_height: 期望骨盆离地高度 
-    :param deadzone: 高度误差死区 
-    :param k_height: 指数衰减系数
-    :return: 奖励值
+    Reward for maintaining desired pelvis height above the ground.
+
+    :param pelvis_z: Pelvis Z coordinate
+    :param foot_z: Support foot Z coordinate
+    :param goal_height: Desired pelvis height above foot
+    :param deadzone: Tolerance band for height error
+    :param k_height: Exponential decay coefficient
+    :return: Reward value
     """
     height_pelvis = pelvis_z - foot_z
     error = abs(height_pelvis - goal_height)
@@ -129,23 +135,37 @@ def calc_height_reward(pelvis_z, foot_z, goal_height=0.7368, deadzone=0.0235, k_
 
 def calc_upper_body_stability(head_xy, pelvis_xy):
     """
-    上身稳定性奖励 (头部与骨盆 XY 距离)。
-    
-    :param head_xy: 头部 XY 坐标 (2,)
-    :param pelvis_xy: 骨盆 XY 坐标 (2,)
-    :return: 奖励值
+    Reward for upper body stability (head-pelvis horizontal distance).
+
+    :param head_xy: Head XY position (2,)
+    :param pelvis_xy: Pelvis XY position (2,)
+    :return: Reward value
     """
     dist = np.linalg.norm(head_xy - pelvis_xy)
     return np.exp(-10.0 * dist**2)
 
 
 def calc_action_reward(action, prev_action):
+    """
+    Penalize large action changes between steps.
+
+    :param action: Current action
+    :param prev_action: Previous action (None for first step)
+    :return: Reward value (0 if no previous action)
+    """
     if prev_action is None:
-        return 0.0  # 或者 1.0，习惯返回 0 表示无惩罚
+        return 0.0
     penalty = 5 * np.sum(np.abs(prev_action - action)) / len(action)
     return np.exp(-penalty)
 
 def calc_torque_reward(torque, prev_torque):
+    """
+    Penalize large torque variations.
+
+    :param torque: Current torque
+    :param prev_torque: Previous torque (None for first step)
+    :return: Reward value (0 if no previous torque)
+    """
     if prev_torque is None:
         return 0.0
     penalty = 0.25 * (np.sum(np.abs(prev_torque - torque)) / len(torque))
@@ -154,29 +174,29 @@ def calc_torque_reward(torque, prev_torque):
 
 def calc_step_reward(left_pos, right_pos, target_pos, pelvis_xy, target_reached):
     """
-    步点跟踪奖励（LHW 风格）：取左右脚到目标的最小距离，计算命中奖励，
-    并加上骨盆向目标移动的进度奖励。
+    Footstep tracking reward: combines foot-to-target distance and pelvis progress.
 
     Args:
-        left_pos: 左脚世界坐标 (3,)
-        right_pos: 右脚世界坐标 (3,)
-        target_pos: 目标步点世界坐标 (3,)
-        pelvis_xy: 骨盆 XY 坐标 (2,)
+        left_pos: Left foot world position (3,)
+        right_pos: Right foot world position (3,)
+        target_pos: Target footstep world position (3,)
+        pelvis_xy: Pelvis XY position (2,)
+        target_reached: Boolean indicating whether the target has been reached.
+                       If True, compute hit reward from the closest foot;
+                       otherwise hit reward is zero.
 
     Returns:
-        float: 步点跟踪奖励值
+        float: Reward value.
     """
     hit_reward = 0
-    # 计算左右脚到目标的距离，取最小值
+    # Take minimum distance from either foot to target.
     if target_reached:
         d_left = np.linalg.norm(left_pos - target_pos)
         d_right = np.linalg.norm(right_pos - target_pos)
         d = min(d_left, d_right)
-
-        # 命中奖励：指数衰减
         hit_reward = np.exp(-d / 0.25)
 
-    # 进度奖励：骨盆到目标 XY 的距离
+    # Progress reward: encourage pelvis moving toward target.
     target_xy = target_pos[:2]
     root_dist_to_target = np.linalg.norm(pelvis_xy - target_xy)
     progress_reward = np.exp(-root_dist_to_target / 2.0)
@@ -185,16 +205,14 @@ def calc_step_reward(left_pos, right_pos, target_pos, pelvis_xy, target_reached)
 
 def calc_posture_error_reward(current_joint_angles, nominal_angles):
     """
-    姿态误差奖励（LHW 风格）。
-    计算当前关节角度与标称姿态的欧氏距离，返回指数衰减奖励。
-    奖励值 = exp(-||current - nominal||)
+    Reward for staying close to nominal posture.
 
     Args:
-        current_joint_angles: 当前关节角度 (13,)
-        nominal_angles: 标称关节角度 (13,)，顺序与 joint_indices 一致
+        current_joint_angles: Current joint angles (13,)
+        nominal_angles: Nominal joint angles (13,), order consistent with joint indices
 
     Returns:
-        float: 奖励值，范围 (0, 1]
+        float: Reward in (0, 1]
     """
     error = np.linalg.norm(current_joint_angles - nominal_angles)
     return np.exp(-error)
