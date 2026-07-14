@@ -18,6 +18,89 @@ from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.env_util import make_vec_env
 from g_env.mirrorwrapper import MirrorWrapper
+from typing import Optional
+
+import numpy as np
+from stable_baselines3.common.callbacks import BaseCallback
+
+
+class AdaptiveLRScheduleCallback(BaseCallback):
+    """
+    自适应学习率回调：当性能停滞时降低学习率。
+    
+    :param patience: 允许性能无提升的评估次数（步数 / eval_freq）
+    :param factor: 学习率衰减因子（如 0.5 表示减半）
+    :param eval_freq: 评估间隔（步数）
+    :param min_lr: 最小学习率，避免降得过低
+    :param verbose: 是否打印日志
+    """
+    def __init__(self, patience: int = 5, factor: float = 0.5, 
+                 eval_freq: int = 1000, min_lr: float = 1e-7, verbose: int = 1):
+        super().__init__(verbose)
+        self.patience = patience
+        self.factor = factor
+        self.eval_freq = eval_freq
+        self.min_lr = min_lr
+
+        self.best_mean_reward = -np.inf
+        self.wait = 0  # 连续无改进的次数
+        self.current_lr = None  # 会在 _on_training_start 中初始化
+
+    def _on_training_start(self) -> None:
+        """训练开始时初始化当前学习率"""
+        # 获取当前学习率（如果是调度函数，取初始值）
+        if callable(self.model.learning_rate):
+            # 取 progress_remaining=1 时的值（初始值）
+            self.current_lr = self.model.learning_rate(1.0)
+        else:
+            self.current_lr = self.model.learning_rate
+
+    def _on_step(self) -> bool:
+        """每步调用，但只在达到评估间隔时执行检查"""
+        # 只在达到评估间隔时执行（num_timesteps 是全局总步数）
+        if self.num_timesteps % self.eval_freq == 0 and self.num_timesteps > 0:
+            # 获取最近的平均 episode 奖励
+            mean_reward = self._get_mean_reward()
+            if mean_reward is None:
+                return True  # 没有足够的 episode 数据，跳过
+
+            # 检查是否改进
+            if mean_reward > self.best_mean_reward:
+                self.best_mean_reward = mean_reward
+                self.wait = 0
+                if self.verbose > 0:
+                    print(f"[{self.num_timesteps}] 性能提升: {mean_reward:.2f} (最佳 {self.best_mean_reward:.2f})")
+            else:
+                self.wait += 1
+                if self.wait >= self.patience:
+                    # 性能停滞 → 降低学习率
+                    new_lr = max(self.current_lr * self.factor, self.min_lr)
+                    if new_lr < self.current_lr:
+                        self.current_lr = new_lr
+                        # ★★★ 关键：修改模型的学习率 ★★★
+                        if callable(self.model.learning_rate):
+                            # 如果是调度函数，替换为一个返回新固定值的函数（或继续调度但重置）
+                            # 简单方法：直接用固定学习率（也可继续调度但调整初始值）
+                            self.model.learning_rate = lambda _: self.current_lr
+                        else:
+                            self.model.learning_rate = self.current_lr
+                        # 必须调用此方法使优化器更新
+                        self.model._setup_lr_schedule()
+                        self.wait = 0
+                        if self.verbose > 0:
+                            print(f"[{self.num_timesteps}] 性能停滞，降低学习率至 {self.current_lr:.2e}")
+                    else:
+                        if self.verbose > 0:
+                            print(f"[{self.num_timesteps}] 学习率已到下限 {self.min_lr:.2e}，不再降低")
+        return True
+
+    def _get_mean_reward(self) -> Optional[float]:
+        if hasattr(self.model, 'ep_info_buffer') and len(self.model.ep_info_buffer) > 0:
+            recent = min(10, len(self.model.ep_info_buffer))
+            # 转换为 list 后切片
+            rewards = [ep_info['r'] for ep_info in list(self.model.ep_info_buffer)[-recent:]]
+            return float(np.mean(rewards))
+        return None
 
 project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
@@ -33,7 +116,7 @@ LOG_DIR = project_root / "logs"
 CHECKPOINT_DIR.mkdir(exist_ok=True)
 LOG_DIR.mkdir(exist_ok=True)
 
-ITERATION = 1500 * 2
+ITERATION = 1500 * 1.5
 N_ENVS = 16   
                        
 TOTAL_TIMESTEPS = ITERATION * N_ENVS * 400
@@ -79,7 +162,7 @@ class CurriculumCallback(BaseCallback):
         return True
 
 checkpoint_callback = CheckpointCallback(
-    save_freq=(TOTAL_TIMESTEPS // N_ENVS) // 16 ,  # 调整保存频率
+    save_freq=(TOTAL_TIMESTEPS // N_ENVS) // 12 ,  # 调整保存频率
     save_path=str(CHECKPOINT_DIR),
     name_prefix="ppo_g1",
     save_replay_buffer=False,
@@ -96,6 +179,14 @@ policy_kwargs = dict(
 )
 
 
+adaptive_lr_callback = AdaptiveLRScheduleCallback(
+    patience=5,          # 连续 5 次评估无改进则降学习率
+    factor=0.9,          # 减半
+    eval_freq=N_ENVS * 400 * 16,      # 每 2000 步检查一次
+    min_lr=1e-7,         # 最低学习率
+    verbose=1
+)
+
 model = PPO(
     policy="MultiInputPolicy",
     env=vec_env,
@@ -104,7 +195,7 @@ model = PPO(
     # --- 采样参数 ---
     n_steps=400,                     # 每个环境每次更新采集的步数（与 LHW 的 max_traj_len=400 对齐）
     # --- 优化参数 ---
-    learning_rate=8e-5,              # 与 LHW 默认 lr 一致
+    learning_rate=1e-4,              # 与 LHW 默认 lr 一致
     batch_size=64,                   # 与 LHW 默认 minibatch_size 一致
     n_epochs=3,                      # 与 LHW 默认 epochs 一致
     # --- 折扣与优势估计 ---
@@ -128,7 +219,7 @@ if __name__ == "__main__":
 
     model.learn(
         total_timesteps=TOTAL_TIMESTEPS,
-        callback=[curriculum_callback, checkpoint_callback],
+        callback=[curriculum_callback, checkpoint_callback, adaptive_lr_callback],
         progress_bar=True,
     )
 

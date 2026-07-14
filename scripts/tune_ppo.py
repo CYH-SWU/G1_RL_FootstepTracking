@@ -28,7 +28,7 @@ from g_env.mirrorwrapper import MirrorWrapper
 
 # ========== 固定参数（可在此修改） ==========
 N_TRIALS = 20                # 调参试验次数（建议减少，因单次试验较耗时）
-N_ITER = 1200                 # 每次试验训练迭代次数（600轮足够让机器人学会站立和初迈步）
+N_ITER = 1000                 # 每次试验训练迭代次数（600轮足够让机器人学会站立和初迈步）
 N_ENVS = 16                   # 并行环境数量（8 可平衡速度和样本效率）
 EVAL_EPISODES = 20            # 评估时的 episode 数
 STUDY_NAME = "ppo_tuning"    # 研究名称
@@ -101,7 +101,7 @@ def objective(trial):
         max_grad_norm=max_grad_norm,
         learning_rate=learning_rate,
         tensorboard_log=None,
-        device="cuda" if torch.cuda.is_available() else "cpu",
+        device="cuda",
     )
 
     # ---- 训练 ----
