@@ -14,7 +14,7 @@ class G1EnvConfig:
     stance_duration: float = 0.35
     step_length: float = 0.20
     step_width: float = 0.237
-    max_foot_vel: float = 0.30
+    max_foot_vel: float = 0.15
     target_radius: float = 0.16
 
     # Nominal posture (using default_factory).
@@ -24,7 +24,7 @@ class G1EnvConfig:
     ]))
     nominal_pelvis_height: float = 0.7268
     foot_ankle_offset: float = 0.0331
-    action_scale: float = 0.30
+    action_scale: float = 0.25
     action_smoothing: float = 0.20
 
     # Curriculum and terrain.

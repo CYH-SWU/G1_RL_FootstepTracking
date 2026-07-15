@@ -30,7 +30,7 @@ project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
 from g_env.g1_test import G1TerrainEnv  # 你的环境
-from policies.policy import AsymmetricPolicy
+from rl.policy import AsymmetricPolicy
 
 
 # ==================== 训练脚本 ====================
