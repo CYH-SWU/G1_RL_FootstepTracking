@@ -79,7 +79,7 @@ class G1TerrainEnv(gym.Env):
         self.stance_duration = 0.35
         self.step_length = 0.20
         self.step_width = 0.237
-        self.max_foot_vel = 0.15
+        self.max_foot_vel = 0.12
 
         # 步点序列相关
         self.sequence = []          # 世界坐标步点 (x,y,z,theta)

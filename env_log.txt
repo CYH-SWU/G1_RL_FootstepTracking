@@ -696,5 +696,16 @@ ent_coef = 0.001 前馈网络 max_vel = 0.15
 n_steps = 800 
 
 n_steps = 600 差于最优
-max_vel = 0.12
+max_vel = 0.12 最优
 
+基准lr3
+ent_coef = 0.001 前馈网络 max_vel = 0.12 
+学习率1e-4 智能调节默认参数 action_scale = 0.25 
+n_steps = 800 clip_range = 0.20 
+
+clip_range = 0.15 最优
+
+基准lr4
+ent_coef = 0.001 前馈网络 max_vel = 0.12 
+学习率1e-4 智能调节默认参数 action_scale = 0.25 
+n_steps = 800 clip_range = 0.15

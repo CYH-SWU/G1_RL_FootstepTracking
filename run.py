@@ -106,7 +106,7 @@ model = PPO(
     gamma=0.99,                      # 与 LHW 默认 gamma 一致
     gae_lambda=0.95,                 # 与 LHW 默认 lam 一致
     # --- PPO 裁剪 ---
-    clip_range=0.2,                  # 与 LHW 默认 clip 一致
+    clip_range=0.15,                  # 与 LHW 默认 clip 一致
     # --- 熵与探索 ---
     ent_coef=0.001,                    # LHW 默认熵系数为 0（不鼓励额外探索）
     max_grad_norm=0.5,               # 与 LHW 默认 grad norm 一致（SB3 默认也是 0.5）

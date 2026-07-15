@@ -14,7 +14,7 @@ class G1EnvConfig:
     stance_duration: float = 0.35
     step_length: float = 0.20
     step_width: float = 0.237
-    max_foot_vel: float = 0.15
+    max_foot_vel: float = 0.12
     target_radius: float = 0.16
 
     # Nominal posture (using default_factory).
