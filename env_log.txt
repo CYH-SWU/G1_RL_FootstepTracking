@@ -695,5 +695,6 @@ ent_coef = 0.001 前馈网络 max_vel = 0.15
 学习率1e-4 智能调节默认参数 action_scale = 0.25 
 n_steps = 800 
 
-n_steps = 600
+n_steps = 600 差于最优
+max_vel = 0.12
 
