@@ -18,7 +18,7 @@ from env.utils.observation_builder import ObservationBuilder
 from env.utils.reward_calculator import RewardCalculator
 from env.utils.terrain_generator import TerrainGenerator
 
-class G1TerrainEnv(gym.Env):
+class G1Env(gym.Env):
     metadata = {"render_modes": []}
 
     def __init__(self, robot_xml_path, config=None):
@@ -282,7 +282,7 @@ if __name__ == "__main__":
     xml_path = args.xml
     print(f"Using XML file: {xml_path}")
 
-    env = G1TerrainEnv(robot_xml_path=xml_path)
+    env = G1Env(robot_xml_path=xml_path)
     env.set_difficulty(1.0)
 
     obs, info = env.reset(seed=args.seed)

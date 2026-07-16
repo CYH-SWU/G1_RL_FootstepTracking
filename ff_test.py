@@ -18,14 +18,15 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
-from env.g1_env import G1Env
+from g_env.g1_test import G1TerrainEnv
 
 def main():
     # 文件路径
-    model_path = project_root / "checkpoints" / "ppo_g1_model.zip"
-    norm_path = project_root / "checkpoints" / "vec_model.pkl"
+    model_path = project_root / "checkpoints" / "ppo_g1_1.zip"
+    norm_path = project_root / "checkpoints" / "vec_1.pkl"
     
     robot_xml = project_root / "robot" / "g1_processed.xml"
+    mesh_dir = project_root / "robot" / "assets"
 
     # 评估参数
     num_episodes = 10
@@ -37,8 +38,11 @@ def main():
         return
 
     # 1. 创建基础环境（确保与训练时的参数一致）
-    base_env = G1Env(
+    base_env = G1TerrainEnv(
         robot_xml_path=str(robot_xml),
+        mesh_dir=str(mesh_dir),
+        max_episode_steps=max_steps_per_episode,
+        total_timesteps_for_max=11_000_000  # 不影响评估
     )
 
     # 2. 包装为 VecEnv（单环境）
@@ -77,12 +81,6 @@ def main():
     episode_rewards = []
     success_count = 0
 
-    # 从配置中获取常用参数
-    config = raw_env.config
-    control_dt = config.control_dt
-    foot_ankle_offset = config.foot_ankle_offset
-    fall_height_threshold = config.fall_height_threshold
-
     while episode < num_episodes and viewer.is_running():
         episode += 1
         step = 0
@@ -112,16 +110,16 @@ def main():
 
             # 控制实时速度（模拟 real-time）
             elapsed = time.time() - step_start
-            time_to_sleep = control_dt - elapsed
+            time_to_sleep = raw_env.control_dt - elapsed
             if time_to_sleep > 0:
                 time.sleep(time_to_sleep)
 
-            # 每100步打印状态
+            # 每100步打印状态（打印更多有用信息）
             if step % 100 == 0:
                 # 骨盆高度
                 pelvis_z = raw_env.data.qpos[2]
                 foot_z = min(raw_env.data.xpos[raw_env.left_foot_id][2],
-                             raw_env.data.xpos[raw_env.right_foot_id][2]) - foot_ankle_offset
+                             raw_env.data.xpos[raw_env.right_foot_id][2]) - raw_env.foot_ankle_offset
                 height = pelvis_z - foot_z
                 # 当前步点索引和相位
                 t1 = raw_env.t1
@@ -145,10 +143,11 @@ def main():
         if done:
             # 检查是否由于摔倒
             height = raw_env.data.qpos[2] - (min(raw_env.data.xpos[raw_env.left_foot_id][2],
-                                                 raw_env.data.xpos[raw_env.right_foot_id][2]) - foot_ankle_offset)
-            if height < fall_height_threshold:
+                                                 raw_env.data.xpos[raw_env.right_foot_id][2]) - raw_env.foot_ankle_offset)
+            if height < raw_env.fall_height_threshold:
                 print("  → 摔倒终止。")
             else:
+                # 可能因为步点序列完成？环境不会因为完成序列而终止，只有摔倒或超时
                 print("  → 终止（未知原因）。")
         elif step >= max_steps_per_episode:
             truncated = True
