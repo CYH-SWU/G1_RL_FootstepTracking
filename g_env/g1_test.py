@@ -74,9 +74,9 @@ class G1TerrainEnv(gym.Env):
         self.mode = None
 
         # 步态参数
-        self.total_duration = 1.1
+        self.total_duration = 1.2
         self.swing_duration = 0.75
-        self.stance_duration = 0.35
+        self.stance_duration = 0.45
         self.step_length = 0.20
         self.step_width = 0.237
         self.max_foot_vel = 0.12

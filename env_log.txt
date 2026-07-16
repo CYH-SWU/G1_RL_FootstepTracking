@@ -709,3 +709,9 @@ clip_range = 0.15 最优
 ent_coef = 0.001 前馈网络 max_vel = 0.12 
 学习率1e-4 智能调节默认参数 action_scale = 0.25 
 n_steps = 800 clip_range = 0.15
+
+1.2 0.75 0.45 良好
+1.5 0.75 0.75 极差
+
+n_steps = 400
+
