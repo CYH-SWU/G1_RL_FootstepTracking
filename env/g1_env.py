@@ -113,7 +113,7 @@ class G1Env(gym.Env):
         # Determine step height variation for forward mode.
         step_height = 0.0
         if self.mode == WalkModes.FORWARD:
-            max_h = 0.07 * max(0.0, (self.difficulty - 0.273) / (1.0 - 0.273))
+            max_h = 0.05 * max(0.0, (self.difficulty - 0.273) / (1.0 - 0.273))
             step_height = np.random.choice([-max_h, max_h])
 
         num_steps = 20
