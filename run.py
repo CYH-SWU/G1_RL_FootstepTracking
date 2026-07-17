@@ -40,7 +40,7 @@ LOG_DIR = project_root / "logs"
 CHECKPOINT_DIR.mkdir(exist_ok=True)
 LOG_DIR.mkdir(exist_ok=True)
 
-ITERATION = 1500 * 1.5
+ITERATION = 11000
 N_ENVS = 16  
 N_STEPS = 800 
                        
