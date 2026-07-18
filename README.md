@@ -56,6 +56,7 @@ Normalized actor_obs based on prior experience (41), foot forces (2), linear vel
 0.015s (approx 66.7Hz), physics step 0.005s (200Hz).
 
 ### Gait Parameters
+```bash
 total_duration      1.30s
 swing_duration      0.85s
 stance_duration     0.45s
@@ -63,6 +64,7 @@ stance_duration     0.45s
 step_length         0.20m
 step_width          0.237m
 target_radius       0.16m
+```
 
 ### Reward Function Design
 
@@ -92,7 +94,7 @@ Encourages minimizing the XY distance between head and pelvis to maintain upper 
 - Step height has 50% probability of being positive (upward step) or negative (downward step).
 
 ### Training Hyperparameters
-
+```bash
 n_steps         800
 batch_size      64
 n_epochs        3
@@ -105,6 +107,7 @@ max_grad_norm   0.5
 n_envs          16
 
 learning_rate is automatically adjusted by the performance callback during training.
+```
 
 ### Network Architecture
 
