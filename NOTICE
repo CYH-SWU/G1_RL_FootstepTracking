@@ -1,0 +1,11 @@
+This project includes third-party code covered by the following licenses:
+
+1. Unitree G1 robot model and related assets
+   Copyright (c) 2016-2023 HangZhou YuShu TECHNOLOGY CO.,LTD. ("Unitree Robotics")
+   Licensed under BSD 3-Clause License.
+   See the full license text in the file `THIRD_PARTY_LICENSES/unitree_license.txt`.
+
+2. Learning Humanoid Walking (LHW) project
+   Copyright (c) 2022, Rohan P. Singh
+   Licensed under BSD 2-Clause License.
+   See the full license text in the file `THIRD_PARTY_LICENSES/lhw_license.txt`.

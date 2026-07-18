@@ -177,12 +177,15 @@ uv run python robot/gen_xml.py
 ```
 ### Start training from scratch:
 ```bash
-uv run python train.py -i 20000 --save-interval 500 --eval-interval 500
+uv run python train.py \
+  ---iterations 20000 \
+  --save_interval 500 \
+  --eval_interval 500
 ```
 ### Resume training from a checkpoint:
 ```bash
 uv run python train.py \
-  -i 20000 \
+  ---iterations 20000 \
   --model checkpoints/ppo_g1_xxx_steps.zip \
   --norm checkpoints/vec_normalize_final.pkl
 ```
@@ -222,3 +225,7 @@ GitHub Repository: [https://github.com/rohanpsingh/LearningHumanoidWalking](http
 
 GitHub Repository: [https://github.com/unitreerobotics/unitree_rl_gym](https://github.com/unitreerobotics/unitree_rl_gym)
 
+## Acknowledgments
+
+- This project uses the Unitree G1 robot model, which is Copyright (c) 2016-2023 HangZhou YuShu TECHNOLOGY CO.,LTD. and is licensed under the BSD 3-Clause License.
+- The footstep tracking framework is inspired by the Learning Humanoid Walking (LHW) project by Rohan P. Singh, licensed under the BSD 2-Clause License.
