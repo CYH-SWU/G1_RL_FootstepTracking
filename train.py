@@ -32,6 +32,9 @@ from env.g1_env import G1Env
 from rl.callbacks import AdaptiveLRScheduleCallback, CurriculumCallback
 from rl.policy import policy_kwargs
 
+import os
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
+
 # Project paths
 project_root = Path(__file__).parent.absolute()
 ROBOT_XML = project_root / "robot" / "g1_processed.xml"
