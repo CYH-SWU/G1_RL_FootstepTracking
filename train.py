@@ -52,7 +52,7 @@ def create_vec_env(n_envs: int, norm_path: str = None):
         make_env,
         n_envs=n_envs,
         vec_env_cls=SubprocVecEnv,
-        vec_env_kwargs={"start_method": "fork"} if sys.platform != "win32" else {}
+        vec_env_kwargs = {"start_method": "forkserver"} if sys.platform != "win32" else {}
     )
     vec_env = VecNormalize(
         venv=vec_env,
