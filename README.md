@@ -69,21 +69,27 @@ target_radius       0.16m
 ### Reward Function Design
 
 **Footstep Tracking Reward (weight 0.45)**
+
 Core task reward that drives the robot to step onto target footholds.
 
 **Foot Force Phase Matching Reward (weight 0.15)**
+
 Guides the policy to press down firmly during stance phase and lift off during swing phase.
 
 **Foot Velocity Phase Matching Reward (weight 0.15)**
+
 Guides the policy to keep feet stationary during stance phase and move quickly during swing phase.
 
 **Torso Attitude Reward (weight 0.05)**
+
 Encourages pelvis yaw to align with target footstep yaw, ensuring the robot walks in the correct direction.
 
 **Pelvis Height Reward (weight 0.05)**
+
 Encourages pelvis height to be maintained near the nominal value of 0.7268m.
 
 **Upper Body Stability Reward (weight 0.05)**
+
 Encourages minimizing the XY distance between head and pelvis to maintain upper body stability and avoid excessive torso swaying during walking.
 
 ### Curriculum Learning
@@ -206,11 +212,13 @@ uv run python scripts/test_pose.py
 
 ## References
 **Learning Humanoid Walking**
+
 R. P. Singh et al., "Learning Bipedal Walking On Planned Footsteps For Humanoid Robots," in *IEEE-RAS Humanoids*, 2022.
 R. P. Singh et al., "Learning Bipedal Walking for Humanoids with Current Feedback," *arXiv:2303.03724*, 2023.
 R. P. Singh et al., "Robust Humanoid Walking on Compliant and Uneven Terrain with Deep RL," *IEEE Access*, 2024.
 GitHub Repository: [https://github.com/rohanpsingh/LearningHumanoidWalking](https://github.com/rohanpsingh/LearningHumanoidWalking)
 
 **Unitree RL Gym**
+
 GitHub Repository: [https://github.com/unitreerobotics/unitree_rl_gym](https://github.com/unitreerobotics/unitree_rl_gym)
 
