@@ -7,10 +7,12 @@ When resuming, both the model and the VecNormalize statistics must be loaded
 to ensure consistent observation normalization.
 
 Usage:
-  python train.py                                       # Fresh training (default 11000 iters)
-  python train.py -i 5000 -s 100 -e 200                 # Custom iterations, save/eval intervals
-  python train.py --model checkpoints/ppo_g1_xxx.zip --norm checkpoints/vec_normalize_final.pkl  # Resume from checkpoint
-  python train.py --lr 3e-4 --n-steps 512               # Adjust PPO hyperparameters
+  uv run python train.py                                       # Fresh training (default 11000 iters)
+  uv run python train.py -i 11000 -s 500 -e 250                # Custom iterations, save/eval intervals
+  uv run python train.py \
+    --model checkpoints/ppo_g1_xxx.zip \
+    --norm checkpoints/vec_normalize_final.pkl                 # Resume from checkpoint
+  uv run python train.py --lr 3e-4 --n_steps 512               # Adjust PPO hyperparameters
 """
 
 import argparse
@@ -72,19 +74,19 @@ def parse_args():
     
     # Iterations
     parser.add_argument(
-        "--iterations", "-i", type=int, default=11000,
+        "--iterations", "-i", type=int, default=20000,
         help="Total number of training iterations (including previous if resuming)"
     )
     
     # Save interval in iterations
     parser.add_argument(
-        "--save-interval", type=int, default=500,
+        "--save_interval", "-s", type=int, default=500,
         help="Iteration interval for saving model checkpoints"
     )
     
     # Evaluation interval in iterations
     parser.add_argument(
-        "--eval-interval", type=int, default=500,
+        "--eval_interval", "-e", type=int, default=500,
         help="Iteration interval for evaluating and saving the best model"
     )
     
@@ -102,24 +104,24 @@ def parse_args():
     
     # PPO training parameters
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
-    parser.add_argument("--n-steps", type=int, default=800, help="Steps per environment per rollout")
-    parser.add_argument("--batch-size", type=int, default=64, help="Mini-batch size")
-    parser.add_argument("--n-epochs", type=int, default=3, help="Number of update epochs per rollout")
+    parser.add_argument("--n_steps", type=int, default=800, help="Steps per environment per rollout")
+    parser.add_argument("--batch_size", type=int, default=64, help="Mini-batch size")
+    parser.add_argument("--n_epochs", type=int, default=3, help="Number of update epochs per rollout")
     parser.add_argument("--gamma", type=float, default=0.99, help="Discount factor")
-    parser.add_argument("--gae-lambda", type=float, default=0.95, help="GAE smoothing parameter")
-    parser.add_argument("--clip-range", type=float, default=0.15, help="PPO clipping range")
-    parser.add_argument("--ent-coef", type=float, default=0.001, help="Entropy coefficient")
-    parser.add_argument("--max-grad-norm", type=float, default=0.5, help="Gradient clipping threshold")
+    parser.add_argument("--gae_lambda", type=float, default=0.95, help="GAE smoothing parameter")
+    parser.add_argument("--clip_range", type=float, default=0.15, help="PPO clipping range")
+    parser.add_argument("--ent_coef", type=float, default=0.001, help="Entropy coefficient")
+    parser.add_argument("--max_grad_norm", type=float, default=0.5, help="Gradient clipping threshold")
     
     # Learning rate callback parameters
-    parser.add_argument("--lr-patience", type=int, default=5, help="Patience for performance plateau")
-    parser.add_argument("--lr-factor", type=float, default=0.95, help="Learning rate decay factor")
-    parser.add_argument("--lr-min", type=float, default=1e-7, help="Minimum learning rate")
-    parser.add_argument("--lr-eval-freq", type=int, default=None,
+    parser.add_argument("--lr_patience", type=int, default=5, help="Patience for performance plateau")
+    parser.add_argument("--lr_factor", type=float, default=0.90, help="Learning rate decay factor")
+    parser.add_argument("--lr_min", type=float, default=1e-7, help="Minimum learning rate")
+    parser.add_argument("--lr_eval-freq", type=int, default=None,
                         help="Evaluation frequency for LR callback (in timesteps)")
     
     # Number of parallel environments
-    parser.add_argument("--n-envs", type=int, default=16, help="Number of parallel environments")
+    parser.add_argument("--n_envs", type=int, default=16, help="Number of parallel environments")
     
     return parser.parse_args()
 
@@ -203,7 +205,7 @@ def main():
     save_freq = args.save_interval * args.n_steps
     if save_freq < 1:
         raise ValueError(f"Computed save_freq={save_freq} (per-env steps) is < 1. "
-                         f"Increase --save-interval or adjust --n-steps.")
+                         f"Increase --save_interval or adjust --n_steps.")
     checkpoint_callback = CheckpointCallback(
         save_freq=save_freq,
         save_path=str(CHECKPOINT_DIR),

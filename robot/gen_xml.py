@@ -3,6 +3,9 @@ Process the raw Unitree G1 MuJoCo model for reinforcement learning.
 Filters leg joints (hip, knee, ankle) as active actuators, locks other joints,
 assigns PD gains, updates the stand keyframe with nominal posture, and adds
 contact exclusions plus visual ground/light for debugging.
+
+Usage:
+    uv run python robot/gen_xml.py
 """
 
 import xml.etree.ElementTree as ET

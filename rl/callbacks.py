@@ -13,7 +13,7 @@ class AdaptiveLRScheduleCallback(BaseCallback):
     :param min_lr: Minimum learning rate to avoid excessive decay.
     :param verbose: Verbosity level.
     """
-    def __init__(self, patience: int = 5, factor: float = 0.95, 
+    def __init__(self, patience: int = 5, factor: float = 0.90, 
                  eval_freq: int = 16 * 800 * 16, min_lr: float = 1e-7, verbose: int = 1):
         super().__init__(verbose)
         self.patience = patience

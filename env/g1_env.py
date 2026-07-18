@@ -1,8 +1,11 @@
+'''
+Usage:
+    uv run python env/g1_env.py
+'''
 import os
 import sys
 from pathlib import Path
 
-# Add project root to sys.path to ensure f_env module can be imported.
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import gymnasium as gym
@@ -144,7 +147,7 @@ class G1Env(gym.Env):
 
         # Initialize pelvis position offset behind the first step.
         if len(self.sequence) > 0:
-            offset_back = -0.12
+            offset_back = -0.05
             first_step = self.sequence[0]
             self.data.qpos[0] = first_step[0] + offset_back
             self.data.qpos[1] = first_step[1]

@@ -2,6 +2,9 @@
 """
 Compute the maximum forward footstep amplitude of G1 robot legs near nominal posture.
 Reads nominal angles and action_scale from env.config to stay consistent with the training environment.
+
+Usage:
+    uv run python scripts/compute_max_step.py
 """
 
 import sys

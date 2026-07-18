@@ -1,0 +1,27 @@
+[project]
+name = "g1rlfootsteptracking"
+version = "0.1.0"
+description = "G1 humanoid robot RL footstep tracking"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "gymnasium>=0.29.0",
+    "matplotlib>=3.7.0",
+    "mujoco>=2.3.0",
+    "numpy==2.4.6",
+    "optuna>=3.3.0",
+    "scipy>=1.10.0",
+    "stable-baselines3>=1.7.0",
+    "tensorboard>=2.13.0",
+    "torch>=2.0.0",
+    "tqdm>=4.65.0",
+    "transforms3d>=0.4.0",
+    "rich>=13.0.0",          
+]
+
+[tool.setuptools]
+packages = ["rl", "g_env", "env_utils", "planner_pipeline"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

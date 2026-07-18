@@ -1,7 +1,7 @@
 import numpy as np
 import mujoco
 from scipy.spatial.transform import Rotation as R
-from planner_pipeline.reward_functions import (
+from env_utils.reward_functions import (
     calc_foot_frc_clock_reward,
     calc_foot_vel_clock_reward,
     calc_body_orient_reward,

@@ -6,12 +6,12 @@ Loads a trained model, runs visual evaluation in MuJoCo, and outputs statistics
 including average reward and success rate.
 
 Usage:
-    python test.py                                  # Load best model, default 10 episodes
-    python test.py --model path/to/model.zip        # Specify model path
-    python test.py --norm path/to/norm.pkl          # Specify normalization file
-    python test.py --episodes 20 --max-steps 3000   # Custom episodes and steps
-    python test.py --difficulty 0.5                 # Set difficulty (0~1)
-    python test.py --no-render                      # Disable rendering
+    uv run python test.py                                  # Load best model, default 10 episodes
+    uv run python test.py \
+        --model checkpoints/ppo_g1_final.zip \
+        --norm checkpoints/vec_normalize_final.pkl \
+        --episodes 20 \
+        --difficulty 1.0
 
 Auto-loading:
     - Model: checkpoints/best_model/best_model.zip

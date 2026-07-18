@@ -7,7 +7,7 @@
 [![MuJoCo](https://img.shields.io/badge/MuJoCo-2.3.0+-green.svg)](https://mujoco.org/)
 [![SB3](https://img.shields.io/badge/SB3-1.7.0+-orange.svg)](https://stable-baselines3.readthedocs.io/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 ---
 
 ## 📖 项目简介
@@ -25,7 +25,7 @@
 - 站立 (STANDING)
 
 ### 地形支持
-平地 + 0.1m 台阶，通过课程学习渐进式引入。
+平地 + 0.05m 台阶，通过课程学习渐进式引入。
 
 ### 机器人模型与关节配置
 
@@ -55,9 +55,9 @@
 0.015s (≈66.7Hz)，物理步长 0.005s (200Hz)。
 
 ### 步态参数
-total_duration      1.1s
-swing_duration      0.75s
-stance_duration     0.35s
+total_duration      1.30s
+swing_duration      0.85s
+stance_duration     0.45s
 
 step_length         0.20m
 step_width          0.237m
@@ -97,7 +97,7 @@ batch_size      64
 n_epochs        3
 gamma           0.99
 gae_lambda      0.95
-clip_range      0.20
+clip_range      0.15
 learning_rate   1e-4
 ent_coef        0.001
 max_grad_norm   0.5
@@ -151,25 +151,41 @@ G1_RL_FootstepTracking
 
 
 # 项目下载
+git clone https://github.com/CYH-SWU/G1_RL_FootstepTracking.git
 
 # 安装依赖
+uv sync
 
 # 训练模型
+生成处理后的G1机器人xml文件
+uv run python robot/gen_xml.py
+
+训练
+uv run python train.py -i 20000 --save-interval 500 --eval-interval 500
+
+继续训练
+uv run python train.py -i 20000 --model checkpoints/ppo_g1_xxx_steps.zip --norm checkpoints/vec_normalize_final.pkl
 
 # 评估与可视化
+uv run python test.py --model checkpoints/ppo_g1_final.zip --norm checkpoints/vec_normalize_final.pkl --episodes 20 --difficulty 1.0
 
 # 其他辅助脚本
+uv run python scripts/compute_height.py
+计算机器人标称姿态下的骨盆高度
 
-# 训练结果
+uv run python scripts/compute_max_step.py
+计算机器人在当前config设置下可达到的最大步幅
 
+uv run python scripts/test_pose.py
+可视化查看机器人的标称姿态
 
-📚 参考文献
-LHW (Learning Humanoid Walking)
-Singh, R. P., et al. "Learning Bipedal Walking On Planned Footsteps For Humanoid Robots." IEEE-RAS Humanoids, 2022.
-Singh, R. P., et al. "Learning Bipedal Walking for Humanoids with Current Feedback." arXiv:2303.03724, 2023.
-Singh, R. P., et al. "Robust Humanoid Walking on Compliant and Uneven Terrain with Deep RL." IEEE Access, 2024.
-GitHub Repository
+参考文献
+Learning Humanoid Walking
+R. P. Singh et al., “Learning Bipedal Walking On Planned Footsteps For Humanoid Robots,” in IEEE-RAS Humanoids, 2022.
+R. P. Singh et al., “Learning Bipedal Walking for Humanoids with Current Feedback,” arXiv:2303.03724, 2023.
+R. P. Singh et al., “Robust Humanoid Walking on Compliant and Uneven Terrain with Deep RL,” IEEE Access, 2024.
+GitHub Repository: https://github.com/rohanpsingh/LearningHumanoidWalking
 
 Unitree RL Gym
-GitHub Repository
+GitHub Repository: https://github.com/unitreerobotics/unitree_rl_gym
 

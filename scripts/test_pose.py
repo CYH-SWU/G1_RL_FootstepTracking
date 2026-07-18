@@ -3,6 +3,9 @@
 Test G1 robot model loading and keyframe switching.
 Loads robot/g1_processed.xml, switches to the "stand" keyframe, and launches the MuJoCo viewer.
 Gravity is forced to zero to observe joint motions without gravitational effects.
+
+Usage:
+    uv run python scripts/test_pose.py
 """
 
 import sys

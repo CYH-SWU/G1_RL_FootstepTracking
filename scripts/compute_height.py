@@ -2,6 +2,9 @@
 """
 Compute the vertical height difference (Z-axis) between the G1 robot's pelvis and feet.
 Loads robot/g1_processed.xml, applies the "stand" keyframe, and outputs the height difference.
+
+Usage:
+    uv run python scripts/compute_height.py
 """
 
 import sys
