@@ -122,7 +122,7 @@ learning_rate 训练过程中由性能回调自动调整
 ---
 
 ## 📁 项目结构
-
+```plaintext
 G1_RL_FootstepTracking
 ├── envs/
 │   ├── G1FootstepEnv.py                <--- 主环境类
@@ -148,44 +148,69 @@ G1_RL_FootstepTracking
 │   └── test_pose.py
 ├── train.py                            <--- 训练主入口
 └── test.py                             <--- 模型测试
-
+```
 
 # 项目下载
+```bash
 git clone https://github.com/CYH-SWU/G1_RL_FootstepTracking.git
+```
 
 # 安装依赖
+```bash
 uv sync
+```
 
 # 训练模型
 生成处理后的G1机器人xml文件
+```bash
 uv run python robot/gen_xml.py
+```
 
 训练
+```bash
 uv run python train.py -i 20000 --save-interval 500 --eval-interval 500
+```
 
 继续训练
-uv run python train.py -i 20000 --model checkpoints/ppo_g1_xxx_steps.zip --norm checkpoints/vec_normalize_final.pkl
+```bash
+uv run python train.py \
+  -i 20000 \
+  --model checkpoints/ppo_g1_xxx_steps.zip \
+  --norm checkpoints/vec_normalize_final.pkl
+```
 
 # 评估与可视化
-uv run python test.py --model checkpoints/ppo_g1_final.zip --norm checkpoints/vec_normalize_final.pkl --episodes 20 --difficulty 1.0
+```bash
+uv run python test.py \
+  --model checkpoints/ppo_g1_final.zip \
+  --norm checkpoints/vec_normalize_final.pkl \
+  --episodes 20 \
+  --difficulty 1.0
+```
 
 # 其他辅助脚本
+```bash
 uv run python scripts/compute_height.py
+```
 计算机器人标称姿态下的骨盆高度
 
+```bash
 uv run python scripts/compute_max_step.py
+```
 计算机器人在当前config设置下可达到的最大步幅
 
+```bash
 uv run python scripts/test_pose.py
+```
 可视化查看机器人的标称姿态
 
-参考文献
-Learning Humanoid Walking
+## 参考文献
+# Learning Humanoid Walking
 R. P. Singh et al., “Learning Bipedal Walking On Planned Footsteps For Humanoid Robots,” in IEEE-RAS Humanoids, 2022.
 R. P. Singh et al., “Learning Bipedal Walking for Humanoids with Current Feedback,” arXiv:2303.03724, 2023.
 R. P. Singh et al., “Robust Humanoid Walking on Compliant and Uneven Terrain with Deep RL,” IEEE Access, 2024.
 GitHub Repository: https://github.com/rohanpsingh/LearningHumanoidWalking
 
-Unitree RL Gym
+# Unitree RL Gym
 GitHub Repository: https://github.com/unitreerobotics/unitree_rl_gym
 
