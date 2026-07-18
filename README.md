@@ -205,12 +205,12 @@ uv run python scripts/test_pose.py
 可视化查看机器人的标称姿态
 
 ## 参考文献
-# Learning Humanoid Walking
+**Learning Humanoid Walking**
 R. P. Singh et al., “Learning Bipedal Walking On Planned Footsteps For Humanoid Robots,” in IEEE-RAS Humanoids, 2022.
 R. P. Singh et al., “Learning Bipedal Walking for Humanoids with Current Feedback,” arXiv:2303.03724, 2023.
 R. P. Singh et al., “Robust Humanoid Walking on Compliant and Uneven Terrain with Deep RL,” IEEE Access, 2024.
 GitHub Repository: https://github.com/rohanpsingh/LearningHumanoidWalking
 
-# Unitree RL Gym
+**Unitree RL Gym**
 GitHub Repository: https://github.com/unitreerobotics/unitree_rl_gym
 
