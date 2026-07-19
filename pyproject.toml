@@ -51,7 +51,16 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP"]
-ignore = ["E203"]   # W503 已废弃，移除即可
+ignore = ["E203"]   
+
+[tool.ruff.lint.per-file-ignores]
+"env_utils/mirrorwrapper.py" = ["E501"]
+"env_utils/reward_functions.py" = ["N817"]
+"rl/callbacks.py" = ["E501"]
+"scripts/compute_height.py" = ["E402"]
+"scripts/compute_max_step.py" = ["E402"]
+"test.py" = ["E402", "E501"]
+"train.py" = ["N806"]
 
 [tool.ruff.format]
 quote-style = "double"

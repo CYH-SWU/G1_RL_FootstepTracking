@@ -105,7 +105,7 @@ def parse_args():
     )
 
     # PPO training parameters
-    parser.add_argument("--lr", type=float, default=1.2e-4, help="Learning rate")
+    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
     parser.add_argument("--n_steps", type=int, default=800, help="Steps per environment per rollout")
     parser.add_argument("--batch_size", type=int, default=64, help="Mini-batch size")
     parser.add_argument("--n_epochs", type=int, default=3, help="Number of update epochs per rollout")
