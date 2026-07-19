@@ -107,7 +107,7 @@ batch_size      64
 n_epochs        3
 gamma           0.99
 gae_lambda      0.95
-clip_range      0.15
+clip_range      0.18
 learning_rate   1e-4
 ent_coef        0.001
 max_grad_norm   0.5
