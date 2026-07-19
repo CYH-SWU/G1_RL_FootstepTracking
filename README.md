@@ -70,30 +70,25 @@ target_radius       0.16m
 ```
 
 ### 🎯Reward Function Design
+```plaintext
+Footstep Tracking Reward (weight 0.45):
+  Core task reward that drives the robot to step onto target footholds.
 
-- **Footstep Tracking Reward (weight 0.45)**:
+Foot Force Phase Matching Reward (weight 0.15):
+  Guides the policy to press down firmly during stance phase and lift off during swing phase.
 
-Core task reward that drives the robot to step onto target footholds.
+Foot Velocity Phase Matching Reward (weight 0.15):
+  Guides the policy to keep feet stationary during stance phase and move quickly during swing phase.
 
-- **Foot Force Phase Matching Reward (weight 0.15)**:
+Torso Attitude Reward (weight 0.05):
+  Encourages pelvis yaw to align with target footstep yaw, ensuring the robot walks in the correct direction.
 
-Guides the policy to press down firmly during stance phase and lift off during swing phase.
+Pelvis Height Reward (weight 0.05):
+  Encourages pelvis height to be maintained near the nominal value of 0.7268m.
 
-- **Foot Velocity Phase Matching Reward (weight 0.15)**:
-
-Guides the policy to keep feet stationary during stance phase and move quickly during swing phase.
-
-- **Torso Attitude Reward (weight 0.05)**:
-
-Encourages pelvis yaw to align with target footstep yaw, ensuring the robot walks in the correct direction.
-
-- **Pelvis Height Reward (weight 0.05)**:
-
-Encourages pelvis height to be maintained near the nominal value of 0.7268m.
-
-- **Upper Body Stability Reward (weight 0.05)**:
-
-Encourages minimizing the XY distance between head and pelvis to maintain upper body stability and avoid excessive torso swaying during walking.
+Upper Body Stability Reward (weight 0.05):
+  Encourages minimizing the XY distance between head and pelvis to maintain upper body stability and avoid excessive torso swaying during walking.
+```
 
 ### 📈Curriculum Learning
 
