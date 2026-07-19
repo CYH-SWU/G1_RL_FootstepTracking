@@ -8,6 +8,8 @@ Deep reinforcement learning based omnidirectional footstep tracking control syst
 [![SB3](https://img.shields.io/badge/SB3-1.7.0+-orange.svg)](https://stable-baselines3.readthedocs.io/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![CI](https://github.com/CYH-SWU/G1_RL_FootstepTracking/actions/workflows/ci.yml/badge.svg)](https://github.com/CYH-SWU/G1_RL_FootstepTracking/actions/workflows/ci.yml)
+[![Lint](https://github.com/CYH-SWU/G1_RL_FootstepTracking/actions/workflows/lint.yml/badge.svg)](https://github.com/CYH-SWU/G1_RL_FootstepTracking/actions/workflows/lint.yml)
 
 ---
 
@@ -164,12 +166,15 @@ G1_RL_FootstepTracking
 ## Clone the Repository
 ```bash
 git clone https://github.com/CYH-SWU/G1_RL_FootstepTracking.git
+cd G1_RL_FootstepTracking
 ```
 
 ## Install Dependencies
 ```bash
 uv sync --all-extras
 ```
+**Note**: Python 3.12+ is required.
+
 
 ## Train the Model
 ### Generate the processed G1 robot XML file:
@@ -191,6 +196,7 @@ uv run python train.py \
   --norm checkpoints/vec_normalize_final.pkl
 ```
 
+
 ## Evaluate and Visualize
 ```bash
 uv run python test.py \
@@ -199,6 +205,7 @@ uv run python test.py \
   --episodes 20 \
   --difficulty 1.0
 ```
+
 
 ## Auxiliary Scripts
 ### Compute the pelvis height under the nominal posture.
@@ -214,6 +221,31 @@ uv run python scripts/compute_max_step.py
 uv run python scripts/test_pose.py
 ```
 
+
+## 🔍Testing
+### Run all unit tests with coverage
+```bash
+uv run pytest tests/ -v --cov=env --cov=rl --cov=env_utils --cov-report=term
+```
+### Check code style (Ruff)
+```bash
+uv run ruff check .
+uv run ruff format . --check
+```
+### Auto-fix style issues
+```bash
+uv run ruff check . --fix && uv run ruff format .
+```
+
+
+## 🧪 CI/CD
+This project uses GitHub Actions to automatically run:
+- Unit tests (with coverage) on Python 3.12
+- Linting and formatting check with Ruff
+
+All CI jobs must pass before merging a pull request.
+
+
 ## 📚References
 **Learning Humanoid Walking**
 
@@ -225,6 +257,7 @@ GitHub Repository: [https://github.com/rohanpsingh/LearningHumanoidWalking](http
 **Unitree RL Gym**
 
 GitHub Repository: [https://github.com/unitreerobotics/unitree_rl_gym](https://github.com/unitreerobotics/unitree_rl_gym)
+
 
 ## 🎉Acknowledgments
 
