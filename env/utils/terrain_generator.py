@@ -1,8 +1,9 @@
 import os
-import mujoco
-import numpy as np
 from pathlib import Path
+
+import mujoco
 from scipy.spatial.transform import Rotation as R
+
 
 class TerrainGenerator:
     """
@@ -29,6 +30,7 @@ class TerrainGenerator:
         max_boxes: Maximum number of stepping stones to visualize.
         model, data: MuJoCo model and data instances after loading.
     """
+
     def __init__(self, robot_xml_path, max_boxes=30):
         self.robot_xml_path = os.path.abspath(robot_xml_path)
         self.max_boxes = max_boxes
@@ -37,7 +39,7 @@ class TerrainGenerator:
 
     def load_model(self):
         """Load robot XML, add stepping stones, and build the model."""
-        with open(self.robot_xml_path, 'r') as f:
+        with open(self.robot_xml_path) as f:
             robot_xml = f.read()
 
         # Resolve absolute path for assets directory.
@@ -49,7 +51,7 @@ class TerrainGenerator:
         # Append visual markers for each possible footstep target.
         markers_xml = ""
         for i in range(self.max_boxes):
-            markers_xml += f'''
+            markers_xml += f"""
             <!-- Stepping stone (box) -->
             <body name="step_{i}" pos="0 0 -10" quat="1 0 0 0">
                 <geom type="box" size="0.100 1.0 0.05" rgba="0.8 0.8 0.8 1" group="1"/>
@@ -62,8 +64,8 @@ class TerrainGenerator:
             <body name="step_arrow_{i}" pos="0 0 -10" quat="1 0 0 0">
                 <geom type="box" size="0.08 0.01 0.01" rgba="0.0 0.0 1.0 1" group="1"/>
             </body>
-            '''
-        full_xml = robot_xml.replace('</worldbody>', markers_xml + '</worldbody>')
+            """
+        full_xml = robot_xml.replace("</worldbody>", markers_xml + "</worldbody>")
 
         self.model = mujoco.MjModel.from_xml_string(full_xml)
         self.data = mujoco.MjData(self.model)
@@ -80,7 +82,7 @@ class TerrainGenerator:
                 geom_addr = model.body_geomadr[box_body_id]
                 box_h = model.geom_size[geom_addr][2]
                 model.body_pos[box_body_id] = [x, y, z - box_h]
-                quat_scipy = R.from_euler('z', theta).as_quat()
+                quat_scipy = R.from_euler("z", theta).as_quat()
                 quat_mujoco = [quat_scipy[3], quat_scipy[0], quat_scipy[1], quat_scipy[2]]
                 model.body_quat[box_body_id] = quat_mujoco
 

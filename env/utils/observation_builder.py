@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
+
 class ObservationBuilder:
     """
     Builds actor and critic observations for the G1 footstep tracking environment.
@@ -21,6 +22,7 @@ class ObservationBuilder:
         _get_pelvis_yaw: Extracts yaw from pelvis quaternion.
         _get_R_world_to_pelvis: Returns world-to-pelvis rotation matrix.
     """
+
     def __init__(self, config, joint_indices, joint_vel_indices, actuator_indices, max_torques):
         self.config = config
         self.joint_indices = joint_indices
@@ -29,18 +31,20 @@ class ObservationBuilder:
         self.max_torques = max_torques
 
         # Build normalization scales for critic observations.
-        self.critic_obs_scale = np.concatenate([
-            [config.norm_params["joint_angles_max"]] * len(joint_indices),
-            [config.norm_params["joint_vels_max"]] * len(joint_vel_indices),
-            [config.norm_params["pelvis_height_max"]],
-            config.norm_params["t1_pos_max"],
-            config.norm_params["t2_pos_max"],
-            [config.norm_params["t1_yaw_max"]],
-            [config.norm_params["t2_yaw_max"]],
-            [config.norm_params["phase_max"]] * 2,
-            [config.norm_params["pelvis_orient_max"]] * 3,
-            [config.norm_params["pelvis_angvel_max"]] * 3,
-        ])
+        self.critic_obs_scale = np.concatenate(
+            [
+                [config.norm_params["joint_angles_max"]] * len(joint_indices),
+                [config.norm_params["joint_vels_max"]] * len(joint_vel_indices),
+                [config.norm_params["pelvis_height_max"]],
+                config.norm_params["t1_pos_max"],
+                config.norm_params["t2_pos_max"],
+                [config.norm_params["t1_yaw_max"]],
+                [config.norm_params["t2_yaw_max"]],
+                [config.norm_params["phase_max"]] * 2,
+                [config.norm_params["pelvis_orient_max"]] * 3,
+                [config.norm_params["pelvis_angvel_max"]] * 3,
+            ]
+        )
 
     def get_actor_obs(self, model, data, pelvis_id, left_foot_id, right_foot_id, sequence, t1, t2, phase):
         qpos = data.qpos
@@ -73,27 +77,29 @@ class ObservationBuilder:
             foot_yaw = next_yaw = 0.0
 
         # Phase encoding as sine/cosine.
-        phase_signal = np.array([np.sin(2*np.pi*phase), np.cos(2*np.pi*phase)])
+        phase_signal = np.array([np.sin(2 * np.pi * phase), np.cos(2 * np.pi * phase)])
 
         # Pelvis orientation (roll, pitch, yaw) from quaternion.
         quat = data.xquat[pelvis_id].copy()
         r = R.from_quat([quat[1], quat[2], quat[3], quat[0]])
-        euler = r.as_euler('xyz')
+        euler = r.as_euler("xyz")
         roll, pitch, yaw = euler
 
         pelvis_angvel = data.qvel[3:6]
 
-        obs = np.concatenate([
-            joint_angles,
-            joint_vels,
-            [pelvis_height],
-            [foot_dx, foot_dy, foot_dz],
-            [next_dx, next_dy, next_dz],
-            [foot_yaw, next_yaw],
-            phase_signal,
-            [roll, pitch, yaw],
-            pelvis_angvel
-        ])
+        obs = np.concatenate(
+            [
+                joint_angles,
+                joint_vels,
+                [pelvis_height],
+                [foot_dx, foot_dy, foot_dz],
+                [next_dx, next_dy, next_dz],
+                [foot_yaw, next_yaw],
+                phase_signal,
+                [roll, pitch, yaw],
+                pelvis_angvel,
+            ]
+        )
         return obs.astype(np.float32)
 
     def get_critic_obs(self, model, data, pelvis_id, left_foot_id, right_foot_id, sequence, t1, t2, phase, actor_obs):
@@ -116,11 +122,7 @@ class ObservationBuilder:
         torques = data.actuator_force[self.actuator_indices]
         norm_torques = np.clip(torques / (self.max_torques + 1e-6), -1.0, 1.0)
 
-        priv = np.concatenate([
-            [norm_left_frc, norm_right_frc],
-            norm_lin_vel,
-            norm_torques
-        ])
+        priv = np.concatenate([[norm_left_frc, norm_right_frc], norm_lin_vel, norm_torques])
 
         critic_obs = np.concatenate([norm_actor_obs, priv])
         return critic_obs.astype(np.float32)
@@ -129,7 +131,7 @@ class ObservationBuilder:
         """Extract pelvis yaw angle from MuJoCo data."""
         quat = data.xquat[pelvis_id].copy()
         r = R.from_quat([quat[1], quat[2], quat[3], quat[0]])
-        return r.as_euler('xyz')[2]
+        return r.as_euler("xyz")[2]
 
     def _get_R_world_to_pelvis(self, data, pelvis_id):
         """Return rotation matrix from world frame to pelvis frame."""

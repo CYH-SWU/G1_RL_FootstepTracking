@@ -18,7 +18,9 @@ All fields have sensible defaults for training the G1 robot in footstep tracking
 """
 
 from dataclasses import dataclass, field
+
 import numpy as np
+
 
 @dataclass
 class G1EnvConfig:
@@ -37,10 +39,24 @@ class G1EnvConfig:
     target_radius: float = 0.16
 
     # Nominal posture (using default_factory).
-    nominal_angles: np.ndarray = field(default_factory=lambda: np.array([
-        -0.5235987756, 0.0, 0.0, 0.872664626, -0.34906585, 0.0,
-        -0.5235987756, 0.0, 0.0, 0.872664626, -0.34906585, 0.0
-    ]))
+    nominal_angles: np.ndarray = field(
+        default_factory=lambda: np.array(
+            [
+                -0.5235987756,
+                0.0,
+                0.0,
+                0.872664626,
+                -0.34906585,
+                0.0,
+                -0.5235987756,
+                0.0,
+                0.0,
+                0.872664626,
+                -0.34906585,
+                0.0,
+            ]
+        )
+    )
     nominal_pelvis_height: float = 0.7268
     foot_ankle_offset: float = 0.0331
     action_scale: float = 0.25
@@ -54,15 +70,17 @@ class G1EnvConfig:
     mode_probs: tuple = (0.05, 0.15, 0.20, 0.30, 0.30)
 
     # Normalization parameters (using default_factory).
-    norm_params: dict = field(default_factory=lambda: {
-        "joint_angles_max": 1.5,
-        "joint_vels_max": 10.0,
-        "pelvis_height_max": 1.0,
-        "t1_pos_max": [0.30, 0.25, 0.9],
-        "t2_pos_max": [0.5, 0.30, 0.9],
-        "t1_yaw_max": 0.2,
-        "t2_yaw_max": 0.25,
-        "phase_max": 1.0,
-        "pelvis_orient_max": 0.3,
-        "pelvis_angvel_max": 5.0,
-    })
+    norm_params: dict = field(
+        default_factory=lambda: {
+            "joint_angles_max": 1.5,
+            "joint_vels_max": 10.0,
+            "pelvis_height_max": 1.0,
+            "t1_pos_max": [0.30, 0.25, 0.9],
+            "t2_pos_max": [0.5, 0.30, 0.9],
+            "t1_yaw_max": 0.2,
+            "t2_yaw_max": 0.25,
+            "phase_max": 1.0,
+            "pelvis_orient_max": 0.3,
+            "pelvis_angvel_max": 5.0,
+        }
+    )

@@ -1,6 +1,7 @@
-import numpy as np
-import random
 from enum import Enum, auto
+
+import numpy as np
+
 
 class WalkModes(Enum):
     STANDING = auto()
@@ -9,6 +10,7 @@ class WalkModes(Enum):
     BACKWARD = auto()
     INPLACE = auto()
     LATERAL = auto()
+
 
 class StepSequenceGenerator:
     """
@@ -29,6 +31,7 @@ class StepSequenceGenerator:
             Transforms a local sequence into world coordinates. The origin is
             the midpoint between the two feet.
     """
+
     def __init__(self, step_length, step_width, total_duration, swing_duration, stance_duration):
         self.step_length = step_length
         self.step_width = step_width
@@ -86,7 +89,7 @@ class StepSequenceGenerator:
                 if i % 2:
                     y += self.step_length * 0.8
                 else:
-                    y -= (2/3) * self.step_length * 0.8
+                    y -= (2 / 3) * self.step_length * 0.8
                 step = np.array([0, c * y, 0, 0])
                 seq.append(step)
             return np.array(seq)

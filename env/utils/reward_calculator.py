@@ -1,18 +1,21 @@
-import numpy as np
 import mujoco
+import numpy as np
 from scipy.spatial.transform import Rotation as R
+
 from env_utils.reward_functions import (
+    calc_action_reward,
+    calc_body_orient_reward,
     calc_foot_frc_clock_reward,
     calc_foot_vel_clock_reward,
-    calc_body_orient_reward,
     calc_height_reward,
-    calc_upper_body_stability,
-    calc_torque_reward,
-    calc_action_reward,
-    calc_step_reward,
     calc_posture_error_reward,
+    calc_step_reward,
+    calc_torque_reward,
+    calc_upper_body_stability,
 )
+
 from .step_sequence import WalkModes
+
 
 class RewardCalculator:
     """
@@ -41,6 +44,7 @@ class RewardCalculator:
         _get_body_linvel: Computes the linear velocity magnitude of a body.
         _get_pelvis_yaw: Extracts the yaw angle of the pelvis from the simulation data.
     """
+
     def __init__(self, config):
         self.config = config
         self.last_action = None
@@ -50,8 +54,22 @@ class RewardCalculator:
     def set_target_reached(self, reached):
         self.target_reached = reached
 
-    def compute_reward(self, model, data, pelvis_id, left_foot_id, right_foot_id, head_id,
-                       joint_indices, actuator_indices, mode, phase, sequence, t1, action):
+    def compute_reward(
+        self,
+        model,
+        data,
+        pelvis_id,
+        left_foot_id,
+        right_foot_id,
+        head_id,
+        joint_indices,
+        actuator_indices,
+        mode,
+        phase,
+        sequence,
+        t1,
+        action,
+    ):
         left_force = data.cfrc_ext[left_foot_id][2]
         right_force = data.cfrc_ext[right_foot_id][2]
         left_vel = self._get_body_linvel(data, left_foot_id, model)
@@ -70,20 +88,14 @@ class RewardCalculator:
         max_force = total_mass * 9.81 * 0.5
         swing_frac = self.config.swing_duration / self.config.total_duration
 
-        is_stand = (mode == WalkModes.STANDING)
+        is_stand = mode == WalkModes.STANDING
 
         if is_stand:
             r_frc = calc_foot_frc_clock_reward(
-                swing_frac,
-                left_force, right_force,
-                phase, max_force,
-                clock_left=1.0, clock_right=1.0
+                swing_frac, left_force, right_force, phase, max_force, clock_left=1.0, clock_right=1.0
             )
             r_vel = calc_foot_vel_clock_reward(
-                swing_frac,
-                left_vel, right_vel,
-                phase, self.config.max_foot_vel,
-                clock_left=-1.0, clock_right=-1.0
+                swing_frac, left_vel, right_vel, phase, self.config.max_foot_vel, clock_left=-1.0, clock_right=-1.0
             )
         else:
             r_frc = calc_foot_frc_clock_reward(swing_frac, left_force, right_force, phase, max_force)
@@ -113,37 +125,35 @@ class RewardCalculator:
         r_posture = calc_posture_error_reward(current_joint_angles, self.config.nominal_angles)
 
         weights = {
-            'frc': 0.15,
-            'vel': 0.15,
-            'orient': 0.05,
-            'height': 0.05,
-            'step': 0.45,
-            'stability': 0.05,
-            'posture': 0.00,
-            'action': 0.00,
-            'torque': 0.00
+            "frc": 0.15,
+            "vel": 0.15,
+            "orient": 0.05,
+            "height": 0.05,
+            "step": 0.45,
+            "stability": 0.05,
+            "posture": 0.00,
+            "action": 0.00,
+            "torque": 0.00,
         }
-        total = (weights['frc'] * r_frc +
-                 weights['vel'] * r_vel +
-                 weights['orient'] * r_orient +
-                 weights['height'] * r_height +
-                 weights['step'] * r_step +
-                 weights['stability'] * r_stability +
-                 weights['posture'] * r_posture +
-                 weights['action'] * r_action +
-                 weights['torque'] * r_torque)
+        total = (
+            weights["frc"] * r_frc
+            + weights["vel"] * r_vel
+            + weights["orient"] * r_orient
+            + weights["height"] * r_height
+            + weights["step"] * r_step
+            + weights["stability"] * r_stability
+            + weights["posture"] * r_posture
+            + weights["action"] * r_action
+            + weights["torque"] * r_torque
+        )
         return total
 
     def _get_body_linvel(self, data, body_id, model):
         vel = np.zeros(6)
-        mujoco.mj_objectVelocity(
-            model, data,
-            mujoco.mjtObj.mjOBJ_BODY,
-            body_id, vel, 0
-        )
+        mujoco.mj_objectVelocity(model, data, mujoco.mjtObj.mjOBJ_BODY, body_id, vel, 0)
         return np.linalg.norm(vel[:3])
 
     def _get_pelvis_yaw(self, data, pelvis_id):
         quat = data.xquat[pelvis_id].copy()
         r = R.from_quat([quat[1], quat[2], quat[3], quat[0]])
-        return r.as_euler('xyz')[2]
+        return r.as_euler("xyz")[2]

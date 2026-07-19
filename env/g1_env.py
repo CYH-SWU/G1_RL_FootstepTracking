@@ -51,18 +51,20 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import gymnasium as gym
-import numpy as np
-import mujoco
-from gymnasium import spaces
-from scipy.spatial.transform import Rotation as R
 import random
 
+import gymnasium as gym
+import mujoco
+import numpy as np
+from gymnasium import spaces
+from scipy.spatial.transform import Rotation as R
+
 from env.utils.config import G1EnvConfig
-from env.utils.step_sequence import WalkModes, StepSequenceGenerator
 from env.utils.observation_builder import ObservationBuilder
 from env.utils.reward_calculator import RewardCalculator
+from env.utils.step_sequence import StepSequenceGenerator, WalkModes
 from env.utils.terrain_generator import TerrainGenerator
+
 
 class G1Env(gym.Env):
     metadata = {"render_modes": []}
@@ -79,23 +81,27 @@ class G1Env(gym.Env):
 
         # Initialize helper components.
         self.step_gen = StepSequenceGenerator(
-            self.config.step_length, self.config.step_width,
-            self.config.total_duration, self.config.swing_duration, self.config.stance_duration
+            self.config.step_length,
+            self.config.step_width,
+            self.config.total_duration,
+            self.config.swing_duration,
+            self.config.stance_duration,
         )
         self.obs_builder = ObservationBuilder(
-            self.config, self.joint_indices, self.joint_vel_indices,
-            self.actuator_indices, self.max_torques
+            self.config, self.joint_indices, self.joint_vel_indices, self.actuator_indices, self.max_torques
         )
         self.reward_calc = RewardCalculator(self.config)
 
         # Define action and observation spaces.
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(12,), dtype=np.float32)
-        actor_dim = 12 + 12 + 1 + 8 + 2 + 3 + 3   # 41
-        priv_dim = 2 + 3 + 12                     # 17
-        self.observation_space = spaces.Dict({
-            "actor_obs": spaces.Box(low=-np.inf, high=np.inf, shape=(actor_dim,), dtype=np.float32),
-            "critic_obs": spaces.Box(low=-np.inf, high=np.inf, shape=(actor_dim + priv_dim,), dtype=np.float32),
-        })
+        actor_dim = 12 + 12 + 1 + 8 + 2 + 3 + 3  # 41
+        priv_dim = 2 + 3 + 12  # 17
+        self.observation_space = spaces.Dict(
+            {
+                "actor_obs": spaces.Box(low=-np.inf, high=np.inf, shape=(actor_dim,), dtype=np.float32),
+                "critic_obs": spaces.Box(low=-np.inf, high=np.inf, shape=(actor_dim + priv_dim,), dtype=np.float32),
+            }
+        )
 
         # Internal state variables.
         self.step_counter = 0
@@ -120,10 +126,18 @@ class G1Env(gym.Env):
         self.head_id = self.torso_id
 
         joint_names = [
-            "left_hip_pitch_joint", "left_hip_roll_joint", "left_hip_yaw_joint",
-            "left_knee_joint", "left_ankle_pitch_joint", "left_ankle_roll_joint",
-            "right_hip_pitch_joint", "right_hip_roll_joint", "right_hip_yaw_joint",
-            "right_knee_joint", "right_ankle_pitch_joint", "right_ankle_roll_joint"
+            "left_hip_pitch_joint",
+            "left_hip_roll_joint",
+            "left_hip_yaw_joint",
+            "left_knee_joint",
+            "left_ankle_pitch_joint",
+            "left_ankle_roll_joint",
+            "right_hip_pitch_joint",
+            "right_hip_roll_joint",
+            "right_hip_yaw_joint",
+            "right_knee_joint",
+            "right_ankle_pitch_joint",
+            "right_ankle_roll_joint",
         ]
         self.joint_indices = []
         self.joint_vel_indices = []
@@ -136,10 +150,7 @@ class G1Env(gym.Env):
         for name in joint_names:
             self.actuator_indices.append(model.actuator(name).id)
 
-        self.max_torques = np.array([
-            88, 139, 88, 139, 50, 50,
-            88, 139, 88, 139, 50, 50
-        ])
+        self.max_torques = np.array([88, 139, 88, 139, 50, 50, 88, 139, 88, 139, 50, 50])
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -151,9 +162,8 @@ class G1Env(gym.Env):
 
         # Sample walking mode from config probabilities.
         self.mode = np.random.choice(
-            [WalkModes.STANDING, WalkModes.CURVED, WalkModes.BACKWARD,
-             WalkModes.LATERAL, WalkModes.FORWARD],
-            p=self.config.mode_probs
+            [WalkModes.STANDING, WalkModes.CURVED, WalkModes.BACKWARD, WalkModes.LATERAL, WalkModes.FORWARD],
+            p=self.config.mode_probs,
         )
 
         # Determine step height variation for forward mode.
@@ -196,7 +206,7 @@ class G1Env(gym.Env):
             self.data.qpos[1] = first_step[1]
             self.data.qpos[2] = first_step[2] + self.config.nominal_pelvis_height
             yaw = first_step[3]
-            quat = R.from_euler('z', yaw).as_quat()
+            quat = R.from_euler("z", yaw).as_quat()
             self.data.qpos[3] = quat[3]
             self.data.qpos[4] = quat[0]
             self.data.qpos[5] = quat[1]
@@ -206,7 +216,7 @@ class G1Env(gym.Env):
 
         # Reset footstep indices.
         self.t1 = 0
-        self.t2 = min(1, len(self.sequence)-1) if len(self.sequence) > 1 else 0
+        self.t2 = min(1, len(self.sequence) - 1) if len(self.sequence) > 1 else 0
         self.step_counter = 0
 
         obs = self._get_obs()
@@ -220,7 +230,9 @@ class G1Env(gym.Env):
             mujoco.mj_step(self.model, self.data)
         self.step_counter += 1
 
-        self.phase = (self.step_counter * self.config.control_dt % self.config.total_duration) / self.config.total_duration
+        self.phase = (
+            self.step_counter * self.config.control_dt % self.config.total_duration
+        ) / self.config.total_duration
 
         # Check if any foot reaches the current target.
         if self.mode != WalkModes.STANDING and len(self.sequence) > 0 and self.t1 < len(self.sequence):
@@ -246,8 +258,19 @@ class G1Env(gym.Env):
         # Compute reward.
         self.reward_calc.set_target_reached(self.target_reached)
         reward = self.reward_calc.compute_reward(
-            self.model, self.data, self.pelvis_id, self.left_foot_id, self.right_foot_id, self.head_id,
-            self.joint_indices, self.actuator_indices, self.mode, self.phase, self.sequence, self.t1, action
+            self.model,
+            self.data,
+            self.pelvis_id,
+            self.left_foot_id,
+            self.right_foot_id,
+            self.head_id,
+            self.joint_indices,
+            self.actuator_indices,
+            self.mode,
+            self.phase,
+            self.sequence,
+            self.t1,
+            action,
         )
 
         obs = self._get_obs()
@@ -271,31 +294,51 @@ class G1Env(gym.Env):
 
     def _get_obs(self):
         actor_obs = self.obs_builder.get_actor_obs(
-            self.model, self.data, self.pelvis_id, self.left_foot_id, self.right_foot_id,
-            self.sequence, self.t1, self.t2, self.phase
+            self.model,
+            self.data,
+            self.pelvis_id,
+            self.left_foot_id,
+            self.right_foot_id,
+            self.sequence,
+            self.t1,
+            self.t2,
+            self.phase,
         )
         critic_obs = self.obs_builder.get_critic_obs(
-            self.model, self.data, self.pelvis_id, self.left_foot_id, self.right_foot_id,
-            self.sequence, self.t1, self.t2, self.phase, actor_obs
+            self.model,
+            self.data,
+            self.pelvis_id,
+            self.left_foot_id,
+            self.right_foot_id,
+            self.sequence,
+            self.t1,
+            self.t2,
+            self.phase,
+            actor_obs,
         )
         return {"actor_obs": actor_obs, "critic_obs": critic_obs}
 
     def _check_termination(self):
         pelvis_z = self.data.qpos[2]
-        foot_z = min(self.data.xpos[self.left_foot_id][2], self.data.xpos[self.right_foot_id][2]) - self.config.foot_ankle_offset
+        foot_z = (
+            min(self.data.xpos[self.left_foot_id][2], self.data.xpos[self.right_foot_id][2])
+            - self.config.foot_ankle_offset
+        )
         height = pelvis_z - foot_z
         return height < self.config.fall_height_threshold
 
     def _get_pelvis_yaw(self):
         quat = self.data.xquat[self.pelvis_id].copy()
         r = R.from_quat([quat[1], quat[2], quat[3], quat[0]])
-        return r.as_euler('xyz')[2]
+        return r.as_euler("xyz")[2]
 
     def set_difficulty(self, progress: float):
         self.difficulty = np.clip(progress, 0.0, 1.0)
 
     def render(self):
-        raise NotImplementedError("This environment does not support real-time rendering. Use a separate evaluation script.")
+        raise NotImplementedError(
+            "This environment does not support real-time rendering. Use a separate evaluation script."
+        )
 
     def close(self):
         pass
@@ -307,11 +350,12 @@ class G1Env(gym.Env):
     @property
     def delay_frames(self):
         return int(np.floor(self.config.swing_duration / self.config.control_dt))
-    
+
 
 if __name__ == "__main__":
     import argparse
     from pathlib import Path
+
     import mujoco.viewer
 
     parser = argparse.ArgumentParser()
@@ -319,7 +363,7 @@ if __name__ == "__main__":
         "--xml",
         type=str,
         default=str(Path(__file__).parent.parent / "robot" / "g1_processed.xml"),
-        help="Path to robot XML file"
+        help="Path to robot XML file",
     )
     parser.add_argument("--steps", type=int, default=1500, help="Max steps to run")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
