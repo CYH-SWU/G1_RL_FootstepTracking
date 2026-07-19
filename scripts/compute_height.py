@@ -11,7 +11,6 @@ import sys
 from pathlib import Path
 
 import mujoco
-import numpy as np
 
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -20,12 +19,13 @@ MODEL_PATH = PROJECT_ROOT / "robot" / "g1_processed.xml"
 
 from env.utils.config import G1EnvConfig
 
+
 def main():
     if not MODEL_PATH.exists():
         print(f"Error: model file not found: {MODEL_PATH}")
         print("Please run robot/gen_xml.py first to generate the model file.")
         return
-    
+
     config = G1EnvConfig()
 
     print(f"Loading model: {MODEL_PATH}")

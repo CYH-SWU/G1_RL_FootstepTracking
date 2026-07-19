@@ -16,23 +16,22 @@ Usage:
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
-import gymnasium as gym
 import torch
 from stable_baselines3 import PPO
-from stable_baselines3.common.callbacks import EvalCallback, CheckpointCallback
+from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 
-from env_utils.mirrorwrapper import MirrorWrapper
 from env.g1_env import G1Env
+from env_utils.mirrorwrapper import MirrorWrapper
 from rl.callbacks import AdaptiveLRScheduleCallback, CurriculumCallback
 from rl.policy import policy_kwargs
 
-import os
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
 
 # Project paths
@@ -74,39 +73,39 @@ def create_vec_env(n_envs: int, norm_path: str = None):
 # Argument parsing
 def parse_args():
     parser = argparse.ArgumentParser(description="G1 RL training script")
-    
+
     # Iterations
     parser.add_argument(
         "--iterations", "-i", type=int, default=20000,
         help="Total number of training iterations (including previous if resuming)"
     )
-    
+
     # Save interval in iterations
     parser.add_argument(
         "--save_interval", "-s", type=int, default=500,
         help="Iteration interval for saving model checkpoints"
     )
-    
+
     # Evaluation interval in iterations
     parser.add_argument(
         "--eval_interval", "-e", type=int, default=500,
         help="Iteration interval for evaluating and saving the best model"
     )
-    
+
     # Model checkpoint to resume from (optional)
     parser.add_argument(
         "--model", type=str, default=None,
         help="Path to a pre-trained model checkpoint to resume training from"
     )
-    
+
     # NORM PARAMETER ADDED HERE
     parser.add_argument(
         "--norm", type=str, default=None,
         help="Path to VecNormalize statistics file (.pkl) to load when resuming"
     )
-    
+
     # PPO training parameters
-    parser.add_argument("--lr", type=float, default=2e-4, help="Learning rate")
+    parser.add_argument("--lr", type=float, default=1.2e-4, help="Learning rate")
     parser.add_argument("--n_steps", type=int, default=800, help="Steps per environment per rollout")
     parser.add_argument("--batch_size", type=int, default=64, help="Mini-batch size")
     parser.add_argument("--n_epochs", type=int, default=3, help="Number of update epochs per rollout")
@@ -115,41 +114,41 @@ def parse_args():
     parser.add_argument("--clip_range", type=float, default=0.18, help="PPO clipping range")
     parser.add_argument("--ent_coef", type=float, default=0.001, help="Entropy coefficient")
     parser.add_argument("--max_grad_norm", type=float, default=0.5, help="Gradient clipping threshold")
-    
+
     # Learning rate callback parameters
     parser.add_argument("--lr_patience", type=int, default=5, help="Patience for performance plateau")
     parser.add_argument("--lr_factor", type=float, default=0.98, help="Learning rate decay factor")
     parser.add_argument("--lr_min", type=float, default=5e-6, help="Minimum learning rate")
     parser.add_argument("--lr_eval-freq", type=int, default=None,
                         help="Evaluation frequency for LR callback (in timesteps)")
-    
+
     # Number of parallel environments
-    parser.add_argument("--n_envs", type=int, default=16, help="Number of parallel environments")
-    
+    parser.add_argument("--n_envs", type=int, default=14, help="Number of parallel environments")
+
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    
+
     # Fixed parameters for curriculum learning.
     TOTAL_TIMESTEPS_FOR_MAX = 11000 * args.n_envs * args.n_steps
-    
+
     # Create training environment (load normalization stats if provided)
     vec_env = create_vec_env(args.n_envs, args.norm)
-    
+
     # Steps per iteration (total across all envs).
     steps_per_iter = args.n_steps * args.n_envs
 
     # Total timesteps for the entire training (including already trained if resuming).
     total_timesteps = args.iterations * steps_per_iter
-    
+
     # Callback setup
     callbacks = []
-    
+
     # Curriculum callback.
     callbacks.append(CurriculumCallback(TOTAL_TIMESTEPS_FOR_MAX))
-    
+
     # Adaptive learning rate callback.
     lr_eval_freq = args.lr_eval_freq if args.lr_eval_freq is not None else (16 * steps_per_iter)
     lr_callback = AdaptiveLRScheduleCallback(
@@ -160,8 +159,8 @@ def main():
         verbose=1
     )
     callbacks.append(lr_callback)
-    
-    # Evaluation environment (must share same normalization as training) 
+
+    # Evaluation environment (must share same normalization as training)
     eval_env = make_vec_env(
         make_env,
         n_envs=1,
@@ -184,7 +183,7 @@ def main():
             print(f"Loaded VecNormalize stats for evaluation from {norm_path}")
         else:
             raise FileNotFoundError(f"Normalization file not found: {norm_path}")
-    
+
     # Best model saving (EvalCallback)
     eval_freq_steps = args.eval_interval * args.n_steps
     eval_callback = EvalCallback(
@@ -203,7 +202,7 @@ def main():
         f"evaluating every {args.eval_interval} iterations "
         f"(i.e., every {eval_freq_steps:,} timesteps)"
     )
-    
+
     # Periodic model checkpoint (CheckpointCallback)
     save_freq = args.save_interval * args.n_steps
     if save_freq < 1:
@@ -219,7 +218,7 @@ def main():
     callbacks.append(checkpoint_callback)
     print(f"Periodic checkpoint saving enabled (CheckpointCallback), "
           f"saving every {args.save_interval} iterations (i.e., every {save_freq * args.n_envs:,} timesteps)")
-    
+
     # Create or load model
     if args.model is not None:
         # Resume from checkpoint
@@ -261,9 +260,9 @@ def main():
         train_timesteps = total_timesteps
         reset_num = True
         print("Fresh training started.")
-    
-    # Training 
-    print(f"\nStarting training")
+
+    # Training
+    print("\nStarting training")
     print(f"  Total iterations (target): {args.iterations}")
     print(f"  Parallel environments: {args.n_envs}")
     print(f"  Steps per environment per rollout: {args.n_steps}")
@@ -275,14 +274,14 @@ def main():
     if args.model:
         print(f"  Resuming from previous checkpoint, training {train_timesteps:,} additional timesteps")
     print()
-    
+
     model.learn(
         total_timesteps=train_timesteps,
         reset_num_timesteps=reset_num,   # False when resuming to keep timestep counting continuous
         callback=callbacks,
         progress_bar=True,
     )
-    
+
     # Save final model (overwrite if resuming)
     final_model_path = CHECKPOINT_DIR / "ppo_g1_final.zip"
     model.save(str(final_model_path))

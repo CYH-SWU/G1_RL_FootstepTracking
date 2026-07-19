@@ -1,5 +1,6 @@
-from .gen_xml import process_g1_model
 from pathlib import Path
+
+from .gen_xml import process_g1_model
 
 ROBOT_DIR = Path(__file__).parent.absolute()
 PROJECT_ROOT = ROBOT_DIR.parent.parent

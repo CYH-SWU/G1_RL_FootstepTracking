@@ -10,6 +10,7 @@ Usage:
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
+
 import numpy as np
 
 DEFAULT_INPUT = Path(__file__).parent / "unitree_g1.xml"
@@ -181,7 +182,7 @@ def process_g1_model(input_path=None, output_path=None):
             if "ctrl" in key.attrib:
                 del key.attrib["ctrl"]
 
-    # Update the "stand" keyframe with target angles 
+    # Update the "stand" keyframe with target angles
     stand_key = keyframe.find("key[@name='stand']") if keyframe is not None else None
     if stand_key is not None:
         qpos_str = stand_key.get("qpos")

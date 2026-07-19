@@ -1,6 +1,7 @@
 import gymnasium as gym
 import numpy as np
 
+
 class MirrorWrapper(gym.Wrapper):
     """
     Data augmentation wrapper that randomly flips left/right at episode level
@@ -63,7 +64,7 @@ class MirrorWrapper(gym.Wrapper):
             obs = self._mirror_obs(obs)
         return obs, reward, terminated, truncated, info
 
-    # Action mirroring 
+    # Action mirroring
     def _mirror_action(self, action: np.ndarray) -> np.ndarray:
         mirrored = action.copy()
         mirrored[self.left_indices] = action[self.right_indices]
@@ -71,7 +72,7 @@ class MirrorWrapper(gym.Wrapper):
         mirrored[self.sign_flip_indices] *= -1.0
         return mirrored
 
-    # Observation mirroring 
+    # Observation mirroring
     def _mirror_obs(self, obs: dict) -> dict:
         new_obs = {k: v.copy() for k, v in obs.items()}
         new_obs["actor_obs"] = self._mirror_actor_obs(new_obs["actor_obs"])

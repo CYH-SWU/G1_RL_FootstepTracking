@@ -8,7 +8,6 @@ Usage:
     uv run python scripts/test_pose.py
 """
 
-import sys
 import time
 from pathlib import Path
 

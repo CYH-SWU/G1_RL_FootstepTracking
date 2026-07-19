@@ -1,7 +1,7 @@
+
 import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
-from typing import Optional
-import numpy as np
+
 
 class AdaptiveLRScheduleCallback(BaseCallback):
     """
@@ -13,8 +13,8 @@ class AdaptiveLRScheduleCallback(BaseCallback):
     :param min_lr: Minimum learning rate to avoid excessive decay.
     :param verbose: Verbosity level.
     """
-    def __init__(self, patience: int = 5, factor: float = 0.90, 
-                 eval_freq: int = 16 * 800 * 16, min_lr: float = 1e-7, verbose: int = 1):
+    def __init__(self, patience: int = 5, factor: float = 0.90,
+                 eval_freq: int = 16 * 800 * 14, min_lr: float = 1e-7, verbose: int = 1):
         super().__init__(verbose)
         self.patience = patience
         self.factor = factor
@@ -64,13 +64,13 @@ class AdaptiveLRScheduleCallback(BaseCallback):
                             print(f"[{self.num_timesteps}] LR already at minimum {self.min_lr:.2e}, no further reduction.")
         return True
 
-    def _get_mean_reward(self) -> Optional[float]:
+    def _get_mean_reward(self) -> float | None:
         if hasattr(self.model, 'ep_info_buffer') and len(self.model.ep_info_buffer) > 0:
             recent = min(10, len(self.model.ep_info_buffer))
             rewards = [ep_info['r'] for ep_info in list(self.model.ep_info_buffer)[-recent:]]
             return float(np.mean(rewards))
         return None
-    
+
 
 class CurriculumCallback(BaseCallback):
     """

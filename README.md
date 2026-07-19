@@ -108,10 +108,10 @@ n_epochs        3
 gamma           0.99
 gae_lambda      0.95
 clip_range      0.18
-learning_rate   2e-4
+learning_rate   1.2e-4
 ent_coef        0.001
 max_grad_norm   0.5
-n_envs          16
+n_envs          14
 
 learning_rate is automatically adjusted by the performance callback during training.
 ```
@@ -168,7 +168,7 @@ git clone https://github.com/CYH-SWU/G1_RL_FootstepTracking.git
 
 ## Install Dependencies
 ```bash
-uv sync
+uv sync --all-extras
 ```
 
 ## Train the Model

@@ -23,19 +23,19 @@ import sys
 import time
 from pathlib import Path
 
-import numpy as np
 import mujoco
 import mujoco.viewer
+import numpy as np
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
 # Import project environment.
 project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
-from env_utils.mirrorwrapper import MirrorWrapper
 from env.g1_env import G1Env
+from env_utils.mirrorwrapper import MirrorWrapper
 
 CHECKPOINT_DIR = project_root / "checkpoints"
 ROBOT_XML = project_root / "robot" / "g1_processed.xml"

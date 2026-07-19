@@ -26,7 +26,7 @@ def clock_frc(phase, swing_frac, relax=0.1):
         return -1.0 + 2.0 * t
     else:
         return 1.0
-    
+
 
 def get_pelvis_yaw(data, pelvis_id):
     """

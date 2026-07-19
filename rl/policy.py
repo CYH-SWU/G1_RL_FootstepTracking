@@ -1,10 +1,11 @@
+from collections.abc import Callable
+
 import numpy as np
 import torch
 import torch.nn as nn
 from gymnasium import spaces
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.torch_layers import FlattenExtractor
-from typing import Dict, Callable, Optional, List, Tuple, Type, Union
 
 
 class AsymmetricPolicy(ActorCriticPolicy):
@@ -19,8 +20,8 @@ class AsymmetricPolicy(ActorCriticPolicy):
         observation_space: spaces.Dict,
         action_space,
         lr_schedule: Callable[[float], float],
-        net_arch: Optional[Union[List[int], Dict[str, List[int]]]] = [256, 256],
-        activation_fn: Type[nn.Module] = nn.ReLU,
+        net_arch: list[int] | dict[str, list[int]] | None = [256, 256],
+        activation_fn: type[nn.Module] = nn.ReLU,
         *args,
         **kwargs,
     ):
@@ -151,7 +152,7 @@ class AsymmetricPolicy(ActorCriticPolicy):
     def predict_values(self, obs):
         features_critic = self._get_features(obs, self.critic_obs_key, self.critic_flatten)
         return self.value_net(features_critic).flatten()
-    
+
 
 policy_kwargs = dict(
     net_arch=dict(

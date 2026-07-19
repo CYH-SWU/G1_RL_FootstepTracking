@@ -20,8 +20,48 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["rl", "g_env", "env_utils", "planner_pipeline"]
+packages = ["rl", "env", "env_utils"]
 
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-xdist>=3.0.0",
+]
+dev = [
+    "ruff>=0.1.0",
+    "black>=23.0.0",
+    "mypy>=1.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=rl --cov=env_utils --cov=env --cov-report=term --cov-report=xml"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP"]
+ignore = ["E203"]   # W503 已废弃，移除即可
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+
+[tool.black]
+line-length = 120
+target-version = ['py312']
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
