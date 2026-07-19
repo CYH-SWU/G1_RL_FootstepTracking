@@ -1,4 +1,5 @@
 import numpy as np
+
 from env.utils.step_sequence import StepSequenceGenerator, WalkModes
 
 
