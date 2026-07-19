@@ -2,6 +2,25 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 class ObservationBuilder:
+    """
+    Builds actor and critic observations for the G1 footstep tracking environment.
+
+    The actor observation (41 dims) includes joint positions and velocities, pelvis height,
+    footstep target offsets (position and yaw) in pelvis-local frame, phase encoding (sin/cos),
+    pelvis orientation (roll, pitch, yaw), and pelvis angular velocity.
+
+    The critic observation (58 dims) extends the actor observation with privileged information:
+    normalized foot contact forces (Z-component), linear velocity, and actuator torques.
+
+    Normalization scales are computed from config.norm_params and applied to both streams.
+    All coordinates are transformed to the pelvis-local frame using the pelvis quaternion.
+
+    Methods:
+        get_actor_obs: Constructs the 41-dim actor observation.
+        get_critic_obs: Constructs the 58-dim critic observation.
+        _get_pelvis_yaw: Extracts yaw from pelvis quaternion.
+        _get_R_world_to_pelvis: Returns world-to-pelvis rotation matrix.
+    """
     def __init__(self, config, joint_indices, joint_vel_indices, actuator_indices, max_torques):
         self.config = config
         self.joint_indices = joint_indices

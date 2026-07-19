@@ -1,3 +1,22 @@
+"""
+Configuration dataclass for the G1 humanoid footstep tracking environment.
+
+Holds all hyperparameters for physics, gait scheduling, control, normalization,
+and curriculum/terrain settings. Used by G1Env and its helper components.
+
+Key parameter groups:
+- Physics: control_dt, physics_dt, max_episode_steps define simulation timing and episode length.
+- Gait: total_duration, swing_duration, stance_duration, step_length, step_width, max_foot_vel,
+  and target_radius control footstep generation and foot placement tolerance.
+- Control: nominal_angles, nominal_pelvis_height, foot_ankle_offset, action_scale, action_smoothing
+  define the default posture and action mapping.
+- Curriculum: fall_height_threshold and max_boxes for terrain and termination.
+- Mode probabilities: mode_probs determines the sampling distribution over walking modes.
+- Normalization: norm_params provides scaling factors for observation normalization.
+
+All fields have sensible defaults for training the G1 robot in footstep tracking tasks.
+"""
+
 from dataclasses import dataclass, field
 import numpy as np
 

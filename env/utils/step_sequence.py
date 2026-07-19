@@ -11,6 +11,24 @@ class WalkModes(Enum):
     LATERAL = auto()
 
 class StepSequenceGenerator:
+    """
+    Generates footstep sequences for various walking modes.
+
+    Supports STANDING, FORWARD, BACKWARD, LATERAL, CURVED, and INPLACE modes.
+    Each mode produces a local-frame sequence of [x, y, z, yaw] targets, with
+    randomized parameters for diversity. The transform_to_world method converts
+    local sequences to world coordinates using the current foot positions and
+    pelvis yaw.
+
+    Methods:
+        generate(mode, phase, num_steps=20, step_height=0.0, plans=None)
+            Creates a local-frame footstep sequence. Phase determines which
+            foot leads. Returns an array of shape (num_steps, 4).
+
+        transform_to_world(sequence, left_foot_pos, right_foot_pos, root_yaw)
+            Transforms a local sequence into world coordinates. The origin is
+            the midpoint between the two feet.
+    """
     def __init__(self, step_length, step_width, total_duration, swing_duration, stance_duration):
         self.step_length = step_length
         self.step_width = step_width

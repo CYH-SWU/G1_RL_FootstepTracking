@@ -11,17 +11,18 @@ Deep reinforcement learning based omnidirectional footstep tracking control syst
 
 ---
 
-## Project Overview
+## 🤖Project Overview
 
 This project builds an omnidirectional footstep tracking walking control system for the Unitree G1 humanoid robot, trained in the MuJoCo physics simulation environment using the PPO algorithm. The robot receives pre-generated footstep sequences (including foot placement positions and orientations). The policy network takes proprioceptive information (joint angles/velocities, IMU attitude) and task instructions (footstep positions/yaws, gait phase) as input, and outputs 12-dimensional joint position increment commands to drive both legs to accurately track each footstep, achieving stable omnidirectional bipedal walking.
 
 
-## Environment and Training Setup
+## ⚙️Environment and Training Setup
 
 ### Supported Walking Modes
 - FORWARD
 - BACKWARD
 - LATERAL
+- INPLACE
 - CURVED
 - STANDING
 
@@ -66,36 +67,36 @@ step_width          0.237m
 target_radius       0.16m
 ```
 
-### Reward Function Design
+### 🎯Reward Function Design
 
-**Footstep Tracking Reward (weight 0.45)**
+- **Footstep Tracking Reward (weight 0.45)**:
 
 Core task reward that drives the robot to step onto target footholds.
 
-**Foot Force Phase Matching Reward (weight 0.15)**
+- **Foot Force Phase Matching Reward (weight 0.15)**:
 
 Guides the policy to press down firmly during stance phase and lift off during swing phase.
 
-**Foot Velocity Phase Matching Reward (weight 0.15)**
+- **Foot Velocity Phase Matching Reward (weight 0.15)**:
 
 Guides the policy to keep feet stationary during stance phase and move quickly during swing phase.
 
-**Torso Attitude Reward (weight 0.05)**
+- **Torso Attitude Reward (weight 0.05)**:
 
 Encourages pelvis yaw to align with target footstep yaw, ensuring the robot walks in the correct direction.
 
-**Pelvis Height Reward (weight 0.05)**
+- **Pelvis Height Reward (weight 0.05)**:
 
 Encourages pelvis height to be maintained near the nominal value of 0.7268m.
 
-**Upper Body Stability Reward (weight 0.05)**
+- **Upper Body Stability Reward (weight 0.05)**:
 
 Encourages minimizing the XY distance between head and pelvis to maintain upper body stability and avoid excessive torso swaying during walking.
 
-### Curriculum Learning
+### 📈Curriculum Learning
 
 - First 3000 iterations: flat ground only
-- 3000~11000 iterations: step height linearly increases from 0 to 0.1m
+- 3000~11000 iterations: step height linearly increases from 0 to 0.05m
 - After 11000 iterations: maintains maximum difficulty
 - Step height has 50% probability of being positive (upward step) or negative (downward step).
 
@@ -130,7 +131,7 @@ learning_rate is automatically adjusted by the performance callback during train
 - `VecNormalize`: Only normalizes `actor_obs` (zero mean, unit variance), clip range 10.0.
 
 
-## Project Structure
+## 📂Project Structure
 
 ```plaintext
 G1_RL_FootstepTracking
@@ -213,7 +214,7 @@ uv run python scripts/compute_max_step.py
 uv run python scripts/test_pose.py
 ```
 
-## References
+## 📚References
 **Learning Humanoid Walking**
 
 R. P. Singh et al., "Learning Bipedal Walking On Planned Footsteps For Humanoid Robots," in *IEEE-RAS Humanoids*, 2022.
@@ -225,7 +226,7 @@ GitHub Repository: [https://github.com/rohanpsingh/LearningHumanoidWalking](http
 
 GitHub Repository: [https://github.com/unitreerobotics/unitree_rl_gym](https://github.com/unitreerobotics/unitree_rl_gym)
 
-## Acknowledgments
+## 🎉Acknowledgments
 
 - This project uses the Unitree G1 robot model, which is Copyright (c) 2016-2023 HangZhou YuShu TECHNOLOGY CO.,LTD. and is licensed under the BSD 3-Clause License.
 - The footstep tracking framework is inspired by the Learning Humanoid Walking (LHW) project by Rohan P. Singh, licensed under the BSD 2-Clause License.

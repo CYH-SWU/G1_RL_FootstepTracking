@@ -15,6 +15,32 @@ from env_utils.reward_functions import (
 from .step_sequence import WalkModes
 
 class RewardCalculator:
+    """
+    Computes dense rewards for the G1 footstep tracking environment.
+
+    Aggregates multiple reward components with fixed weights to produce a scalar reward signal
+    for each environment step. Reward terms include:
+
+    - Foot contact force matching (frc): encourages foot forces to follow the gait cycle
+    - Foot velocity matching (vel): encourages foot velocities to match swing/stance phase
+    - Body orientation (orient): penalizes yaw deviation from the target heading
+    - Pelvis height (height): maintains desired clearance above ground
+    - Footstep tracking (step): rewards placing feet near target positions
+    - Upper body stability (stability): penalizes head-pelvis horizontal displacement
+    - Action smoothness (action): penalizes large action changes between steps
+    - Torque smoothness (torque): penalizes large torque variations
+    - Posture error (posture): penalizes deviation from nominal joint angles
+
+    The final reward is a weighted sum (weights defined in compute_reward). Most weights are
+    empirically tuned for stable learning. The standing mode uses fixed clock signals to enforce
+    a static stance.
+
+    Methods:
+        compute_reward: Main entry point; returns the scalar reward for the current step.
+        set_target_reached: Updates the internal target_reached flag used by the step reward.
+        _get_body_linvel: Computes the linear velocity magnitude of a body.
+        _get_pelvis_yaw: Extracts the yaw angle of the pelvis from the simulation data.
+    """
     def __init__(self, config):
         self.config = config
         self.last_action = None

@@ -1,7 +1,50 @@
-'''
+"""
+G1Env: MuJoCo-based reinforcement learning environment for Unitree G1 humanoid footstep tracking.
+
+The environment generates footstep sequences (target positions and yaw) based on a gait scheduler
+and rewards the agent for accurately placing feet on the targets. Observations are split into
+actor_obs (41 dims) and critic_obs (58 dims, includes privileged information). The action space
+is 12-dimensional joint position offsets normalized to [-1, 1]. Termination occurs when the pelvis
+height drops below a threshold. The environment supports curriculum learning via set_difficulty().
+
+Key components:
+- StepSequenceGenerator: creates footstep plans for various walking modes (forward, backward, curved, etc.)
+- ObservationBuilder: constructs normalized observations from simulation state
+- RewardCalculator: computes dense rewards for foot placement, posture, and gait synchronization
+- TerrainGenerator: visualizes footstep targets in the MuJoCo scene
+
+Modes: STANDING, FORWARD, BACKWARD, LATERAL, CURVED, INPLACE (see WalkModes enum).
+Difficulty scaling adjusts step height and other parameters.
+
+This environment follows the Gymnasium Dict observation space design for asymmetric Actor-Critic training.
+
+---
+Standalone Test Mode
+
+When executed directly (if __name__ == "__main__"), the script launches a MuJoCo viewer with the
+robot initialized at the first footstep target. It applies zero actions (all joints at nominal
+angles) for a fixed number of steps, allowing visual inspection of the environment dynamics,
+terrain markers, and footstep targets.
+
 Usage:
+    # Run with default XML and 1500 steps
     uv run python env/g1_env.py
-'''
+
+    # Specify custom XML path, step limit, and random seed
+    uv run python env/g1_env.py --xml ../robot/g1_processed.xml --steps 3000 --seed 123
+
+    # Quick preview with fewer steps
+    uv run python env/g1_env.py --steps 500
+
+Arguments:
+    --xml      Path to the robot XML file (default: ../robot/g1_processed.xml relative to script)
+    --steps    Maximum simulation steps before exiting (default: 1500)
+    --seed     Random seed for environment reset (default: 42)
+
+Press Esc or close the viewer window to exit early. The viewer will automatically close after
+the specified number of steps.
+"""
+
 import os
 import sys
 from pathlib import Path

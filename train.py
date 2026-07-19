@@ -112,13 +112,13 @@ def parse_args():
     parser.add_argument("--n_epochs", type=int, default=3, help="Number of update epochs per rollout")
     parser.add_argument("--gamma", type=float, default=0.99, help="Discount factor")
     parser.add_argument("--gae_lambda", type=float, default=0.95, help="GAE smoothing parameter")
-    parser.add_argument("--clip_range", type=float, default=0.15, help="PPO clipping range")
+    parser.add_argument("--clip_range", type=float, default=0.18, help="PPO clipping range")
     parser.add_argument("--ent_coef", type=float, default=0.001, help="Entropy coefficient")
     parser.add_argument("--max_grad_norm", type=float, default=0.5, help="Gradient clipping threshold")
     
     # Learning rate callback parameters
     parser.add_argument("--lr_patience", type=int, default=5, help="Patience for performance plateau")
-    parser.add_argument("--lr_factor", type=float, default=0.90, help="Learning rate decay factor")
+    parser.add_argument("--lr_factor", type=float, default=0.95, help="Learning rate decay factor")
     parser.add_argument("--lr_min", type=float, default=1e-7, help="Minimum learning rate")
     parser.add_argument("--lr_eval-freq", type=int, default=None,
                         help="Evaluation frequency for LR callback (in timesteps)")
@@ -166,7 +166,7 @@ def main():
         make_env,
         n_envs=1,
         vec_env_cls=SubprocVecEnv,
-        vec_env_kwargs={"start_method": "fork"} if sys.platform != "win32" else {}
+        vec_env_kwargs = {"start_method": "forkserver"} if sys.platform != "win32" else {}
     )
     eval_env = VecNormalize(
         venv=eval_env,

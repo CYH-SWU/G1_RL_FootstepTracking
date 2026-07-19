@@ -5,6 +5,30 @@ from pathlib import Path
 from scipy.spatial.transform import Rotation as R
 
 class TerrainGenerator:
+    """
+    Injects visual stepping stone markers into the MuJoCo model for footstep tracking.
+
+    The generator loads the robot XML, resolves the asset paths, and appends a set of
+    visual bodies (box, sphere, arrow) for each potential footstep target. The markers
+    are initially placed far below the scene and later repositioned via update_boxes()
+    to match the current footstep sequence.
+
+    Methods:
+        load_model()
+            Reads the robot XML, replaces meshdir with an absolute path, appends marker
+            bodies for up to max_boxes targets, and loads the model into MuJoCo.
+            Returns the model and data instances.
+
+        update_boxes(model, data, sequence)
+            Updates the position and orientation of all marker bodies based on the
+            provided footstep sequence (list of [x, y, z, yaw]). Targets beyond the
+            sequence length are hidden at (0, 0, -10).
+
+    Attributes:
+        robot_xml_path: Path to the input robot XML file.
+        max_boxes: Maximum number of stepping stones to visualize.
+        model, data: MuJoCo model and data instances after loading.
+    """
     def __init__(self, robot_xml_path, max_boxes=30):
         self.robot_xml_path = os.path.abspath(robot_xml_path)
         self.max_boxes = max_boxes
