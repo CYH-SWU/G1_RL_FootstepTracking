@@ -7,6 +7,7 @@ from env_utils.mirrorwrapper import MirrorWrapper
 
 
 def test_mirrorwrapper_initialization():
+    """Verify that MirrorWrapper initializes with correct mirror probability."""
     xml_path = Path(__file__).parent.parent / "robot" / "g1_processed.xml"
     if not xml_path.exists():
         pytest.skip("robot XML not found")
@@ -17,6 +18,7 @@ def test_mirrorwrapper_initialization():
 
 
 def test_mirror_action():
+    """Test that applying mirror twice restores the original action."""
     xml_path = Path(__file__).parent.parent / "robot" / "g1_processed.xml"
     if not xml_path.exists():
         pytest.skip("robot XML not found")
@@ -24,10 +26,9 @@ def test_mirror_action():
     wrapper = MirrorWrapper(env, mirror_prob=1.0)
     wrapper.mirror = True
 
-    # 生成随机动作
     action = np.random.uniform(-1, 1, 12).astype(np.float32)
     mirrored_once = wrapper._mirror_action(action)
     mirrored_twice = wrapper._mirror_action(mirrored_once)
 
-    # 两次镜像应还原为原始动作
+    # Double mirroring should recover the original action.
     assert np.allclose(mirrored_twice, action, atol=1e-6)
