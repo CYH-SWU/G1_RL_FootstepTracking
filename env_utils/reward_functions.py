@@ -38,12 +38,13 @@ def get_pelvis_yaw(data, pelvis_id):
     """
     quat = data.xquat[pelvis_id].copy()  # (w,x,y,z)
     r = R.from_quat([quat[1], quat[2], quat[3], quat[0]])
-    euler = r.as_euler('xyz')
+    euler = r.as_euler("xyz")
     return euler[2]
 
 
-def calc_foot_frc_clock_reward(swing_frac, left_force, right_force, phase, max_force,
-                               clock_left=None, clock_right=None):
+def calc_foot_frc_clock_reward(
+    swing_frac, left_force, right_force, phase, max_force, clock_left=None, clock_right=None
+):
     """
     Reward for matching foot normal forces with gait phase expectations.
 
@@ -74,8 +75,7 @@ def calc_foot_frc_clock_reward(swing_frac, left_force, right_force, phase, max_f
     return (score_left + score_right) / 2.0
 
 
-def calc_foot_vel_clock_reward(swing_frac, left_vel, right_vel, phase, max_vel,
-                               clock_left=None, clock_right=None):
+def calc_foot_vel_clock_reward(swing_frac, left_vel, right_vel, phase, max_vel, clock_left=None, clock_right=None):
     """
     Reward for matching foot velocity magnitude with gait phase expectations.
 
@@ -158,6 +158,7 @@ def calc_action_reward(action, prev_action):
     penalty = 5 * np.sum(np.abs(prev_action - action)) / len(action)
     return np.exp(-penalty)
 
+
 def calc_torque_reward(torque, prev_torque):
     """
     Penalize large torque variations.
@@ -202,6 +203,7 @@ def calc_step_reward(left_pos, right_pos, target_pos, pelvis_xy, target_reached)
     progress_reward = np.exp(-root_dist_to_target / 2.0)
 
     return 0.8 * hit_reward + 0.2 * progress_reward
+
 
 def calc_posture_error_reward(current_joint_angles, nominal_angles):
     """

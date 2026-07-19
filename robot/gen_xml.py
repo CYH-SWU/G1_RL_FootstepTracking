@@ -68,6 +68,7 @@ KP_MAP = {
     "right_ankle_roll_joint": 46,
 }
 
+
 def get_dampratio(joint_name: str) -> float:
     if "hip" in joint_name.lower():
         return 0.65
@@ -77,6 +78,7 @@ def get_dampratio(joint_name: str) -> float:
         return 0.40
     else:
         return 0.55
+
 
 def process_g1_model(input_path=None, output_path=None):
     in_path = Path(input_path) if input_path else DEFAULT_INPUT
@@ -201,7 +203,7 @@ def process_g1_model(input_path=None, output_path=None):
                 else:
                     print(f"Warning: joint {name} not found in joint_order, cannot set initial angle.")
             print(f"Updated qpos (first 10): {qpos_values[:10]}")
-            new_qpos_str = ' '.join([f"{v:.6f}" for v in qpos_values])
+            new_qpos_str = " ".join([f"{v:.6f}" for v in qpos_values])
             stand_key.set("qpos", new_qpos_str)
 
             # Build control values for retained actuators.
@@ -212,7 +214,7 @@ def process_g1_model(input_path=None, output_path=None):
                 else:
                     print(f"Warning: joint {name} missing in STAND_ANGLES, ctrl set to 0")
                     ctrl_values.append(0.0)
-            ctrl_str = ' '.join([f"{v:.6f}" for v in ctrl_values])
+            ctrl_str = " ".join([f"{v:.6f}" for v in ctrl_values])
             stand_key.set("ctrl", ctrl_str)
             print(f"Set ctrl: {len(ctrl_values)} values, first 5: {ctrl_values[:5]}")
             print("Updated stand keyframe qpos and ctrl to official stand posture.")
@@ -269,6 +271,7 @@ def process_g1_model(input_path=None, output_path=None):
     tree.write(out_path, encoding="utf-8", xml_declaration=True)
     print(f"Processed model saved to: {out_path}")
     return out_path
+
 
 if __name__ == "__main__":
     process_g1_model()

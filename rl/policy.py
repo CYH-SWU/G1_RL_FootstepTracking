@@ -15,6 +15,7 @@ class AsymmetricPolicy(ActorCriticPolicy):
     Activation function is configurable (default ReLU). Output layer is linear (unbounded),
     with learnable log_std for the action distribution.
     """
+
     def __init__(
         self,
         observation_space: spaces.Dict,
@@ -102,6 +103,7 @@ class AsymmetricPolicy(ActorCriticPolicy):
                 nn.init.orthogonal_(m.weight, gain=1.0)
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0.0)
+
         self.action_net.apply(init_weights)
         self.value_net.apply(init_weights)
         # Scale output layer for smaller initial actions.
@@ -155,9 +157,6 @@ class AsymmetricPolicy(ActorCriticPolicy):
 
 
 policy_kwargs = dict(
-    net_arch=dict(
-        pi=[256, 256],
-        vf=[256, 256]
-    ),
+    net_arch=dict(pi=[256, 256], vf=[256, 256]),
     activation_fn=torch.nn.ReLU,
 )

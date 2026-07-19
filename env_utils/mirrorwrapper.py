@@ -9,6 +9,7 @@ class MirrorWrapper(gym.Wrapper):
     environments with dictionary observations (actor_obs and critic_obs).
     Assumes actor_obs dim = 41, critic_obs = actor_obs + lin_vel(3) + torque(12).
     """
+
     def __init__(self, env, mirror_prob: float = 0.5):
         super().__init__(env)
         self.mirror_prob = mirror_prob
@@ -17,7 +18,7 @@ class MirrorWrapper(gym.Wrapper):
         # Joint indices for 12 leg joints.
         self.left_indices = [0, 1, 2, 3, 4, 5]
         self.right_indices = [6, 7, 8, 9, 10, 11]
-        self.sign_flip_indices = [1, 2, 5, 7, 8, 11]   # roll/yaw need sign flip.
+        self.sign_flip_indices = [1, 2, 5, 7, 8, 11]  # roll/yaw need sign flip.
         assert max(self.left_indices + self.right_indices) < 12, "Joint indices out of range."
 
         # Segment indices for actor_obs (41 dims).
@@ -38,7 +39,7 @@ class MirrorWrapper(gym.Wrapper):
         self.roll_idx = self.phase_cos_idx + 1
         self.pitch_idx = self.roll_idx + 1
         self.yaw_idx = self.pitch_idx + 1
-        self.angvel_start = self.yaw_idx + 1          # 3 angular velocities.
+        self.angvel_start = self.yaw_idx + 1  # 3 angular velocities.
 
         # Segment indices for critic_obs (total 56).
         # Structure: actor_obs (41) + lin_vel (3) + torque (12).
@@ -86,23 +87,25 @@ class MirrorWrapper(gym.Wrapper):
         """Mirror critic_obs (56 dims): actor_obs + lin_vel + torque."""
         arr = arr.copy()
         # Mirror the first 41 dims (normalized actor obs).
-        arr[:self.critic_actor_len] = self._mirror_actor_array(arr[:self.critic_actor_len])
+        arr[: self.critic_actor_len] = self._mirror_actor_array(arr[: self.critic_actor_len])
         # Lin vel y flips sign (index 42).
         arr[self.critic_lin_vel_start + 1] = -arr[self.critic_lin_vel_start + 1]
         # Mirror torque (12 dims).
-        torque = arr[self.critic_torque_start:self.critic_torque_start + self.critic_torque_len]
-        arr[self.critic_torque_start:self.critic_torque_start + self.critic_torque_len] = self._mirror_joint_array(torque)
+        torque = arr[self.critic_torque_start : self.critic_torque_start + self.critic_torque_len]
+        arr[self.critic_torque_start : self.critic_torque_start + self.critic_torque_len] = self._mirror_joint_array(
+            torque
+        )
         return arr
 
     def _mirror_actor_array(self, arr: np.ndarray) -> np.ndarray:
         """Mirror the 41-dim actor observation array."""
         arr = arr.copy()
         # Joint positions (0:12).
-        joint_pos = arr[self.pos_start:self.pos_start + self.joint_dim]
-        arr[self.pos_start:self.pos_start + self.joint_dim] = self._mirror_joint_array(joint_pos)
+        joint_pos = arr[self.pos_start : self.pos_start + self.joint_dim]
+        arr[self.pos_start : self.pos_start + self.joint_dim] = self._mirror_joint_array(joint_pos)
         # Joint velocities (12:24).
-        joint_vel = arr[self.vel_start:self.vel_start + self.joint_dim]
-        arr[self.vel_start:self.vel_start + self.joint_dim] = self._mirror_joint_array(joint_vel)
+        joint_vel = arr[self.vel_start : self.vel_start + self.joint_dim]
+        arr[self.vel_start : self.vel_start + self.joint_dim] = self._mirror_joint_array(joint_vel)
         # Pelvis height (index 24) unchanged.
         # Foot positions: dy flips (indices 26 and 29).
         arr[self.foot_dy_idx] = -arr[self.foot_dy_idx]
@@ -117,8 +120,8 @@ class MirrorWrapper(gym.Wrapper):
         arr[self.roll_idx] = -arr[self.roll_idx]
         arr[self.yaw_idx] = -arr[self.yaw_idx]
         # Pelvis angular velocities: wx and wz flip, wy unchanged (38:41).
-        angvel = arr[self.angvel_start:self.angvel_start + 3]
-        arr[self.angvel_start] = -angvel[0]      # wx -> -wx
+        angvel = arr[self.angvel_start : self.angvel_start + 3]
+        arr[self.angvel_start] = -angvel[0]  # wx -> -wx
         arr[self.angvel_start + 2] = -angvel[2]  # wz -> -wz
         return arr
 

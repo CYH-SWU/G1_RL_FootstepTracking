@@ -1,4 +1,3 @@
-
 import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
 
@@ -13,8 +12,15 @@ class AdaptiveLRScheduleCallback(BaseCallback):
     :param min_lr: Minimum learning rate to avoid excessive decay.
     :param verbose: Verbosity level.
     """
-    def __init__(self, patience: int = 5, factor: float = 0.90,
-                 eval_freq: int = 16 * 800 * 14, min_lr: float = 1e-7, verbose: int = 1):
+
+    def __init__(
+        self,
+        patience: int = 5,
+        factor: float = 0.90,
+        eval_freq: int = 16 * 800 * 14,
+        min_lr: float = 1e-7,
+        verbose: int = 1,
+    ):
         super().__init__(verbose)
         self.patience = patience
         self.factor = factor
@@ -43,7 +49,9 @@ class AdaptiveLRScheduleCallback(BaseCallback):
                 self.best_mean_reward = mean_reward
                 self.wait = 0
                 if self.verbose > 0:
-                    print(f"[{self.num_timesteps}] Performance improved: {mean_reward:.2f} (best {self.best_mean_reward:.2f})")
+                    print(
+                        f"[{self.num_timesteps}] Performance improved: {mean_reward:.2f} (best {self.best_mean_reward:.2f})"
+                    )
             else:
                 self.wait += 1
                 if self.wait >= self.patience:
@@ -61,13 +69,15 @@ class AdaptiveLRScheduleCallback(BaseCallback):
                             print(f"[{self.num_timesteps}] Performance plateau, reducing LR to {self.current_lr:.2e}")
                     else:
                         if self.verbose > 0:
-                            print(f"[{self.num_timesteps}] LR already at minimum {self.min_lr:.2e}, no further reduction.")
+                            print(
+                                f"[{self.num_timesteps}] LR already at minimum {self.min_lr:.2e}, no further reduction."
+                            )
         return True
 
     def _get_mean_reward(self) -> float | None:
-        if hasattr(self.model, 'ep_info_buffer') and len(self.model.ep_info_buffer) > 0:
+        if hasattr(self.model, "ep_info_buffer") and len(self.model.ep_info_buffer) > 0:
             recent = min(10, len(self.model.ep_info_buffer))
-            rewards = [ep_info['r'] for ep_info in list(self.model.ep_info_buffer)[-recent:]]
+            rewards = [ep_info["r"] for ep_info in list(self.model.ep_info_buffer)[-recent:]]
             return float(np.mean(rewards))
         return None
 
@@ -76,6 +86,7 @@ class CurriculumCallback(BaseCallback):
     """
     Curriculum callback that progressively increases task difficulty over time.
     """
+
     def __init__(self, total_timesteps_for_max: int, verbose=0):
         super().__init__(verbose)
         self.total_timesteps_for_max = total_timesteps_for_max

@@ -60,8 +60,9 @@ def find_norm_file(checkpoint_dir: Path, model_path: Path = None) -> Path:
         candidates = list(model_dir.glob("vec_normalize_*.pkl"))
         if candidates:
             return sorted(candidates, key=lambda p: p.stat().st_mtime)[-1]
-    candidates = list(checkpoint_dir.glob("vec_normalize_*.pkl")) + \
-                 list(checkpoint_dir.glob("ppo_g1_*_vecnormalize.pkl"))
+    candidates = list(checkpoint_dir.glob("vec_normalize_*.pkl")) + list(
+        checkpoint_dir.glob("ppo_g1_*_vecnormalize.pkl")
+    )
     if candidates:
         return sorted(candidates, key=lambda p: p.stat().st_mtime)[-1]
     raise FileNotFoundError("Normalization file not found. Please specify with --norm.")
@@ -77,18 +78,16 @@ def create_eval_env(difficulty: float = 1.0):
 
 def main():
     parser = argparse.ArgumentParser(description="G1 footstep tracking evaluation")
-    parser.add_argument("--model", type=str, default=None,
-                        help="Model file path (.zip). If not provided, auto-load best model.")
-    parser.add_argument("--norm", type=str, default=None,
-                        help="Normalization parameter file (.pkl). Auto-detected if omitted.")
-    parser.add_argument("--episodes", type=int, default=10,
-                        help="Number of evaluation episodes.")
-    parser.add_argument("--max-steps", type=int, default=2000,
-                        help="Maximum steps per episode.")
-    parser.add_argument("--difficulty", type=float, default=1.0,
-                        help="Curriculum difficulty in [0,1].")
-    parser.add_argument("--no-render", action="store_true",
-                        help="Disable rendering (only output stats).")
+    parser.add_argument(
+        "--model", type=str, default=None, help="Model file path (.zip). If not provided, auto-load best model."
+    )
+    parser.add_argument(
+        "--norm", type=str, default=None, help="Normalization parameter file (.pkl). Auto-detected if omitted."
+    )
+    parser.add_argument("--episodes", type=int, default=10, help="Number of evaluation episodes.")
+    parser.add_argument("--max-steps", type=int, default=2000, help="Maximum steps per episode.")
+    parser.add_argument("--difficulty", type=float, default=1.0, help="Curriculum difficulty in [0,1].")
+    parser.add_argument("--no-render", action="store_true", help="Disable rendering (only output stats).")
     args = parser.parse_args()
 
     # Determine model path.
@@ -116,7 +115,7 @@ def main():
     # Load VecNormalize.
     vec_env = VecNormalize.load(str(norm_path), vec_env)
     vec_env.training = False  # Freeze statistics.
-    vec_env.norm_obs = True   # Keep normalization active.
+    vec_env.norm_obs = True  # Keep normalization active.
 
     # Load model.
     model = PPO.load(str(model_path))
@@ -124,7 +123,7 @@ def main():
 
     # Unwrap the environment to get the underlying G1Env for rendering and access.
     inner_env = raw_env
-    while hasattr(inner_env, 'env'):
+    while hasattr(inner_env, "env"):
         inner_env = inner_env.env
     # Now inner_env is the G1Env instance.
 
@@ -168,21 +167,23 @@ def main():
         if viewer is not None and not viewer.is_running():
             break
 
-        print(f"Episode {ep+1}/{args.episodes} completed: steps={step}, reward={ep_reward:.2f}")
+        print(f"Episode {ep + 1}/{args.episodes} completed: steps={step}, reward={ep_reward:.2f}")
 
     if viewer is not None:
         viewer.close()
 
     # Statistics output.
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("Evaluation Results")
-    print("="*50)
+    print("=" * 50)
     print(f"Total episodes: {len(episode_rewards)}")
     print(f"Mean reward: {np.mean(episode_rewards):.2f} +/- {np.std(episode_rewards):.2f}")
     print(f"Mean steps: {np.mean(episode_lengths):.1f}")
-    print(f"Success rate (completed sequence): {successes}/{len(episode_rewards)} ({successes/len(episode_rewards)*100:.1f}%)")
+    print(
+        f"Success rate (completed sequence): {successes}/{len(episode_rewards)} ({successes / len(episode_rewards) * 100:.1f}%)"
+    )
     print(f"Difficulty: {args.difficulty}")
-    print("="*50)
+    print("=" * 50)
 
     raw_env.close()
     vec_env.close()

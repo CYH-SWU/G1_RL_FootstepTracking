@@ -42,11 +42,13 @@ LOG_DIR = project_root / "logs"
 CHECKPOINT_DIR.mkdir(exist_ok=True)
 LOG_DIR.mkdir(exist_ok=True)
 
+
 # Environment factory
 def make_env():
     env = G1Env(robot_xml_path=str(ROBOT_XML))
     env = MirrorWrapper(env, mirror_prob=0.5)
     return Monitor(env)
+
 
 def create_vec_env(n_envs: int, norm_path: str = None):
     """Create vectorized environment with VecNormalize. If norm_path is provided, load stats."""
@@ -54,7 +56,7 @@ def create_vec_env(n_envs: int, norm_path: str = None):
         make_env,
         n_envs=n_envs,
         vec_env_cls=SubprocVecEnv,
-        vec_env_kwargs = {"start_method": "forkserver"} if sys.platform != "win32" else {}
+        vec_env_kwargs={"start_method": "forkserver"} if sys.platform != "win32" else {},
     )
     vec_env = VecNormalize(
         venv=vec_env,
@@ -66,9 +68,10 @@ def create_vec_env(n_envs: int, norm_path: str = None):
     )
     if norm_path is not None and Path(norm_path).exists():
         vec_env = VecNormalize.load(str(norm_path), vec_env)
-        vec_env.training = True   # Keep updating statistics during training
+        vec_env.training = True  # Keep updating statistics during training
         print(f"Loaded VecNormalize stats from {norm_path}")
     return vec_env
+
 
 # Argument parsing
 def parse_args():
@@ -76,32 +79,35 @@ def parse_args():
 
     # Iterations
     parser.add_argument(
-        "--iterations", "-i", type=int, default=20000,
-        help="Total number of training iterations (including previous if resuming)"
+        "--iterations",
+        "-i",
+        type=int,
+        default=20000,
+        help="Total number of training iterations (including previous if resuming)",
     )
 
     # Save interval in iterations
     parser.add_argument(
-        "--save_interval", "-s", type=int, default=500,
-        help="Iteration interval for saving model checkpoints"
+        "--save_interval", "-s", type=int, default=500, help="Iteration interval for saving model checkpoints"
     )
 
     # Evaluation interval in iterations
     parser.add_argument(
-        "--eval_interval", "-e", type=int, default=500,
-        help="Iteration interval for evaluating and saving the best model"
+        "--eval_interval",
+        "-e",
+        type=int,
+        default=500,
+        help="Iteration interval for evaluating and saving the best model",
     )
 
     # Model checkpoint to resume from (optional)
     parser.add_argument(
-        "--model", type=str, default=None,
-        help="Path to a pre-trained model checkpoint to resume training from"
+        "--model", type=str, default=None, help="Path to a pre-trained model checkpoint to resume training from"
     )
 
     # NORM PARAMETER ADDED HERE
     parser.add_argument(
-        "--norm", type=str, default=None,
-        help="Path to VecNormalize statistics file (.pkl) to load when resuming"
+        "--norm", type=str, default=None, help="Path to VecNormalize statistics file (.pkl) to load when resuming"
     )
 
     # PPO training parameters
@@ -119,8 +125,9 @@ def parse_args():
     parser.add_argument("--lr_patience", type=int, default=5, help="Patience for performance plateau")
     parser.add_argument("--lr_factor", type=float, default=0.98, help="Learning rate decay factor")
     parser.add_argument("--lr_min", type=float, default=5e-6, help="Minimum learning rate")
-    parser.add_argument("--lr_eval-freq", type=int, default=None,
-                        help="Evaluation frequency for LR callback (in timesteps)")
+    parser.add_argument(
+        "--lr_eval-freq", type=int, default=None, help="Evaluation frequency for LR callback (in timesteps)"
+    )
 
     # Number of parallel environments
     parser.add_argument("--n_envs", type=int, default=14, help="Number of parallel environments")
@@ -152,11 +159,7 @@ def main():
     # Adaptive learning rate callback.
     lr_eval_freq = args.lr_eval_freq if args.lr_eval_freq is not None else (16 * steps_per_iter)
     lr_callback = AdaptiveLRScheduleCallback(
-        patience=args.lr_patience,
-        factor=args.lr_factor,
-        eval_freq=lr_eval_freq,
-        min_lr=args.lr_min,
-        verbose=1
+        patience=args.lr_patience, factor=args.lr_factor, eval_freq=lr_eval_freq, min_lr=args.lr_min, verbose=1
     )
     callbacks.append(lr_callback)
 
@@ -165,7 +168,7 @@ def main():
         make_env,
         n_envs=1,
         vec_env_cls=SubprocVecEnv,
-        vec_env_kwargs = {"start_method": "forkserver"} if sys.platform != "win32" else {}
+        vec_env_kwargs={"start_method": "forkserver"} if sys.platform != "win32" else {},
     )
     eval_env = VecNormalize(
         venv=eval_env,
@@ -206,8 +209,9 @@ def main():
     # Periodic model checkpoint (CheckpointCallback)
     save_freq = args.save_interval * args.n_steps
     if save_freq < 1:
-        raise ValueError(f"Computed save_freq={save_freq} (per-env steps) is < 1. "
-                         f"Increase --save_interval or adjust --n_steps.")
+        raise ValueError(
+            f"Computed save_freq={save_freq} (per-env steps) is < 1. Increase --save_interval or adjust --n_steps."
+        )
     checkpoint_callback = CheckpointCallback(
         save_freq=save_freq,
         save_path=str(CHECKPOINT_DIR),
@@ -216,8 +220,10 @@ def main():
         save_vecnormalize=True,
     )
     callbacks.append(checkpoint_callback)
-    print(f"Periodic checkpoint saving enabled (CheckpointCallback), "
-          f"saving every {args.save_interval} iterations (i.e., every {save_freq * args.n_envs:,} timesteps)")
+    print(
+        f"Periodic checkpoint saving enabled (CheckpointCallback), "
+        f"saving every {args.save_interval} iterations (i.e., every {save_freq * args.n_envs:,} timesteps)"
+    )
 
     # Create or load model
     if args.model is not None:
@@ -277,7 +283,7 @@ def main():
 
     model.learn(
         total_timesteps=train_timesteps,
-        reset_num_timesteps=reset_num,   # False when resuming to keep timestep counting continuous
+        reset_num_timesteps=reset_num,  # False when resuming to keep timestep counting continuous
         callback=callbacks,
         progress_bar=True,
     )
@@ -288,6 +294,7 @@ def main():
     vec_env.save(str(CHECKPOINT_DIR / "vec_normalize_final.pkl"))
     print(f"\nTraining completed! Final model saved to: {final_model_path}")
     print(f"Normalization parameters saved to: {CHECKPOINT_DIR / 'vec_normalize_final.pkl'}")
+
 
 if __name__ == "__main__":
     main()
