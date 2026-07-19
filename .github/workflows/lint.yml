@@ -17,14 +17,13 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.12"       
           cache: 'pip'
 
       - name: Install Ruff
         run: pip install ruff
 
       - name: Run Ruff linter
-        run: ruff check . --max-line-length=120 --ignore=E203,W503
-
+        run: ruff check .              
       - name: Run Ruff formatter check
-        run: ruff format . --check
+        run: ruff format . --check    
