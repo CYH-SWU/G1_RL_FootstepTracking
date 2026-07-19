@@ -136,31 +136,37 @@ learning_rate is automatically adjusted by the performance callback during train
 ## 📂Project Structure
 
 ```plaintext
-G1_RL_FootstepTracking
-├── envs/
-│   ├── G1FootstepEnv.py                <--- Main environment class
-│   └── utils                           <--- Environment modules
+G1_RL_FootstepTracking/
+├── env/
+│   ├── g1_env.py                       # Main environment class
+│   └── utils/                          # Environment modules
 │       ├── config.py
 │       ├── observation_builder.py
 │       ├── reward_calculator.py
 │       ├── step_sequence.py
 │       └── terrain_generator.py
-├── env_utils/                          <--- Environment utilities
+├── env_utils/                          # Environment utilities
 │   ├── mirrorwrapper.py
 │   └── reward_functions.py
-├── rl/                                 <--- Training custom modules
+├── rl/                                 # Training custom modules
 │   ├── callbacks.py
 │   └── policy.py
-├── robot/                              <--- Robot configuration
+├── robot/                              # Robot configuration
 │   ├── assets/
 │   ├── gen_xml.py
 │   └── unitree_g1.xml
-├── scripts/                            <--- Auxiliary scripts
+├── scripts/                            # Auxiliary scripts
 │   ├── compute_height.py
 │   ├── compute_max_step.py
 │   └── test_pose.py
-├── train.py                            <--- Main training entry
-└── test.py                             <--- Model testing entry
+├── tests/                              # Unit tests (pytest)
+│   ├── test_env.py
+│   ├── test_imports.py
+│   ├── test_mirrorwrapper.py
+│   ├── test_policy.py
+│   └── test_step_sequence.py
+├── train.py                            # Main training entry
+└── test.py                             # Model testing entry
 ```
 
 ## Clone the Repository
