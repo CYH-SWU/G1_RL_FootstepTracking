@@ -169,7 +169,7 @@ G1_RL_FootstepTracking/
 └── test.py                             # Model testing entry
 ```
 
-## Clone the Repository
+## 🔁Clone the Repository
 ```bash
 git clone https://github.com/CYH-SWU/G1_RL_FootstepTracking.git
 cd G1_RL_FootstepTracking
@@ -213,7 +213,7 @@ uv run python test.py \
 ```
 
 
-## Auxiliary Scripts
+## 🛠️Auxiliary Scripts
 ### Compute the pelvis height under the nominal posture.
 ```bash
 uv run python scripts/compute_height.py
@@ -269,3 +269,8 @@ GitHub Repository: [https://github.com/unitreerobotics/unitree_rl_gym](https://g
 
 - This project uses the Unitree G1 robot model, which is Copyright (c) 2016-2023 HangZhou YuShu TECHNOLOGY CO.,LTD. and is licensed under the BSD 3-Clause License.
 - The footstep tracking framework is inspired by the Learning Humanoid Walking (LHW) project by Rohan P. Singh, licensed under the BSD 2-Clause License.
+
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
