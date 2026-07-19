@@ -4,11 +4,14 @@ from gymnasium import spaces
 
 from rl.policy import AsymmetricPolicy
 
+
 def test_policy_forward():
-    obs_space = spaces.Dict({
-        "actor_obs": spaces.Box(low=-1, high=1, shape=(41,), dtype=np.float32),
-        "critic_obs": spaces.Box(low=-1, high=1, shape=(58,), dtype=np.float32),
-    })
+    obs_space = spaces.Dict(
+        {
+            "actor_obs": spaces.Box(low=-1, high=1, shape=(41,), dtype=np.float32),
+            "critic_obs": spaces.Box(low=-1, high=1, shape=(58,), dtype=np.float32),
+        }
+    )
     action_space = spaces.Box(low=-1, high=1, shape=(12,), dtype=np.float32)
 
     policy = AsymmetricPolicy(
@@ -37,10 +40,12 @@ def test_policy_device():
     # Use CUDA if available, otherwise fallback to CPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    obs_space = spaces.Dict({
-        "actor_obs": spaces.Box(low=-1, high=1, shape=(41,), dtype=np.float32),
-        "critic_obs": spaces.Box(low=-1, high=1, shape=(58,), dtype=np.float32),
-    })
+    obs_space = spaces.Dict(
+        {
+            "actor_obs": spaces.Box(low=-1, high=1, shape=(41,), dtype=np.float32),
+            "critic_obs": spaces.Box(low=-1, high=1, shape=(58,), dtype=np.float32),
+        }
+    )
     action_space = spaces.Box(low=-1, high=1, shape=(12,), dtype=np.float32)
 
     policy = AsymmetricPolicy(
