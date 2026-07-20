@@ -184,6 +184,9 @@ uv run python robot/gen_xml.py
 ```
 ### Start training from scratch:
 ```bash
+uv run python train.py
+```
+```bash
 uv run python train.py \
   ---iterations 20000 \
   --save_interval 500 \
