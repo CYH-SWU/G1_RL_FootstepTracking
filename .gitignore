@@ -167,3 +167,6 @@ temp/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Ruff cache
+.ruff_cache/
