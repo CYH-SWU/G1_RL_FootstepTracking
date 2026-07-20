@@ -268,7 +268,7 @@ GitHub Repository: [https://github.com/unitreerobotics/unitree_rl_gym](https://g
 ## 🎉Acknowledgments
 
 - This project uses the Unitree G1 robot model, which is Copyright (c) 2016-2023 HangZhou YuShu TECHNOLOGY CO.,LTD. and is licensed under the BSD 3-Clause License.
-- The footstep tracking framework is inspired by the Learning Humanoid Walking (LHW) project by Rohan P. Singh, licensed under the BSD 2-Clause License.
+- The footstep tracking framework is inspired by the Learning Humanoid Walking project by Rohan P. Singh, licensed under the BSD 2-Clause License.
 
 
 ## 📄 License
