@@ -2,12 +2,12 @@
 
 from env.g1_env import G1Env
 from env.utils.config import G1EnvConfig
-from rl.policy import AsymmetricPolicy
-from rl.callbacks import AdaptiveLRScheduleCallback, CurriculumCallback
-from env.utils.step_sequence import WalkModes, StepSequenceGenerator
 from env.utils.observation_builder import ObservationBuilder
 from env.utils.reward_calculator import RewardCalculator
+from env.utils.step_sequence import StepSequenceGenerator, WalkModes
 from env.utils.terrain_generator import TerrainGenerator
+from rl.callbacks import AdaptiveLRScheduleCallback, CurriculumCallback
+from rl.policy import AsymmetricPolicy
 
 
 def test_import_env():
