@@ -16,9 +16,9 @@ class AdaptiveLRScheduleCallback(BaseCallback):
     def __init__(
         self,
         patience: int = 5,
-        factor: float = 0.90,
+        factor: float = 0.98,
         eval_freq: int = 16 * 800 * 14,
-        min_lr: float = 1e-7,
+        min_lr: float = 5e-6,
         verbose: int = 1,
     ):
         super().__init__(verbose)
