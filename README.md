@@ -18,6 +18,26 @@ Deep reinforcement learning based omnidirectional footstep tracking control syst
 This project builds an omnidirectional footstep tracking walking control system for the Unitree G1 humanoid robot, trained in the MuJoCo physics simulation environment using the PPO algorithm. The robot receives pre-generated footstep sequences (including foot placement positions and orientations). The policy network takes proprioceptive information (joint angles/velocities, IMU attitude) and task instructions (footstep positions/yaws, gait phase) as input, and outputs 12-dimensional joint position increment commands to drive both legs to accurately track each footstep, achieving stable omnidirectional bipedal walking.
 
 
+## 🎛️Robot Model and Joint Configuration
+
+- **Degrees of Freedom**: Unitree G1 with 29 DOF, 12 active joints in legs (3x hip, 1x knee, 2x ankle) per side.
+- **Nominal Posture**:
+  - Hip pitch: -0.5236 rad (-30 deg)
+  - Knee pitch: 0.8727 rad (50 deg)
+  - Ankle pitch: -0.3491 rad (-20 deg)
+  - Waist pitch: 0.1500 rad
+- **PD Controller Gains**:
+
+| Joint | KP | Dampratio |
+|-------|----|-----------|
+| Hip   | 115 | 0.65      |
+| Knee  | 172 | 0.55      |
+| Ankle | 46  | 0.40      |
+
+- **Joint Torque Limits**: Hip +-139/+-88 Nm, Knee +-139 Nm, Ankle +-50 Nm.
+
+
+
 ## ⚙️Environment and Training Setup
 
 ### Supported Walking Modes
@@ -30,20 +50,6 @@ This project builds an omnidirectional footstep tracking walking control system 
 
 ### Terrain Support
 Flat ground + 0.05m steps, progressively introduced via curriculum learning.
-
-### Robot Model and Joint Configuration
-
-- **Degrees of Freedom**: Unitree G1 with 29 DOF, 12 active joints in legs (3x hip, 1x knee, 2x ankle) per side.
-- **Nominal Posture**:
-  - Hip pitch: -0.5236 rad (-30 deg)
-  - Knee pitch: 0.8727 rad (50 deg)
-  - Ankle pitch: -0.3491 rad (-20 deg)
-  - Waist pitch: 0.1500 rad
-- **PD Controller Gains**:
-  - Hip: KP=115, dampratio=0.65
-  - Knee: KP=172, dampratio=0.55
-  - Ankle: KP=46, dampratio=0.40
-- **Joint Torque Limits**: Hip +-139/+-88 Nm, Knee +-139 Nm, Ankle +-50 Nm.
 
 ### Observation and Action Space
 
