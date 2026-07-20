@@ -28,13 +28,11 @@ This project builds an omnidirectional footstep tracking walking control system 
   - Waist pitch: 0.1500 rad
 - **PD Controller Gains**:
 
-    | Joint | KP | Dampratio |
-    |-------|----|-----------|
-    | Hip   | 115 | 0.65      |
-    | Knee  | 172 | 0.55      |
-    | Ankle | 46  | 0.40      |
-
-- **Joint Torque Limits**: Hip +-139/+-88 Nm, Knee +-139 Nm, Ankle +-50 Nm.
+    | Joint | KP | Dampratio | Torque Limits(Nm) |
+    |-------|----|-----------|-------------------|
+    | Hip   | 115 | 0.65      | +-139/+-88      |
+    | Knee  | 172 | 0.55      | +-139 Nm        |
+    | Ankle | 46  | 0.40      | +-50 Nm         |
 
 
 ## ⚙️Environment and Training Setup
@@ -43,7 +41,6 @@ This project builds an omnidirectional footstep tracking walking control system 
 - FORWARD
 - BACKWARD
 - LATERAL
-- INPLACE
 - CURVED
 - STANDING
 
