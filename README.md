@@ -62,9 +62,9 @@ Normalized actor_obs based on prior experience (41), foot forces (2), linear vel
 
 ### Gait Parameters
 ```bash
-total_duration      1.30s
-swing_duration      0.85s
-stance_duration     0.45s
+total_duration      1.10s
+swing_duration      0.75s
+stance_duration     0.35s
 
 step_length         0.20m
 step_width          0.237m

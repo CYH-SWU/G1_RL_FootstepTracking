@@ -30,9 +30,9 @@ class G1EnvConfig:
     max_episode_steps: int = 1500
 
     # Gait parameters.
-    total_duration: float = 1.30
-    swing_duration: float = 0.85
-    stance_duration: float = 0.45
+    total_duration: float = 1.10
+    swing_duration: float = 0.75
+    stance_duration: float = 0.35
     step_length: float = 0.20
     step_width: float = 0.237
     max_foot_vel: float = 0.12
