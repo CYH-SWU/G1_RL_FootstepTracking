@@ -31,7 +31,8 @@ This project builds an omnidirectional footstep tracking walking control system 
     | Waist pitch |  0.1500 |   8.6 |
 
 <img src="docs/nominal_pose.jpg" alt="Nominal Posture" width="350">
-*If the image does not load, please view it directly in the `docs/` folder.*
+
+*If the image(nominal_pose.jpg) does not load, please view it directly in the `docs/` folder.*
 
 - **PD Controller Gains**:
     | Joint | KP | Dampratio | Torque Limits(Nm) |
@@ -268,12 +269,12 @@ The policy was trained for **20,000 iterations** using the default hyperparamete
 ![Reward Curve](docs/training_reward_curve.jpg)
 *Mean episodic reward over training iterations. The reward converges after ~15,000 iterations and stabilizes at approximately 580 in the final phase.*
 
-*If the image does not load, please view it directly in the `docs/` folder.*
+*If the image(training_reward_curve.jpg) does not load, please view it directly in the `docs/` folder.*
 
 ![Action Std Curve](docs/training_std_decay.jpg)
 *Action standard deviation over training iterations. The value decays from ~1.0 (initial random exploration) to ~0.3 (deterministic exploitation).*
 
-*If the image does not load, please view it directly in the `docs/` folder.*
+*If the image(training_std_decay.jpg) does not load, please view it directly in the `docs/` folder.*
 
 
 ### Demo Video (Forward Walking)
@@ -282,7 +283,7 @@ The video below shows the robot walking forward on flat ground with the trained 
 
 ![Forward Walking Demo](docs/demo.gif)
 
-*If the vedio does not load, please view it directly in the `docs/` folder.*
+*If the vedio(demo.gif) does not load, please view it directly in the `docs/` folder.*
 
 ### Training Environment
 
