@@ -162,6 +162,7 @@ G1_RL_FootstepTracking/
 │   ├── test_mirrorwrapper.py
 │   ├── test_policy.py
 │   └── test_step_sequence.py
+├── docs/                               # Documentation assets (images, videos, diagrams)
 ├── train.py                            # Main training entry
 └── test.py                             # Model testing entry
 ```
