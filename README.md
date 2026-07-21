@@ -26,6 +26,9 @@ This project builds an omnidirectional footstep tracking walking control system 
   - Knee pitch: 0.8727 rad (50 deg)
   - Ankle pitch: -0.3491 rad (-20 deg)
   - Waist pitch: 0.1500 rad
+
+<img src="docs/nominal_pose.jpg" alt="Nominal Posture" width="500">
+
 - **PD Controller Gains**:
 
     | Joint | KP | Dampratio | Torque Limits(Nm) |
