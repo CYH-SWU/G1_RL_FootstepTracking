@@ -21,11 +21,14 @@ This project builds an omnidirectional footstep tracking walking control system 
 ## 🎛️Robot Model and Joint Configuration
 
 - **Degrees of Freedom**: Unitree G1 with 29 DOF, 12 active joints in legs (3x hip, 1x knee, 2x ankle) per side.
+
 - **Nominal Posture**:
-  - Hip pitch: -0.5236 rad (-30 deg)
-  - Knee pitch: 0.8727 rad (50 deg)
-  - Ankle pitch: -0.3491 rad (-20 deg)
-  - Waist pitch: 0.1500 rad
+| Joint | Angle (rad) | Angle (deg) |
+|-------|-------------|-------------|
+| Hip pitch   | -0.5236 | -30.0 |
+| Knee pitch  |  0.8727 |  50.0 |
+| Ankle pitch | -0.3491 | -20.0 |
+| Waist pitch |  0.1500 |   8.6 |
 
 <img src="docs/nominal_pose.jpg" alt="Nominal Posture" width="350">
 
