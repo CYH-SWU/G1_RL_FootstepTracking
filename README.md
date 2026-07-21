@@ -27,10 +27,9 @@ This project builds an omnidirectional footstep tracking walking control system 
   - Ankle pitch: -0.3491 rad (-20 deg)
   - Waist pitch: 0.1500 rad
 
-<img src="docs/nominal_pose.jpg" alt="Nominal Posture" width="500">
+<img src="docs/nominal_pose.jpg" alt="Nominal Posture" width="350">
 
 - **PD Controller Gains**:
-
     | Joint | KP | Dampratio | Torque Limits(Nm) |
     |-------|----|-----------|-------------------|
     | Hip   | 115 | 0.65      | +-139/+-88      |
@@ -263,19 +262,19 @@ All CI jobs must pass before merging a pull request.
 The policy was trained for **20,000 iterations** using the default hyperparameters (see `pyproject.toml` and `train.py` for details). The training curves below show the learning dynamics:
 
 ![Reward Curve](docs/training_reward_curve.jpg)
-*Mean episodic reward over training iterations. The reward steadily increases and plateaus after ~15,000 iterations, indicating successful convergence.*
+*Mean episodic reward over training iterations. The reward converges after ~15,000 iterations and stabilizes at approximately 580 in the final phase.*
 
 ![Action Std Curve](docs/training_std_decay.jpg)
-*Action standard deviation over training iterations. The value decays from ~1.0 (initial random exploration) to ~0.3 (deterministic exploitation), demonstrating a smooth exploration-to-exploitation transition.*
+*Action standard deviation over training iterations. The value decays from ~1.0 (initial random exploration) to ~0.3 (deterministic exploitation).*
 
 
 ### Demo Video (Forward Walking)
 
-The video below shows the robot walking forward on flat ground with the trained policy. The robot accurately tracks the planned footstep sequence with smooth swing trajectories and stable landings.
+The video below shows the robot walking forward on flat ground with the trained policy.
 
 ![Forward Walking Demo](docs/demo.gif)
 
-*If the video does not play, you can download it from `docs/demo.gif`.*
+*If the video does not play, you can see it from `docs/demo.gif`.*
 
 ### Training Environment
 
@@ -291,11 +290,9 @@ All experiments were conducted on the following setup:
 | RL Framework | Stable-Baselines3 (PPO) |
 | Physics Engine | MuJoCo 3.0+ |
 
-The training process leveraged GPU acceleration for neural network updates and parallelized environment simulations (16 environments) to achieve efficient sampling.
+The training ran for approximately **26 hours**.
 
 ---
-
-*For more details on hyperparameters and training configuration, refer to `train.py` and `pyproject.toml`.*
 
 
 ## 📚References
