@@ -267,12 +267,12 @@ All CI jobs must pass before merging a pull request.
 The policy was trained for **20,000 iterations** using the default hyperparameters (see `pyproject.toml` and `train.py` for details). The training curves below show the learning dynamics:
 
 ![Reward Curve](docs/training_reward_curve.jpg)
-*Mean episodic reward over training iterations. The reward converges after ~15,000 iterations and stabilizes at approximately 580 in the final phase.*
+*Mean episodic reward over training iterations. The reward converges after ~**15,000** iterations and stabilizes at approximately **580** in the final phase.*
 
 *If the image(training_reward_curve.jpg) does not load, please view it directly in the `docs/` folder.*
 
 ![Action Std Curve](docs/training_std_decay.jpg)
-*Action standard deviation over training iterations. The value decays from ~1.0 (initial random exploration) to ~0.3 (deterministic exploitation).*
+*Action standard deviation over training iterations. The value decays from ~**1.0** (initial random exploration) to ~**0.3** (deterministic exploitation).*
 
 *If the image(training_std_decay.jpg) does not load, please view it directly in the `docs/` folder.*
 
