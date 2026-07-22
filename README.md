@@ -15,7 +15,7 @@ Deep reinforcement learning based omnidirectional footstep tracking control syst
 
 ## 🤖Project Overview
 
-This project builds an omnidirectional footstep tracking walking control system for the Unitree G1 humanoid robot, trained in the MuJoCo physics simulation environment using the PPO algorithm. The robot receives pre-generated footstep sequences (including foot placement positions and orientations). The policy network takes proprioceptive information (joint angles/velocities, IMU attitude) and task instructions (footstep positions/yaws, gait phase) as input, and outputs 12-dimensional joint position increment commands to drive both legs to accurately track each footstep, achieving stable omnidirectional bipedal walking.
+This project builds an omnidirectional footstep tracking walking control system for the **Unitree G1** humanoid robot, trained in the **MuJoCo** physics simulation environment using the **PPO** algorithm. The robot receives pre-generated footstep sequences (including foot placement positions and orientations). The policy network takes proprioceptive information (joint angles/velocities, IMU attitude) and task instructions (footstep positions/yaws, gait phase) as input, and outputs 12-dimensional joint position increment commands to drive both legs to accurately track each footstep, achieving stable omnidirectional bipedal walking.
 
 
 ## 🎛️Robot Model and Joint Configuration
@@ -184,10 +184,10 @@ cd G1_RL_FootstepTracking
 ```bash
 uv sync --all-extras
 ```
-**Note**: Python 3.12+ is required.
+⚠️**Note**: Python 3.12+ is required.
 
 
-## Train the Model
+## 🚀Train the Model
 ### Generate the processed G1 robot XML file:
 ```bash
 uv run python robot/gen_xml.py
@@ -211,7 +211,7 @@ uv run python train.py \
 ```
 
 
-## Evaluate and Visualize
+## 🎬Evaluate and Visualize
 ```bash
 uv run python test.py \
   --model checkpoints/ppo_g1_final.zip \
