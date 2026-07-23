@@ -276,7 +276,6 @@ The policy was trained for **20,000 iterations** using the default hyperparamete
 
 *If the image(training_std_decay.jpg) does not load, please view it directly in the `docs/` folder.*
 
-
 ### Demo Video (Forward Walking)
 
 The video below shows the robot walking forward on flat ground with the trained policy.
@@ -301,7 +300,26 @@ All experiments were conducted on the following setup:
 
 The training ran for approximately **26 hours**.
 
----
+### 📌 Known Limitations & Future Improvements
+
+While the trained policy demonstrates reliable and accurate footstep tracking on flat ground, its performance on stair-climbing scenarios (step heights up to 0.05m) is limited. During evaluation, the policy frequently exhibits foot collisions with step edges and fails to maintain stable trunk orientation during ascent/descent.
+
+Several factors contribute to this limitation:
+
+- **Control parameter constraints**: The `action_scale` and `action_smoothing` settings restrict the policy's ability to generate aggressive foot trajectories required for stair clearance. The limited action space prevents the policy from producing sufficiently large hip and knee excursions.
+- **PD gain configuration**: The current `kp` values for hip and knee joints (115 and 172, respectively) may not provide adequate torque bandwidth for rapid position tracking during stair transitions, where the foot must clear step edges while maintaining body height.
+
+**If your primary goal is optimal flat-ground walking**, consider the following adjustments:
+
+- Disable curriculum learning in `env/g1_env.py` by setting `self.difficulty = 0.0` fixed throughout training, or modify the `CurriculumCallback` to keep difficulty constant.
+- Reduce total training iterations to **8000** to avoid overfitting to the flat-ground distribution (the policy typically converges well within 8k iterations on flat terrain).
+
+**Potential improvements for stair capability**:
+
+- Increase `kp` for hip and knee joints in `robot/gen_xml.py` to improve torque response and joint stiffness during dynamic transitions.
+- Adjust `action_scale` (e.g., from 0.25 to 0.35) and `action_smoothing` (e.g., from 0.20 to 0.10) to allow more aggressive foot lifting and longer strides.
+- Redesign the curriculum schedule with smoother progression and more training steps allocated to high-difficulty phases.
+- Incorporate domain randomization for terrain height variations to improve generalization to unseen step configurations.
 
 
 ## 📚References
