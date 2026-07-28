@@ -56,6 +56,10 @@ Flat ground + 0.05m steps, progressively introduced via curriculum learning.
 
 ### Observation and Action Space
 
+The environment adopts an **asymmetric observation design**: `actor_obs` contains only proprioceptive information that is readily available on real hardware, while `critic_obs` extends it with privileged simulation‑only information to assist value estimation during training.
+
+> **Note**: The environment is designed for asymmetric observation, but the current pipeline uses `MultiInputPolicy` which concatenates all features. The `AsymmetricPolicy` class is pre‑implemented for future non‑asymmetric experiments.
+
 The environment returns dictionary observations, using `MultiInputPolicy` to automatically concatenate `actor_obs` and `critic_obs`.
 
 - **actor_obs (41 dims)**:
@@ -134,7 +138,8 @@ learning_rate is automatically adjusted by the performance callback during train
 ### Data Augmentation and Normalization
 
 - `MirrorWrapper`: 50% probability of flipping observations and actions left-right.
-- `VecNormalize`: Only normalizes `actor_obs` (zero mean, unit variance), clip range 10.0.
+- `actor_obs`: Online normalization via `VecNormalize`. The statistics are updated continuously during training.
+- `critic_obs`: Offline fixed normalization using pre‑collected statistics to ensure stable scaling of privileged information.
 
 
 ## 📂Project Structure
@@ -302,6 +307,8 @@ The training ran for approximately **26 hours**.
 
 ### 📌 Known Limitations & Future Improvements
 
+#### Stair-Climbing Performance
+
 While the trained policy demonstrates reliable and accurate footstep tracking on flat ground, its performance on stair-climbing scenarios (step heights up to 0.05m) is limited. During evaluation, the policy frequently exhibits foot collisions with step edges and fails to maintain stable trunk orientation during ascent/descent.
 
 Several factors contribute to this limitation:
@@ -320,6 +327,30 @@ Several factors contribute to this limitation:
 - Adjust `action_scale` (e.g., from 0.25 to 0.35) and `action_smoothing` (e.g., from 0.20 to 0.10) to allow more aggressive foot lifting and longer strides.
 - Redesign the curriculum schedule with smoother progression and more training steps allocated to high-difficulty phases.
 - Incorporate domain randomization for terrain height variations to improve generalization to unseen step configurations.
+
+---
+
+#### Asymmetric Network Not Fully Implemented
+
+Although the environment adopts an asymmetric observation design and the `AsymmetricPolicy` class is pre‑implemented, the current training pipeline does **not** use true asymmetric Actor‑Critic. Instead, it concatenates all observations via `MultiInputPolicy` into a single vector before feeding into the network.
+
+Several factors contribute to this limitation:
+
+- **Convergence difficulties**: Initial experiments with strict input separation failed to converge within a reasonable number of iterations. The policy struggled to learn effective walking behavior without access to privileged information during training.
+- **Parameter tuning and privileged information selection**:  Strict input separation significantly increased the complexity of hyperparameter tuning and privileged information selection (which privileged observations to include).Given the project timeline, a unified input pipeline was adopted to prioritize system stability and overall feature completeness.
+
+**If your primary goal is a stable walking policy for simulation**, the current concatenated approach is acceptable and achieves reliable flat‑ground performance.
+
+**If your goal is true asymmetric Actor‑Critic (e.g., for Sim‑to‑Real deployment)**, consider the following adjustments:
+
+- Switch to the pre‑implemented AsymmetricPolicy class in rl/policy.py.
+- Adjust the learning rate(1e-4 -> 2e-4).
+
+---
+
+#### Critic Overfitting
+
+During training, the Critic network exhibited a tendency to overfit early, often reaching an `explained_variance` above 0.9 within the first few iterations while `value_loss` dropped below 10.
 
 
 ## 📚References
