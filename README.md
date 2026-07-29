@@ -350,7 +350,22 @@ Several factors contribute to this limitation:
 
 #### Critic Overfitting
 
-During training, the Critic network exhibited a tendency to overfit early, often reaching an `explained_variance` above 0.9 within the first few iterations while `value_loss` dropped below 10.
+During training, the Critic network exhibited a tendency to overfit early, often reaching an `explained_variance` above **0.9** within the first few iterations while `value_loss` dropped below **10**.
+
+Several factors contribute to this behavior:
+
+- **Direct access to reward-correlated information**: The Critic network receives privileged information (foot forces, joint torques, linear velocity) that is directly used in the reward function.
+- **Effective horizon saturation**: When `n_steps` is set too large, the accumulated reward over the trajectory tends to converge to a near-constant value across different states, reducing the variance in the target returns. 
+- **Excessive network capacity**: The current `net_arch = [256, 256]` provides the Critic with sufficient capacity to memorize training samples.
+
+**Recommendations for improvement**:
+
+- **Reduce network capacity**: Decrease `net_arch` from `[256, 256]` to `[128, 128]` or `[64, 64]` to limit the Critic's ability to memorize and encourage more generalizable representations.
+- **Adjust privileged information selection**: Consider removing or down-weighting features that have a direct linear relationship with the reward signal (e.g., foot forces) to force the Critic to rely on more indirect state information.
+- **Set a separate, lower learning rate for the Critic**: In `AsymmetricPolicy`, use parameter groups to assign a lower learning rate to the value network (e.g., `1e-5` or `5e-6`) while keeping the Actor at `1e-4`.
+- **Training parameter adjustments**:Reduce `n_steps` from `800` to `400` or `512` to shorten the effective horizon. Increase `batch_size` from `64` to `128` or `256` to compensate for the reduced rollout length.Increase `ent_coef` from `0.001` to `0.01` or `0.02` to encourage exploration.
+
+---
 
 
 ## 📚References
