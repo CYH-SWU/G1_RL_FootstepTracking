@@ -7,8 +7,8 @@ When resuming, both the model and the VecNormalize statistics must be loaded
 to ensure consistent observation normalization.
 
 Usage:
-  uv run python train.py                                       # Fresh training (default 11000 iters)
-  uv run python train.py -i 11000 -s 500 -e 250                # Custom iterations, save/eval intervals
+  uv run python train.py                                       # Fresh training (default 20000 iters)
+  uv run python train.py -i 20000 -s 1000 -e 250               # Custom iterations, save/eval intervals
   uv run python train.py \
     --model checkpoints/ppo_g1_xxx.zip \
     --norm checkpoints/vec_normalize_final.pkl                 # Resume from checkpoint

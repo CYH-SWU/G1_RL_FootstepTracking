@@ -44,11 +44,16 @@ class MirrorWrapper(gym.Wrapper):
         # Segment indices for critic_obs (total 56).
         # Structure: actor_obs (41) + lin_vel (3) + torque (12).
         self.critic_actor_len = 41
-        self.critic_lin_vel_start = self.critic_actor_len
-        self.critic_torque_start = self.critic_lin_vel_start + 3
+        self.critic_frc_len = 2
+        self.critic_lin_vel_len = 3
         self.critic_torque_len = 12
 
-        self.critic_obs_len = self.critic_actor_len + 3 + self.critic_torque_len
+        self.critic_frc_start = self.critic_actor_len  # 41
+        self.critic_lin_vel_start = self.critic_frc_start + self.critic_frc_len  # 43
+        self.critic_torque_start = self.critic_lin_vel_start + self.critic_lin_vel_len  # 46
+
+        self.critic_obs_len = self.critic_torque_start + self.critic_torque_len  # 58
+        assert self.critic_obs_len == 58, "Critic obs dimension mismatch!"
 
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
@@ -84,17 +89,20 @@ class MirrorWrapper(gym.Wrapper):
         return self._mirror_actor_array(arr)
 
     def _mirror_critic_obs(self, arr: np.ndarray) -> np.ndarray:
-        """Mirror critic_obs (56 dims): actor_obs + lin_vel + torque."""
+        """Mirror the 58-dim critic observation array."""
         arr = arr.copy()
-        # Mirror the first 41 dims (normalized actor obs).
         arr[: self.critic_actor_len] = self._mirror_actor_array(arr[: self.critic_actor_len])
-        # Lin vel y flips sign (index 42).
-        arr[self.critic_lin_vel_start + 1] = -arr[self.critic_lin_vel_start + 1]
-        # Mirror torque (12 dims).
-        torque = arr[self.critic_torque_start : self.critic_torque_start + self.critic_torque_len]
-        arr[self.critic_torque_start : self.critic_torque_start + self.critic_torque_len] = self._mirror_joint_array(
-            torque
-        )
+        frc_start = self.critic_frc_start
+        arr[frc_start], arr[frc_start + 1] = arr[frc_start + 1], arr[frc_start]
+        # Mirror reverses the lateral (Y) direction
+        lin_vel_y_idx = self.critic_lin_vel_start + 1  # 43 + 1 = 44
+        arr[lin_vel_y_idx] = -arr[lin_vel_y_idx]
+        # Swap left/right legs and flip roll/yaw components
+        torque_start = self.critic_torque_start
+        torque_end = torque_start + self.critic_torque_len
+        torque_slice = arr[torque_start:torque_end]
+        arr[torque_start:torque_end] = self._mirror_joint_array(torque_slice)
+
         return arr
 
     def _mirror_actor_array(self, arr: np.ndarray) -> np.ndarray:
