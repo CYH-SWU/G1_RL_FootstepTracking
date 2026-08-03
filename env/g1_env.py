@@ -87,10 +87,17 @@ class G1Env(gym.Env):
             self.config.swing_duration,
             self.config.stance_duration,
         )
+        total_mass = sum(self.model.body_mass)
+        max_force = total_mass * 9.81 * 0.5
         self.obs_builder = ObservationBuilder(
-            self.config, self.joint_indices, self.joint_vel_indices, self.actuator_indices, self.max_torques
+            self.config,
+            self.joint_indices,
+            self.joint_vel_indices,
+            self.actuator_indices,
+            self.max_torques,
+            max_force,
         )
-        self.reward_calc = RewardCalculator(self.config)
+        self.reward_calc = RewardCalculator(self.config, self.model, max_force)
 
         # Define action and observation spaces.
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(12,), dtype=np.float32)
@@ -116,6 +123,12 @@ class G1Env(gym.Env):
         self.last_action = None
         self.last_torque = None
         self.smooth_target = np.zeros(12)
+
+        # Foot force filtering
+        self.filtered_left_force = 0.0
+        self.filtered_right_force = 0.0
+        self.force_alpha = 0.15
+        self.force_deadband = 5.0
 
     def _cache_ids(self):
         model = self.model
@@ -230,6 +243,21 @@ class G1Env(gym.Env):
             mujoco.mj_step(self.model, self.data)
         self.step_counter += 1
 
+        raw_left = self.data.cfrc_ext[self.left_foot_id][2]
+        raw_right = self.data.cfrc_ext[self.right_foot_id][2]
+
+        # Deadband: clamp negative to zero, treat values below threshold as no contact
+        raw_left = max(0.0, raw_left)
+        raw_right = max(0.0, raw_right)
+        if raw_left < self.force_deadband:
+            raw_left = 0.0
+        if raw_right < self.force_deadband:
+            raw_right = 0.0
+
+        # First-order low-pass filter
+        self.filtered_left_force = self.force_alpha * raw_left + (1 - self.force_alpha) * self.filtered_left_force
+        self.filtered_right_force = self.force_alpha * raw_right + (1 - self.force_alpha) * self.filtered_right_force
+
         self.phase = (
             self.step_counter * self.config.control_dt % self.config.total_duration
         ) / self.config.total_duration
@@ -258,7 +286,6 @@ class G1Env(gym.Env):
         # Compute reward.
         self.reward_calc.set_target_reached(self.target_reached)
         reward = self.reward_calc.compute_reward(
-            self.model,
             self.data,
             self.pelvis_id,
             self.left_foot_id,
@@ -271,6 +298,8 @@ class G1Env(gym.Env):
             self.sequence,
             self.t1,
             action,
+            self.filtered_left_force,
+            self.filtered_right_force,
         )
 
         obs = self._get_obs()
@@ -305,7 +334,6 @@ class G1Env(gym.Env):
             self.phase,
         )
         critic_obs = self.obs_builder.get_critic_obs(
-            self.model,
             self.data,
             self.pelvis_id,
             self.left_foot_id,
@@ -315,6 +343,8 @@ class G1Env(gym.Env):
             self.t2,
             self.phase,
             actor_obs,
+            self.filtered_left_force,
+            self.filtered_right_force,
         )
         return {"actor_obs": actor_obs, "critic_obs": critic_obs}
 

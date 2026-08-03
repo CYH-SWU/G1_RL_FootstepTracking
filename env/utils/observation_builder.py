@@ -23,12 +23,13 @@ class ObservationBuilder:
         _get_R_world_to_pelvis: Returns world-to-pelvis rotation matrix.
     """
 
-    def __init__(self, config, joint_indices, joint_vel_indices, actuator_indices, max_torques):
+    def __init__(self, config, joint_indices, joint_vel_indices, actuator_indices, max_torques, max_force):
         self.config = config
         self.joint_indices = joint_indices
         self.joint_vel_indices = joint_vel_indices
         self.actuator_indices = actuator_indices
         self.max_torques = max_torques
+        self.max_force = max_force  # precomputed max foot force (half body weight)
 
         # Build normalization scales for critic observations.
         self.critic_obs_scale = np.concatenate(
@@ -102,17 +103,26 @@ class ObservationBuilder:
         )
         return obs.astype(np.float32)
 
-    def get_critic_obs(self, model, data, pelvis_id, left_foot_id, right_foot_id, sequence, t1, t2, phase, actor_obs):
+    def get_critic_obs(
+        self,
+        data,
+        pelvis_id,
+        left_foot_id,
+        right_foot_id,
+        sequence,
+        t1,
+        t2,
+        phase,
+        actor_obs,
+        left_force,
+        right_force,
+    ):
         # Normalize actor observation to [-1, 1].
         norm_actor_obs = np.clip(actor_obs / self.critic_obs_scale, -1.0, 1.0)
 
-        # Normalize foot contact forces (Z-component).
-        left_force = data.cfrc_ext[left_foot_id][2]
-        right_force = data.cfrc_ext[right_foot_id][2]
-        total_mass = sum(model.body_mass)
-        max_force = total_mass * 9.81 * 0.5  # half total weight per foot.
-        norm_left_frc = np.clip(left_force / max_force, -1.0, 1.0)
-        norm_right_frc = np.clip(right_force / max_force, -1.0, 1.0)
+        # Normalize foot contact forces (Z-component) using filtered forces passed in.
+        norm_left_frc = np.clip(left_force / self.max_force, -1.0, 1.0)
+        norm_right_frc = np.clip(right_force / self.max_force, -1.0, 1.0)
 
         # Linear velocity normalization.
         lin_vel = data.qvel[0:3]

@@ -30,7 +30,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 from env.g1_env import G1Env
 from env_utils.mirrorwrapper import MirrorWrapper
 from rl.callbacks import AdaptiveLRScheduleCallback, CurriculumCallback
-from rl.policy import policy_kwargs
+from rl.policy import AsymmetricPolicy, policy_kwargs
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
 
@@ -247,7 +247,7 @@ def main():
     else:
         # Fresh training
         model = PPO(
-            policy="MultiInputPolicy",
+            policy=AsymmetricPolicy,
             env=vec_env,
             policy_kwargs=policy_kwargs,
             verbose=1,

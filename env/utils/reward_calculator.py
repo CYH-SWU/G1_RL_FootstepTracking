@@ -45,8 +45,10 @@ class RewardCalculator:
         _get_pelvis_yaw: Extracts the yaw angle of the pelvis from the simulation data.
     """
 
-    def __init__(self, config):
+    def __init__(self, config, model, max_force):
         self.config = config
+        self.model = model  # MuJoCo model, used for velocity calculation
+        self.max_force = max_force  # precomputed max foot force (half body weight)
         self.last_action = None
         self.last_torque = None
         self.target_reached = False  # Updated by the main environment.
@@ -56,7 +58,6 @@ class RewardCalculator:
 
     def compute_reward(
         self,
-        model,
         data,
         pelvis_id,
         left_foot_id,
@@ -69,11 +70,13 @@ class RewardCalculator:
         sequence,
         t1,
         action,
+        left_force,
+        right_force,
     ):
-        left_force = data.cfrc_ext[left_foot_id][2]
-        right_force = data.cfrc_ext[right_foot_id][2]
-        left_vel = self._get_body_linvel(data, left_foot_id, model)
-        right_vel = self._get_body_linvel(data, right_foot_id, model)
+
+        # Get foot velocities using stored model
+        left_vel = self._get_body_linvel(data, left_foot_id)
+        right_vel = self._get_body_linvel(data, right_foot_id)
 
         pelvis_z = data.qpos[2]
         foot_z = min(data.xpos[left_foot_id][2], data.xpos[right_foot_id][2]) - self.config.foot_ankle_offset
@@ -84,21 +87,20 @@ class RewardCalculator:
         pelvis_xy = data.xpos[pelvis_id][:2]
         head_xy = data.xpos[head_id][:2]
 
-        total_mass = sum(model.body_mass)
-        max_force = total_mass * 9.81 * 0.5
+        # Use precomputed max_force from constructor
         swing_frac = self.config.swing_duration / self.config.total_duration
 
         is_stand = mode == WalkModes.STANDING
 
         if is_stand:
             r_frc = calc_foot_frc_clock_reward(
-                swing_frac, left_force, right_force, phase, max_force, clock_left=1.0, clock_right=1.0
+                swing_frac, left_force, right_force, phase, self.max_force, clock_left=1.0, clock_right=1.0
             )
             r_vel = calc_foot_vel_clock_reward(
                 swing_frac, left_vel, right_vel, phase, self.config.max_foot_vel, clock_left=-1.0, clock_right=-1.0
             )
         else:
-            r_frc = calc_foot_frc_clock_reward(swing_frac, left_force, right_force, phase, max_force)
+            r_frc = calc_foot_frc_clock_reward(swing_frac, left_force, right_force, phase, self.max_force)
             r_vel = calc_foot_vel_clock_reward(swing_frac, left_vel, right_vel, phase, self.config.max_foot_vel)
 
         r_orient = calc_body_orient_reward(pelvis_yaw, target_yaw)
@@ -148,9 +150,9 @@ class RewardCalculator:
         )
         return total
 
-    def _get_body_linvel(self, data, body_id, model):
+    def _get_body_linvel(self, data, body_id):
         vel = np.zeros(6)
-        mujoco.mj_objectVelocity(model, data, mujoco.mjtObj.mjOBJ_BODY, body_id, vel, 0)
+        mujoco.mj_objectVelocity(self.model, data, mujoco.mjtObj.mjOBJ_BODY, body_id, vel, 0)
         return np.linalg.norm(vel[:3])
 
     def _get_pelvis_yaw(self, data, pelvis_id):
