@@ -82,7 +82,9 @@ class AsymmetricPolicy(ActorCriticPolicy):
         self.value_net = nn.Sequential(*layers_c)
 
         # Learnable log_std for Gaussian actions.
-        self.log_std = nn.Parameter(torch.zeros(action_space.shape[0]))
+        desired_std = 1
+        init_log_std = np.log(desired_std)
+        self.log_std = nn.Parameter(torch.full((action_space.shape[0],), init_log_std))
 
         # Initialize weights with orthogonal initialization.
         self._initialize_weights()

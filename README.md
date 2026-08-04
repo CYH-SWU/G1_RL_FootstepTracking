@@ -58,14 +58,10 @@ Flat ground + 0.05m steps, progressively introduced via curriculum learning.
 
 The environment adopts an **asymmetric observation design**: `actor_obs` contains only proprioceptive information that is readily available on real hardware, while `critic_obs` extends it with privileged simulation‑only information to assist value estimation during training.
 
-> **Note**: The environment is designed for asymmetric observation, but the current pipeline uses `MultiInputPolicy` which concatenates all features. The `AsymmetricPolicy` class is pre‑implemented for future non‑asymmetric experiments.
-
-The environment returns dictionary observations, using `MultiInputPolicy` to automatically concatenate `actor_obs` and `critic_obs`.
-
 - **actor_obs (41 dims)**:
 Joint angles (12), joint velocities (12), pelvis height (1), current footstep position (3), next footstep position (3), current footstep yaw (1), next footstep yaw (1), gait phase (2), pelvis Euler angles (3), pelvis angular velocity (3).
 - **critic_obs (17 + 41 dims)**:
-Normalized actor_obs based on prior experience (41), foot forces (2), linear velocity (3), joint torques (12).
+Normalized actor_obs based on prior experience (41), **foot forces** (2), **linear velocity** (3), **joint torques** (12).
 - **Action Space**:
 12-dimensional continuous values in range [-1,1], mapped to joint angle increments via `action_scale=0.25`.
 - **Control Cycle**:
@@ -128,7 +124,7 @@ learning_rate is automatically adjusted by the performance callback during train
 
 ### Network Architecture
 
-- **Policy Class**: MultiInputPolicy.
+- **Policy Class**: **Asymmetric Actor-Critic**(AsymmetricPolicy).
 - **Actor Network**: Two hidden layers with 256 neurons each, ReLU activation.
 - **Critic Network**: Two hidden layers with 256 neurons each, ReLU activation.
 - **Network Independence**: Actor and Critic do not share parameters.
@@ -327,24 +323,6 @@ Several factors contribute to this limitation:
 - Adjust `action_scale` (e.g., from 0.25 to 0.35) and `action_smoothing` (e.g., from 0.20 to 0.10) to allow more aggressive foot lifting and longer strides.
 - Redesign the curriculum schedule with smoother progression and more training steps allocated to high-difficulty phases.
 - Incorporate domain randomization for terrain height variations to improve generalization to unseen step configurations.
-
----
-
-#### Asymmetric Network Not Fully Implemented
-
-Although the environment adopts an asymmetric observation design and the `AsymmetricPolicy` class is pre‑implemented, the current training pipeline does **not** use true asymmetric Actor‑Critic. Instead, it concatenates all observations via `MultiInputPolicy` into a single vector before feeding into the network.
-
-Several factors contribute to this limitation:
-
-- **Convergence difficulties**: Initial experiments with strict input separation failed to converge within a reasonable number of iterations. The policy struggled to learn effective walking behavior without access to privileged information during training.
-- **Parameter tuning and privileged information selection**:  Strict input separation significantly increased the complexity of hyperparameter tuning and privileged information selection (which privileged observations to include).Given the project timeline, a unified input pipeline was adopted to prioritize system stability and overall feature completeness.
-
-**If your primary goal is a stable walking policy for simulation**, the current concatenated approach is acceptable and achieves reliable flat‑ground performance.
-
-**If your goal is true asymmetric Actor‑Critic (e.g., for Sim‑to‑Real deployment)**, consider the following adjustments:
-
-- Switch to the pre‑implemented AsymmetricPolicy class in rl/policy.py.
-- Adjust the learning rate(1e-4 -> 2e-4).
 
 ---
 
