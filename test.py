@@ -13,13 +13,13 @@ Usage:
             --model pretrained_models/ppo_G1_FootstepTracking.zip \
             --norm pretrained_models/vec_normalize.pkl \
             --episodes 20 \
-            --difficulty 0.0
+            --mode FORWARD
 
     uv run python test.py \
         --model checkpoints/ppo_g1_final.zip \
         --norm checkpoints/vec_normalize_final.pkl \
         --episodes 20 \
-        --difficulty 0.0
+        --mode BACKWARD
 
 Auto-loading:
     - Model: checkpoints/best_model/best_model.zip
@@ -44,6 +44,7 @@ sys.path.insert(0, str(project_root))
 
 from env.g1_env import G1Env
 from env_utils.mirrorwrapper import MirrorWrapper
+from env.utils.step_sequence import WalkModes
 
 CHECKPOINT_DIR = project_root / "checkpoints"
 ROBOT_XML = project_root / "robot" / "g1_processed.xml"
@@ -76,11 +77,13 @@ def find_norm_file(checkpoint_dir: Path, model_path: Path = None) -> Path:
     raise FileNotFoundError("Normalization file not found. Please specify with --norm.")
 
 
-def create_eval_env(difficulty: float = 1.0):
-    """Create evaluation environment (single env, no mirror augmentation)."""
+def create_eval_env(difficulty: float = 1.0, mode: str = None):
     env = G1Env(robot_xml_path=str(ROBOT_XML))
     env.set_difficulty(difficulty)
-    env = MirrorWrapper(env, mirror_prob=0.0)  # Disable mirroring for evaluation.
+    if mode is not None:
+        mode_enum = getattr(WalkModes, mode)
+        env.set_mode(mode_enum)
+    env = MirrorWrapper(env, mirror_prob=0.0)
     return Monitor(env)
 
 
@@ -92,9 +95,14 @@ def main():
     parser.add_argument(
         "--norm", type=str, default=None, help="Normalization parameter file (.pkl). Auto-detected if omitted."
     )
+    parser.add_argument(
+        "--mode", type=str, default=None,
+        choices=["FORWARD", "BACKWARD", "LATERAL", "CURVED", "STANDING"],
+        help="Walking mode for evaluation. If not provided, mode is randomly sampled."
+    )
     parser.add_argument("--episodes", type=int, default=10, help="Number of evaluation episodes.")
     parser.add_argument("--max-steps", type=int, default=2000, help="Maximum steps per episode.")
-    parser.add_argument("--difficulty", type=float, default=1.0, help="Curriculum difficulty in [0,1].")
+    parser.add_argument("--difficulty", type=float, default=0.0, help="Curriculum difficulty in [0,1].")
     parser.add_argument("--no-render", action="store_true", help="Disable rendering (only output stats).")
     args = parser.parse_args()
 
@@ -117,7 +125,7 @@ def main():
         print(f"Auto-loaded normalization parameters: {norm_path}")
 
     # Create evaluation environment.
-    raw_env = create_eval_env(args.difficulty)
+    raw_env = create_eval_env(args.difficulty, args.mode)
     vec_env = DummyVecEnv([lambda: raw_env])
 
     # Load VecNormalize.

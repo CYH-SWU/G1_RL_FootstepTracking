@@ -216,14 +216,14 @@ uv run python test.py \
   --model checkpoints/ppo_g1_final.zip \
   --norm checkpoints/vec_normalize_final.pkl \
   --episodes 20 \
-  --difficulty 0.0
+  --mode FORWARD
 ```
 ```bash
 uv run python test.py \
   --model pretrained_models/ppo_G1_FootstepTracking.zip \
   --norm pretrained_models/vec_normalize.pkl \
   --episodes 20 \
-  --difficulty 0.0
+  --mode BACKWARD
 ```
 
 

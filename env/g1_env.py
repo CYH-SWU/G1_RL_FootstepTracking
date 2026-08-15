@@ -130,6 +130,12 @@ class G1Env(gym.Env):
         self.force_alpha = 0.15
         self.force_deadband = 5.0
 
+        self._fixed_mode = None
+
+    def set_mode(self, mode):
+        """Set a fixed walking mode for subsequent resets."""
+        self._fixed_mode = mode
+
     def _cache_ids(self):
         model = self.model
         self.pelvis_id = model.body("pelvis").id
@@ -174,10 +180,14 @@ class G1Env(gym.Env):
         self.smooth_target = np.zeros(12)
 
         # Sample walking mode from config probabilities.
-        self.mode = np.random.choice(
-            [WalkModes.STANDING, WalkModes.CURVED, WalkModes.BACKWARD, WalkModes.LATERAL, WalkModes.FORWARD],
-            p=self.config.mode_probs,
-        )
+        if self._fixed_mode is not None:
+            self.mode = self._fixed_mode
+        else:
+            self.mode = np.random.choice(
+                [WalkModes.STANDING, WalkModes.CURVED, WalkModes.BACKWARD,
+                WalkModes.LATERAL, WalkModes.FORWARD],
+                p=self.config.mode_probs
+            )
 
         # Determine step height variation for forward mode.
         step_height = 0.0
