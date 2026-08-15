@@ -332,6 +332,16 @@ The policy was trained for **200,704,000**timesteps (**7,000 iterations**) using
 
 ---
 
+### 📦 Pretrained Models & Training Logs
+
+The final trained policy is available in the `pretrained_models/` directory as `ppo_G1_FootstepTracking.zip`. The corresponding TensorBoard logs (including training curves, KL divergence, action std, etc.) can be found in `pretrained_logs/`. To visualize the training process, run:
+
+```bash
+tensorboard --logdir pretrained_logs/
+```
+
+---
+
 ### 📊 Training Environment
 
 All experiments were conducted on the following setup:
