@@ -52,7 +52,7 @@ This project builds an omnidirectional footstep tracking walking control system 
 - STANDING
 
 ### Terrain Support
-Flat ground + 0.05m steps, progressively introduced via curriculum learning.
+Flat ground only.
 
 ### Observation and Action Space
 
@@ -75,7 +75,6 @@ stance_duration     0.35s
 
 step_length         0.20m
 step_width          0.237m
-target_radius       0.16m
 ```
 
 ### 🎯Reward Function Design
@@ -86,7 +85,7 @@ Footstep Tracking Reward (weight 0.45):
 Foot Force Phase Matching Reward (weight 0.15):
   Guides the policy to press down firmly during stance phase and lift off during swing phase.
 
-Foot Velocity Phase Matching Reward (weight 0.15):
+Foot Velocity Phase Matching Reward (weight 0.175):
   Guides the policy to keep feet stationary during stance phase and move quickly during swing phase.
 
 Torso Attitude Reward (weight 0.05):
@@ -99,28 +98,25 @@ Upper Body Stability Reward (weight 0.05):
   Encourages minimizing the XY distance between head and pelvis to maintain upper body stability and avoid excessive torso swaying during walking.
 ```
 
-### 📈Curriculum Learning
-
-- First 3000 iterations: flat ground only
-- 3000~11000 iterations: step height linearly increases from 0 to 0.05m
-- After 11000 iterations: maintains maximum difficulty
-- Step height has 50% probability of being positive (upward step) or negative (downward step).
-
 ### Training Hyperparameters
 ```bash
-n_steps         800
+n_steps         2048
 batch_size      64
 n_epochs        3
 gamma           0.99
 gae_lambda      0.95
 clip_range      0.18
 learning_rate   1e-4
-ent_coef        0.001
+ent_coef        0.0001
 max_grad_norm   0.5
 n_envs          14
 
 learning_rate is automatically adjusted by the performance callback during training.
 ```
+
+### Curriculum Learning (Disabled)
+
+The environment supports curriculum learning for terrain height (0 → **0.05**m steps) via a built‑in interface (`set_difficulty`). However, for this training run, curriculum learning is **disabled** — all experiments are conducted on flat ground only.
 
 ### Network Architecture
 
@@ -170,6 +166,7 @@ G1_RL_FootstepTracking/
 │   ├── test_mirrorwrapper.py
 │   ├── test_policy.py
 │   └── test_step_sequence.py
+├── pretrained_models/                  # Model
 ├── docs/                               # Documentation assets
 ├── train.py                            # Main training entry
 └── test.py                             # Model testing entry
@@ -199,14 +196,14 @@ uv run python train.py
 ```
 ```bash
 uv run python train.py \
-  ---iterations 20000 \
-  --save_interval 500 \
-  --eval_interval 500
+  ---iterations 7000 \
+  --save_interval 700 \
+  --eval_interval 20
 ```
 ### Resume training from a checkpoint:
 ```bash
 uv run python train.py \
-  ---iterations 20000 \
+  ---iterations 7000 \
   --model checkpoints/ppo_g1_xxx_steps.zip \
   --norm checkpoints/vec_normalize_final.pkl
 ```
@@ -218,7 +215,14 @@ uv run python test.py \
   --model checkpoints/ppo_g1_final.zip \
   --norm checkpoints/vec_normalize_final.pkl \
   --episodes 20 \
-  --difficulty 1.0
+  --difficulty 0.0
+```
+```bash
+uv run python test.py \
+  --model pretrained_models/ppo_G1_FootstepTracking \
+  --norm pretrained_models/vec_normalize.pkl \
+  --episodes 20 \
+  --difficulty 0.0
 ```
 
 
@@ -260,20 +264,21 @@ This project uses GitHub Actions to automatically run:
 
 All CI jobs must pass before merging a pull request.
 
+---
 
 ## 🏆 Results & Demo
 
 ### Training Performance
 
-The policy was trained for **20,000 iterations** using the default hyperparameters (see `pyproject.toml` and `train.py` for details). The training curves below show the learning dynamics:
+The policy was trained for **200,704,000**timesteps (**7,000 iterations**) using the default hyperparameters (see `pyproject.toml` and `train.py` for details). The training curves below show the learning dynamics:
 
 ![Reward Curve](docs/training_reward_curve.jpg)
-*Mean episodic reward over training iterations. The reward converges after ~**15,000** iterations and stabilizes at approximately **580** in the final phase.*
+*Mean episodic reward over training iterations. The reward converges after ~**7,000** iterations and stabilizes at approximately **800** in the final phase.*
 
 *If the image(training_reward_curve.jpg) does not load, please view it directly in the `docs/` folder.*
 
 ![Action Std Curve](docs/training_std_decay.jpg)
-*Action standard deviation over training iterations. The value decays from ~**1.0** (initial random exploration) to ~**0.3** (deterministic exploitation).*
+*Action standard deviation over training iterations. The value decays from ~**1.0** (initial random exploration) to ~**0.24** (deterministic exploitation).*
 
 *If the image(training_std_decay.jpg) does not load, please view it directly in the `docs/` folder.*
 
@@ -299,32 +304,11 @@ All experiments were conducted on the following setup:
 | RL Framework | Stable-Baselines3 (PPO) |
 | Physics Engine | MuJoCo 3.0+ |
 
-The training ran for approximately **26 hours**.
-
-### 📌 Known Limitations & Future Improvements
-
-#### Stair-Climbing Performance
-
-While the trained policy demonstrates reliable and accurate footstep tracking on flat ground, its performance on stair-climbing scenarios (step heights up to 0.05m) is limited. During evaluation, the policy frequently exhibits foot collisions with step edges and fails to maintain stable trunk orientation during ascent/descent.
-
-Several factors contribute to this limitation:
-
-- **Control parameter constraints**: The `action_scale` and `action_smoothing` settings restrict the policy's ability to generate aggressive foot trajectories required for stair clearance. The limited action space prevents the policy from producing sufficiently large hip and knee excursions.
-- **PD gain configuration**: The current `kp` values for hip and knee joints (115 and 172, respectively) may not provide adequate torque bandwidth for rapid position tracking during stair transitions, where the foot must clear step edges while maintaining body height.
-
-**If your primary goal is optimal flat-ground walking**, consider the following adjustments:
-
-- Disable curriculum learning in `env/g1_env.py` by setting `self.difficulty = 0.0` fixed throughout training, or modify the `CurriculumCallback` to keep difficulty constant.
-- Reduce total training iterations to **8000** to avoid overfitting to the flat-ground distribution (the policy typically converges well within 8k iterations on flat terrain).
-
-**Potential improvements for stair capability**:
-
-- Increase `kp` for hip and knee joints in `robot/gen_xml.py` to improve torque response and joint stiffness during dynamic transitions.
-- Adjust `action_scale` (e.g., from 0.25 to 0.35) and `action_smoothing` (e.g., from 0.20 to 0.10) to allow more aggressive foot lifting and longer strides.
-- Redesign the curriculum schedule with smoother progression and more training steps allocated to high-difficulty phases.
-- Incorporate domain randomization for terrain height variations to improve generalization to unseen step configurations.
+The training ran for approximately **22 hours**.
 
 ---
+
+### 📌 Known Limitations & Future Improvements
 
 #### Critic Overfitting
 
@@ -332,19 +316,20 @@ During training, the Critic network exhibited a tendency to overfit early, often
 
 Several factors contribute to this behavior:
 
+- **Flat reward landscape**: The reward function is dominated by exponential terms and saturated activations, producing near‑constant values across most states (In the early stage of training, the average per-step reward is only 0.4 with a variance as low as 0.02, ). 
 - **Direct access to reward-correlated information**: The Critic network receives privileged information (foot forces, joint torques, linear velocity) that is directly used in the reward function.
 - **Effective horizon saturation**: When `n_steps` is set too large, the accumulated reward over the trajectory tends to converge to a near-constant value across different states, reducing the variance in the target returns. 
 - **Excessive network capacity**: The current `net_arch = [256, 256]` provides the Critic with sufficient capacity to memorize training samples.
 
 **Recommendations for improvement**:
 
+- **Adopt a residual critic architecture**: In AsymmetricPolicy, replace the standard value network with a residual structure: V(s) = value_baseline + tanh(value_net(s)) * scale.
 - **Reduce network capacity**: Decrease `net_arch` from `[256, 256]` to `[128, 128]` or `[64, 64]` to limit the Critic's ability to memorize and encourage more generalizable representations.
 - **Adjust privileged information selection**: Consider removing or down-weighting features that have a direct linear relationship with the reward signal (e.g., foot forces) to force the Critic to rely on more indirect state information.
 - **Set a separate, lower learning rate for the Critic**: In `AsymmetricPolicy`, use parameter groups to assign a lower learning rate to the value network (e.g., `1e-5` or `5e-6`) while keeping the Actor at `1e-4`.
-- **Training parameter adjustments**:Reduce `n_steps` from `800` to `400` or `512` to shorten the effective horizon. Increase `batch_size` from `64` to `128` or `256` to compensate for the reduced rollout length.Increase `ent_coef` from `0.001` to `0.01` or `0.02` to encourage exploration.
+- **Training parameter adjustments**:Reduce `n_steps` from `2048` to `1024` to shorten the effective horizon. Increase `batch_size` from `64` to `128` to compensate for the reduced rollout length.
 
 ---
-
 
 ## 📚References
 **Learning Humanoid Walking**

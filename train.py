@@ -8,10 +8,13 @@ to ensure consistent observation normalization.
 
 Usage:
   uv run python train.py                                       # Fresh training (default 7000 iters)
+
   uv run python train.py -i 7000 -s 700 -e 20                  # Custom iterations, save/eval intervals
+
   uv run python train.py \
     --model checkpoints/ppo_g1_xxx.zip \
     --norm checkpoints/vec_normalize_final.pkl                 # Resume from checkpoint
+
   uv run python train.py --lr 3e-4 --n_steps 512               # Adjust PPO hyperparameters
 """
 
@@ -139,7 +142,7 @@ def main():
     args = parse_args()
 
     # Fixed parameters for curriculum learning.
-    #TOTAL_TIMESTEPS_FOR_MAX = 11000 * args.n_envs * args.n_steps
+    # TOTAL_TIMESTEPS_FOR_MAX = 11000 * args.n_envs * args.n_steps
 
     # Create training environment (load normalization stats if provided)
     vec_env = create_vec_env(args.n_envs, args.norm)
@@ -154,7 +157,7 @@ def main():
     callbacks = []
 
     # Curriculum callback.
-    #callbacks.append(CurriculumCallback(TOTAL_TIMESTEPS_FOR_MAX))
+    # callbacks.append(CurriculumCallback(TOTAL_TIMESTEPS_FOR_MAX))
 
     # Adaptive learning rate callback.
     lr_eval_freq = args.lr_eval_freq if args.lr_eval_freq is not None else (16 * steps_per_iter)

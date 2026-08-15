@@ -7,6 +7,14 @@ including average reward and success rate.
 
 Usage:
     uv run python test.py                                  # Load best model, default 10 episodes
+
+    # Load pretrained models (7000iter)
+    uv run python test.py \
+            --model pretrained_models/ppo_G1_FootstepTracking \
+            --norm pretrained_models/vec_normalize.pkl \
+            --episodes 20 \
+            --difficulty 0.0
+
     uv run python test.py \
         --model checkpoints/ppo_g1_final.zip \
         --norm checkpoints/vec_normalize_final.pkl \
