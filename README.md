@@ -298,13 +298,6 @@ The policy was trained for **200,704,000**timesteps (**7,000 iterations**) using
 
 *If the image(forward.gif) does not load, please view it directly in the `docs/` folder.*
 
-<details>
-  <summary>🔽 Lateral Walking Demo (click to expand)</summary>
-  <img src="https://cdn.jsdelivr.net/gh/CYH-SWU/G1_RL_FootstepTracking@main/docs/forward.gif" alt="Lateral Walking" loading="lazy" width="360">
-  <br>
-  <em>If the image does not load, please view it directly in the `docs/` folder.</em>
-</details>
-
 ---
 
 #### 🚶 Backward Walking
@@ -317,12 +310,9 @@ The policy was trained for **200,704,000**timesteps (**7,000 iterations**) using
 
 #### ↔️ Lateral Walking
 
-<details>
-  <summary>🔽 Lateral Walking Demo (click to expand)</summary>
-  <img src="https://cdn.jsdelivr.net/gh/CYH-SWU/G1_RL_FootstepTracking@main/docs/lateral.gif" alt="Lateral Walking" loading="lazy" width="360">
-  <br>
-  <em>If the image does not load, please view it directly in the `docs/` folder.</em>
-</details>
+![Lateral Walking](docs/lateral.gif)
+
+*If the image(lateral.gif) does not load, please view it directly in the `docs/` folder.*
 
 ---
 
