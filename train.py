@@ -29,7 +29,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 
 from env.g1_env import G1Env
 from env_utils.mirrorwrapper import MirrorWrapper
-from rl.callbacks import AdaptiveLRScheduleCallback, CurriculumCallback
+from rl.callbacks import AdaptiveLRScheduleCallback
 from rl.policy import AsymmetricPolicy, policy_kwargs
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
@@ -139,7 +139,7 @@ def main():
     args = parse_args()
 
     # Fixed parameters for curriculum learning.
-    TOTAL_TIMESTEPS_FOR_MAX = 11000 * args.n_envs * args.n_steps
+    #TOTAL_TIMESTEPS_FOR_MAX = 11000 * args.n_envs * args.n_steps
 
     # Create training environment (load normalization stats if provided)
     vec_env = create_vec_env(args.n_envs, args.norm)
