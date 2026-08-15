@@ -184,9 +184,8 @@ class G1Env(gym.Env):
             self.mode = self._fixed_mode
         else:
             self.mode = np.random.choice(
-                [WalkModes.STANDING, WalkModes.CURVED, WalkModes.BACKWARD,
-                WalkModes.LATERAL, WalkModes.FORWARD],
-                p=self.config.mode_probs
+                [WalkModes.STANDING, WalkModes.CURVED, WalkModes.BACKWARD, WalkModes.LATERAL, WalkModes.FORWARD],
+                p=self.config.mode_probs,
             )
 
         # Determine step height variation for forward mode.

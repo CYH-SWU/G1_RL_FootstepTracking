@@ -43,8 +43,8 @@ project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
 from env.g1_env import G1Env
-from env_utils.mirrorwrapper import MirrorWrapper
 from env.utils.step_sequence import WalkModes
+from env_utils.mirrorwrapper import MirrorWrapper
 
 CHECKPOINT_DIR = project_root / "checkpoints"
 ROBOT_XML = project_root / "robot" / "g1_processed.xml"
@@ -96,9 +96,11 @@ def main():
         "--norm", type=str, default=None, help="Normalization parameter file (.pkl). Auto-detected if omitted."
     )
     parser.add_argument(
-        "--mode", type=str, default=None,
+        "--mode",
+        type=str,
+        default=None,
         choices=["FORWARD", "BACKWARD", "LATERAL", "CURVED", "STANDING"],
-        help="Walking mode for evaluation. If not provided, mode is randomly sampled."
+        help="Walking mode for evaluation. If not provided, mode is randomly sampled.",
     )
     parser.add_argument("--episodes", type=int, default=10, help="Number of evaluation episodes.")
     parser.add_argument("--max-steps", type=int, default=2000, help="Maximum steps per episode.")
