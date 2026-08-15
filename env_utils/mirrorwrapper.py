@@ -7,7 +7,7 @@ class MirrorWrapper(gym.Wrapper):
     Data augmentation wrapper that randomly flips left/right at episode level
     using the robot's bilateral symmetry. Designed for asymmetric Actor-Critic
     environments with dictionary observations (actor_obs and critic_obs).
-    Assumes actor_obs dim = 41, critic_obs = actor_obs + lin_vel(3) + torque(12).
+    Assumes actor_obs dim = 41, critic_obs = actor_obs + frc(2) + lin_vel(3) + torque(12).
     """
 
     def __init__(self, env, mirror_prob: float = 0.5):

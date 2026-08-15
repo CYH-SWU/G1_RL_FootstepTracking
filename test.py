@@ -11,7 +11,7 @@ Usage:
         --model checkpoints/ppo_g1_final.zip \
         --norm checkpoints/vec_normalize_final.pkl \
         --episodes 20 \
-        --difficulty 1.0
+        --difficulty 0.0
 
 Auto-loading:
     - Model: checkpoints/best_model/best_model.zip

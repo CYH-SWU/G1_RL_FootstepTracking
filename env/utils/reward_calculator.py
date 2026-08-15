@@ -128,7 +128,7 @@ class RewardCalculator:
 
         weights = {
             "frc": 0.15,
-            "vel": 0.15,
+            "vel": 0.175,
             "orient": 0.05,
             "height": 0.05,
             "step": 0.45,
