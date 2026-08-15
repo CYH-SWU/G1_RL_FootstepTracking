@@ -10,7 +10,7 @@ Usage:
 
     # Load pretrained models (7000iter)
     uv run python test.py \
-            --model pretrained_models/ppo_G1_FootstepTracking \
+            --model pretrained_models/ppo_G1_FootstepTracking.zip \
             --norm pretrained_models/vec_normalize.pkl \
             --episodes 20 \
             --difficulty 0.0

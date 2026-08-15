@@ -15,7 +15,7 @@ Deep reinforcement learning based omnidirectional footstep tracking control syst
 
 ## 🤖Project Overview
 
-This project builds an omnidirectional footstep tracking walking control system for the **Unitree G1** humanoid robot, trained in the **MuJoCo** physics simulation environment using the **PPO** algorithm. The robot receives pre-generated footstep sequences (including foot placement positions and orientations). The policy network takes proprioceptive information (joint angles/velocities, IMU attitude) and task instructions (footstep positions/yaws, gait phase) as input, and outputs 12-dimensional joint position increment commands to drive both legs to accurately track each footstep, achieving stable omnidirectional bipedal walking.
+This project builds an omnidirectional footstep tracking walking control system for the **Unitree G1** humanoid robot, trained in the **MuJoCo** physics simulation environment using the **PPO** algorithm. The robot receives pre-generated **footstep sequences** (including foot placement positions and orientations). The policy network takes proprioceptive information (joint angles/velocities, IMU attitude) and task instructions (footstep positions/yaws, gait phase) as input, and outputs **12-dimensional joint position** increment commands to drive both legs to accurately **track** each footstep, achieving stable omnidirectional bipedal walking.
 
 
 ## 🎛️Robot Model and Joint Configuration
@@ -50,9 +50,6 @@ This project builds an omnidirectional footstep tracking walking control system 
 - LATERAL
 - CURVED
 - STANDING
-
-### Terrain Support
-Flat ground only.
 
 ### Observation and Action Space
 
@@ -114,7 +111,11 @@ n_envs          14
 learning_rate is automatically adjusted by the performance callback during training.
 ```
 
-### Curriculum Learning (Disabled)
+![Learning Rate](docs/learning_rate.png)
+
+*If the image(learning_rate.png) does not load, please view it directly in the `docs/` folder.*
+
+### 📈 Curriculum Learning (Disabled!)
 
 The environment supports curriculum learning for terrain height (0 → **0.05**m steps) via a built‑in interface (`set_difficulty`). However, for this training run, curriculum learning is **disabled** — all experiments are conducted on flat ground only.
 
@@ -219,7 +220,7 @@ uv run python test.py \
 ```
 ```bash
 uv run python test.py \
-  --model pretrained_models/ppo_G1_FootstepTracking \
+  --model pretrained_models/ppo_G1_FootstepTracking.zip \
   --norm pretrained_models/vec_normalize.pkl \
   --episodes 20 \
   --difficulty 0.0
@@ -270,27 +271,68 @@ All CI jobs must pass before merging a pull request.
 
 ### Training Performance
 
-The policy was trained for **200,704,000**timesteps (**7,000 iterations**) using the default hyperparameters (see `pyproject.toml` and `train.py` for details). The training curves below show the learning dynamics:
+The policy was trained for **200,704,000**timesteps (**7,000 iterations**) using the default hyperparameters (see `pyproject.toml` and `train.py` for details). The **training curves** below show the learning dynamics:
 
-![Reward Curve](docs/training_reward_curve.jpg)
+![Reward Curve](docs/ep_rew_mean.png)
 *Mean episodic reward over training iterations. The reward converges after ~**7,000** iterations and stabilizes at approximately **800** in the final phase.*
 
-*If the image(training_reward_curve.jpg) does not load, please view it directly in the `docs/` folder.*
+*If the image(ep_rew_mean.png) does not load, please view it directly in the `docs/` folder.*
 
-![Action Std Curve](docs/training_std_decay.jpg)
+![Action Std Curve](docs/std.png)
 *Action standard deviation over training iterations. The value decays from ~**1.0** (initial random exploration) to ~**0.24** (deterministic exploitation).*
 
-*If the image(training_std_decay.jpg) does not load, please view it directly in the `docs/` folder.*
+*If the image(std.png) does not load, please view it directly in the `docs/` folder.*
 
-### Demo Video (Forward Walking)
+![KL Divergence](docs/approx_kl.png)
+*Approximate KL divergence over training iterations. The value remains stable between **0.01** and **0.03**.*
 
-The video below shows the robot walking forward on flat ground with the trained policy.
+*If the image(approx_kl.png) does not load, please view it directly in the `docs/` folder.*
 
-![Forward Walking Demo](docs/demo.gif)
+---
 
-*If the vedio(demo.gif) does not load, please view it directly in the `docs/` folder.*
+### 📺 Demo Videos
 
-### Training Environment
+#### 🏃 Forward Walking
+
+![Forward Walking](docs/forward.gif)
+
+*If the image(forward.gif) does not load, please view it directly in the `docs/` folder.*
+
+---
+
+#### 🚶 Backward Walking
+
+![Backward Walking](docs/backward.gif)
+
+*If the image(backward.gif) does not load, please view it directly in the `docs/` folder.*
+
+---
+
+#### ↔️ Lateral Walking
+
+![Lateral Walking](docs/lateral.gif)
+
+*If the image(lateral.gif) does not load, please view it directly in the `docs/` folder.*
+
+---
+
+#### 🔄 Curved Walking
+
+![Curved Walking](docs/curve.gif)
+
+*If the image(curve.gif) does not load, please view it directly in the `docs/` folder.*
+
+---
+
+#### 🧍 Standing
+
+![Standing](docs/standing.gif)
+
+*If the image(standing.gif) does not load, please view it directly in the `docs/` folder.*
+
+---
+
+### 📊 Training Environment
 
 All experiments were conducted on the following setup:
 
@@ -308,7 +350,7 @@ The training ran for approximately **22 hours**.
 
 ---
 
-### 📌 Known Limitations & Future Improvements
+### 🚨 Known Limitations & Future Improvements!!!
 
 #### Critic Overfitting
 
@@ -316,7 +358,7 @@ During training, the Critic network exhibited a tendency to overfit early, often
 
 Several factors contribute to this behavior:
 
-- **Flat reward landscape**: The reward function is dominated by exponential terms and saturated activations, producing near‑constant values across most states (In the early stage of training, the average per-step reward is only 0.4 with a variance as low as 0.02, ). 
+- **Flat reward landscape**: The reward function is dominated by exponential terms and saturated activations, producing near‑constant values across most states (In the early stage of training, the average per-step reward is only **0.4** with a variance as low as **0.02**! ). 
 - **Direct access to reward-correlated information**: The Critic network receives privileged information (foot forces, joint torques, linear velocity) that is directly used in the reward function.
 - **Effective horizon saturation**: When `n_steps` is set too large, the accumulated reward over the trajectory tends to converge to a near-constant value across different states, reducing the variance in the target returns. 
 - **Excessive network capacity**: The current `net_arch = [256, 256]` provides the Critic with sufficient capacity to memorize training samples.
@@ -328,6 +370,10 @@ Several factors contribute to this behavior:
 - **Adjust privileged information selection**: Consider removing or down-weighting features that have a direct linear relationship with the reward signal (e.g., foot forces) to force the Critic to rely on more indirect state information.
 - **Set a separate, lower learning rate for the Critic**: In `AsymmetricPolicy`, use parameter groups to assign a lower learning rate to the value network (e.g., `1e-5` or `5e-6`) while keeping the Actor at `1e-4`.
 - **Training parameter adjustments**:Reduce `n_steps` from `2048` to `1024` to shorten the effective horizon. Increase `batch_size` from `64` to `128` to compensate for the reduced rollout length.
+
+![Explained Variance](docs/explained_variance.png)
+
+*If the image(explained_variance.png) does not load, please view it directly in the `docs/` folder.*
 
 ---
 

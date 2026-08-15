@@ -146,7 +146,6 @@ logs/
 checkpoints/
 *.onnx
 *.mp4
-*.gif
 *.avi
 
 # Generated XML files (if you generate them from scripts)
