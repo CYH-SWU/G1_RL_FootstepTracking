@@ -53,7 +53,12 @@ This project builds an omnidirectional footstep tracking walking control system 
 
 ### Observation and Action Space
 
-The environment adopts an **asymmetric observation design**: `actor_obs` contains only proprioceptive information that is readily available on real hardware, while `critic_obs` extends it with privileged simulation‑only information to assist value estimation during training.
+The environment adopts an **asymmetric observation design**: the Actor receives `actor_obs` (41 dims), while the Critic receives `critic_obs` (58 dims), which includes privileged information.
+
+> [!NOTE]
+> **Released model note**  
+> The environment *supports* this asymmetric design, and `rl/policy.py` provides a fully implemented `AsymmetricPolicy` class.  
+> However, the pretrained checkpoint (`pretrained_models/ppo_G1_FootstepTracking.zip`) was trained using SB3's `MultiInputPolicy`. Both Actor and Critic received the **full concatenated observation** (99 dims = 41 + 58).  
 
 - **actor_obs (41 dims)**:
 Joint angles (12), joint velocities (12), pelvis height (1), current footstep position (3), next footstep position (3), current footstep yaw (1), next footstep yaw (1), gait phase (2), pelvis Euler angles (3), pelvis angular velocity (3).
@@ -121,7 +126,7 @@ The environment supports curriculum learning for terrain height (0 → **0.05**m
 
 ### Network Architecture
 
-- **Policy Class**: **Asymmetric Actor-Critic**(AsymmetricPolicy).
+- **Policy Class**: **MultiInputPolicy**.
 - **Actor Network**: Two hidden layers with 256 neurons each, ReLU activation.
 - **Critic Network**: Two hidden layers with 256 neurons each, ReLU activation.
 - **Network Independence**: Actor and Critic do not share parameters.
@@ -160,7 +165,8 @@ G1_RL_FootstepTracking/
 ├── scripts/                            # Auxiliary scripts
 │   ├── compute_height.py
 │   ├── compute_max_step.py
-│   └── test_pose.py
+│   ├── test_pose.py
+│   └── inspect_model.py
 ├── tests/                              # Unit tests (pytest)
 │   ├── test_env.py
 │   ├── test_imports.py
@@ -239,6 +245,10 @@ uv run python scripts/compute_max_step.py
 ### Visualize the robot's nominal posture.
 ```bash
 uv run python scripts/test_pose.py
+```
+### Inspect SB3 model
+```bash
+uv run scripts/inspect_model.py
 ```
 
 
