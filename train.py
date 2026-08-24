@@ -120,7 +120,7 @@ def parse_args():
     parser.add_argument("--n_epochs", type=int, default=3, help="Number of update epochs per rollout")
     parser.add_argument("--gamma", type=float, default=0.99, help="Discount factor")
     parser.add_argument("--gae_lambda", type=float, default=0.95, help="GAE smoothing parameter")
-    parser.add_argument("--clip_range", type=float, default=0.18, help="PPO clipping range")
+    parser.add_argument("--clip_range", type=float, default=0.20, help="PPO clipping range")
     parser.add_argument("--ent_coef", type=float, default=0.0001, help="Entropy coefficient")
     parser.add_argument("--max_grad_norm", type=float, default=0.5, help="Gradient clipping threshold")
 

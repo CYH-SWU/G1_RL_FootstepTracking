@@ -3,16 +3,6 @@ from stable_baselines3.common.callbacks import BaseCallback
 
 
 class AdaptiveLRScheduleCallback(BaseCallback):
-    """
-    Adaptive learning rate callback: reduces learning rate when performance plateaus.
-
-    :param patience: Number of evaluations with no improvement before reducing LR.
-    :param factor: Multiplicative factor for LR decay .
-    :param eval_freq: Evaluation interval in steps.
-    :param min_lr: Minimum learning rate to avoid excessive decay.
-    :param verbose: Verbosity level.
-    """
-
     def __init__(
         self,
         patience: int = 3,
@@ -80,6 +70,95 @@ class AdaptiveLRScheduleCallback(BaseCallback):
             rewards = [ep_info["r"] for ep_info in list(self.model.ep_info_buffer)[-recent:]]
             return float(np.mean(rewards))
         return None
+
+
+class KLAdaptiveLRCallback(BaseCallback):
+    def __init__(
+        self,
+        target_kl: float = 0.022,
+        factor: float = 0.02,
+        min_lr: float = 5e-6,
+        max_lr: float = 3e-4,
+        verbose: int = 0,
+    ):
+        super().__init__(verbose)
+        self.target_kl = target_kl
+        self.factor = factor
+        self.min_lr = min_lr
+        self.max_lr = max_lr
+        self._last_iter_index = -1
+
+    def _on_training_start(self) -> None:
+        self.current_lr = self._get_current_lr()
+        if self.current_lr is None:
+            if callable(self.model.learning_rate):
+                self.current_lr = self.model.learning_rate(1.0)
+            else:
+                self.current_lr = self.model.learning_rate
+
+        n_epochs = getattr(self.model, "n_epochs", 1)
+        self._last_iter_index = self.model._n_updates // n_epochs
+
+    def _on_step(self) -> bool:
+        if not hasattr(self.model, "_n_updates"):
+            return True
+
+        n_epochs = getattr(self.model, "n_epochs", 1)
+        current_iter_index = self.model._n_updates // n_epochs
+
+        if current_iter_index == self._last_iter_index:
+            return True
+
+        kl_value = self._get_kl_from_logger()
+        if kl_value is None:
+            return True
+
+        new_lr = self._adjust_lr(self.current_lr, kl_value)
+        self._set_lr(new_lr)
+        self.current_lr = new_lr
+
+        if hasattr(self.model, "_setup_lr_schedule"):
+            self.model._setup_lr_schedule()
+
+        self._last_iter_index = current_iter_index
+        return True
+
+    def _get_kl_from_logger(self) -> float | None:
+        if not hasattr(self.model.logger, "name_to_value"):
+            return None
+
+        possible_keys = ["approx_kl", "train/approx_kl"]
+        for key in possible_keys:
+            if key in self.model.logger.name_to_value:
+                return float(self.model.logger.name_to_value[key])
+
+        for name, value in self.model.logger.name_to_value.items():
+            if "approx_kl" in name.lower():
+                return float(value)
+        return None
+
+    def _get_current_lr(self) -> float | None:
+        if hasattr(self.model.policy, "optimizer"):
+            return float(self.model.policy.optimizer.param_groups[0]["lr"])
+        return None
+
+    def _adjust_lr(self, current_lr: float, kl_value: float) -> float:
+        if kl_value > self.target_kl:
+            new_lr = current_lr * (1.0 - self.factor)
+        else:
+            new_lr = current_lr * (1.0 + self.factor)
+        return float(np.clip(new_lr, self.min_lr, self.max_lr))
+
+    def _set_lr(self, new_lr: float) -> None:
+        if hasattr(self.model.policy, "optimizer"):
+            for param_group in self.model.policy.optimizer.param_groups:
+                param_group["lr"] = new_lr
+
+        if hasattr(self.model, "learning_rate"):
+            if callable(self.model.learning_rate):
+                self.model.learning_rate = lambda _: new_lr
+            else:
+                self.model.learning_rate = new_lr
 
 
 class CurriculumCallback(BaseCallback):
