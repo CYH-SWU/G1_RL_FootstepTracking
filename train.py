@@ -9,7 +9,7 @@ to ensure consistent observation normalization.
 Usage:
   uv run python train.py                                       # Fresh training (default 7000 iters)
 
-  uv run python train.py -i 7000 -s 700 -e 20                  # Custom iterations, save/eval intervals
+  uv run python train.py -i 1100 -s 220 -e 20                  # Custom iterations, save/eval intervals
 
   uv run python train.py \
     --model checkpoints/ppo_g1_xxx.zip \
@@ -32,8 +32,8 @@ from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 
 from env.g1_env import G1Env
 from env_utils.mirrorwrapper import MirrorWrapper
-from rl.callbacks import AdaptiveLRScheduleCallback
-from rl.policy import policy_kwargs
+from rl.callbacks import AdaptiveLRScheduleCallback, KLAdaptiveLRCallback
+from rl.policy import policy_kwargs, AsymmetricPolicy
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
 
@@ -116,12 +116,12 @@ def parse_args():
     # PPO training parameters
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
     parser.add_argument("--n_steps", type=int, default=2048, help="Steps per environment per rollout")
-    parser.add_argument("--batch_size", type=int, default=64, help="Mini-batch size")
+    parser.add_argument("--batch_size", type=int, default=256, help="Mini-batch size")
     parser.add_argument("--n_epochs", type=int, default=3, help="Number of update epochs per rollout")
     parser.add_argument("--gamma", type=float, default=0.99, help="Discount factor")
     parser.add_argument("--gae_lambda", type=float, default=0.95, help="GAE smoothing parameter")
     parser.add_argument("--clip_range", type=float, default=0.20, help="PPO clipping range")
-    parser.add_argument("--ent_coef", type=float, default=0.0001, help="Entropy coefficient")
+    parser.add_argument("--ent_coef", type=float, default=0.0005, help="Entropy coefficient")
     parser.add_argument("--max_grad_norm", type=float, default=0.5, help="Gradient clipping threshold")
 
     # Learning rate callback parameters
@@ -164,7 +164,16 @@ def main():
     lr_callback = AdaptiveLRScheduleCallback(
         patience=args.lr_patience, factor=args.lr_factor, eval_freq=lr_eval_freq, min_lr=args.lr_min, verbose=1
     )
-    callbacks.append(lr_callback)
+    #callbacks.append(lr_callback)
+
+    kl_callback = KLAdaptiveLRCallback(
+        target_kl = 0.022,
+        factor = 0.02,
+        min_lr = 5e-6,
+        max_lr = 8e-4,
+        verbose = 0,
+    )
+    callbacks.append(kl_callback)
 
     # Evaluation environment (must share same normalization as training)
     eval_env = make_vec_env(
@@ -250,7 +259,7 @@ def main():
     else:
         # Fresh training
         model = PPO(
-            policy="MultiInputPolicy",
+            policy=AsymmetricPolicy,
             env=vec_env,
             policy_kwargs=policy_kwargs,
             verbose=1,
