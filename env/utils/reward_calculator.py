@@ -134,8 +134,8 @@ class RewardCalculator:
             "step": 0.45,
             "stability": 0.05,
             "posture": 0.00,
-            "action": 0.00,
-            "torque": 0.00,
+            "action": 0.01,
+            "torque": 0.002,
         }
         total = (
             weights["frc"] * r_frc
