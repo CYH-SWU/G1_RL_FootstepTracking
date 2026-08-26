@@ -56,9 +56,7 @@ This project builds an omnidirectional footstep tracking walking control system 
 The environment adopts an **asymmetric observation design**: the Actor receives `actor_obs` (41 dims), while the Critic receives `critic_obs` (58 dims), which includes privileged information.
 
 > [!NOTE]
-> **Released model note**  
-> The environment *supports* this asymmetric design, and `rl/policy.py` provides a fully implemented `AsymmetricPolicy` class.  
-> However, the pretrained checkpoint (`pretrained_models/ppo_G1_FootstepTracking.zip`) was trained using SB3's `MultiInputPolicy`. Both Actor and Critic received the **full concatenated observation** (99 dims = 41 + 58).  
+> **Baseline model**: `MultiInputPolicy` (`pretrained_models/ppo_G1_FootstepTracking.zip`)(99-dim shared obs). **Default config**: `AsymmetricPolicy` (41/58-dim separate obs + domain randomization) — fully implemented and validated.  
 
 - **actor_obs (41 dims)**:
 Joint angles (12), joint velocities (12), pelvis height (1), current footstep position (3), next footstep position (3), current footstep yaw (1), next footstep yaw (1), gait phase (2), pelvis Euler angles (3), pelvis angular velocity (3).
@@ -100,44 +98,68 @@ Upper Body Stability Reward (weight 0.05):
   Encourages minimizing the XY distance between head and pelvis to maintain upper body stability and avoid excessive torso swaying during walking.
 ```
 
+---
+
 ### Training Hyperparameters
-```bash
-n_steps         2048
-batch_size      64
-n_epochs        3
-gamma           0.99
-gae_lambda      0.95
-clip_range      0.18
-learning_rate   1e-4
-ent_coef        0.0001
-max_grad_norm   0.5
-n_envs          14
 
-learning_rate is automatically adjusted by the performance callback during training.
-```
+#### Baseline Configuration (MultiInputPolicy)
 
-![Learning Rate](docs/learning_rate.png)
+| Parameter | Value |
+| :--- | :--- |
+| `n_steps` | 2048 |
+| `batch_size` | 64 |
+| `n_epochs` | 3 |
+| `gamma` | 0.99 |
+| `gae_lambda` | 0.95 |
+| `clip_range` | 0.18 |
+| `learning_rate` | 1e-4 |
+| `ent_coef` | 0.0001 |
+| `max_grad_norm` | 0.5 |
+| `n_envs` | 14 |
+| **Network** | 2 × 256 hidden layers |
+| **LR callback** | `PlateauLRCallback`|
+| **Total timesteps** | 200,704,000 (7,000 iterations) |
 
-*If the image(learning_rate.png) does not load, please view it directly in the `docs/` folder.*
+#### Improved Configuration (AsymmetricPolicy + domain randomization) — Default in train.py
+
+| Parameter | Value |
+| :--- | :--- |
+| `n_steps` | 2048 |
+| `batch_size` | 256 |
+| `n_epochs` | 3 |
+| `gamma` | 0.99 |
+| `gae_lambda` | 0.95 |
+| `clip_range` | 0.20 |
+| `learning_rate` | 1e-4 |
+| `ent_coef` | 0.0005 |
+| `max_grad_norm` | 0.5 |
+| `n_envs` | 14 |
+| **Network** | 2 × 512 hidden layers |
+| **LR callback** | `KLAdaptiveLRCallback`|
+| **Total timesteps** | 286,720,000 (10,000 iterations) |
+
+---
 
 ### 📈 Curriculum Learning (Disabled!)
 
 The environment supports curriculum learning for terrain height (0 → **0.05**m steps) via a built‑in interface (`set_difficulty`). However, for this training run, curriculum learning is **disabled** — all experiments are conducted on flat ground only.
-
-### Network Architecture
-
-- **Policy Class**: **MultiInputPolicy**.
-- **Actor Network**: Two hidden layers with 256 neurons each, ReLU activation.
-- **Critic Network**: Two hidden layers with 256 neurons each, ReLU activation.
-- **Network Independence**: Actor and Critic do not share parameters.
-- **Weight Initialization**: Orthogonal initialization.
-- **Action Distribution**: Diagonal Gaussian distribution.
 
 ### Data Augmentation and Normalization
 
 - `MirrorWrapper`: 50% probability of flipping observations and actions left-right.
 - `actor_obs`: Online normalization via `VecNormalize`. The statistics are updated continuously during training.
 - `critic_obs`: Offline fixed normalization using pre‑collected statistics to ensure stable scaling of privileged information.
+
+### 🎲Domain Randomization
+
+> [!NOTE]
+> To improve sim-to-real transfer, the environment supports domain randomization during training:
+
+| Parameter | Range | Distribution |
+| :--- | :--- | :--- |
+| Body mass | `±10%` | Uniform |
+| Ground friction | `±20%` | Uniform |
+| Sensor noise (Gaussian) | `σ = 0.01` | Normal |
 
 
 ## 📂Project Structure
@@ -203,14 +225,14 @@ uv run python train.py
 ```
 ```bash
 uv run python train.py \
-  ---iterations 7000 \
-  --save_interval 700 \
+  ---iterations 10000 \
+  --save_interval 1000 \
   --eval_interval 20
 ```
 ### Resume training from a checkpoint:
 ```bash
 uv run python train.py \
-  ---iterations 7000 \
+  ---iterations 10000 \
   --model checkpoints/ppo_g1_xxx_steps.zip \
   --norm checkpoints/vec_normalize_final.pkl
 ```
@@ -229,7 +251,7 @@ uv run python test.py \
   --model pretrained_models/ppo_G1_FootstepTracking.zip \
   --norm pretrained_models/vec_normalize.pkl \
   --episodes 20 \
-  --mode BACKWARD
+  --mode FORWARD
 ```
 
 
@@ -281,7 +303,7 @@ All CI jobs must pass before merging a pull request.
 
 ### Training Performance
 
-The policy was trained for **200,704,000**timesteps (**7,000 iterations**) using the default hyperparameters (see `pyproject.toml` and `train.py` for details). The **training curves** below show the learning dynamics:
+The **training curves** below show the learning dynamics of the **baseline model**:
 
 ![Reward Curve](docs/ep_rew_mean.png)
 *Mean episodic reward over training iterations. The reward converges after ~**7,000** iterations and stabilizes at approximately **800** in the final phase.*
@@ -297,6 +319,23 @@ The policy was trained for **200,704,000**timesteps (**7,000 iterations**) using
 *Approximate KL divergence over training iterations. The value remains stable between **0.01** and **0.03**.*
 
 *If the image(approx_kl.png) does not load, please view it directly in the `docs/` folder.*
+
+---
+
+### 💡Baseline vs. Improved Configuration (`AsymmetricPolicy` + domain randomization)
+
+> [!IMPORTANT]
+> To validate the effectiveness of the asymmetric design and domain randomization, we compared the improved configuration against the baseline.
+
+| Configuration | Policy | Domain Randomization | Training Iterations |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Baseline** | `MultiInputPolicy` | ❌ Disabled | 7,000 |
+| **Improved** | `AsymmetricPolicy` | ✅ Enabled | 1,100 |
+
+![Reward contrast](docs/experience.png)
+*AsymmetricPolicy + domain randomization vs. baseline MultiInputPolicy. The improved configuration shows a convergence curve close to the baseline and slightly outperforms it.*
+
+*If the image(experience.png) does not load, please view it directly in the `docs/` folder.*
 
 ---
 
@@ -352,7 +391,7 @@ tensorboard --logdir pretrained_logs/
 
 ---
 
-### 📊 Training Environment
+### 📊 Training Environment (Baseline)
 
 All experiments were conducted on the following setup:
 
@@ -370,32 +409,6 @@ The training ran for approximately **22 hours**.
 
 ---
 
-### 🚨 Known Limitations & Future Improvements!!!
-
-#### Critic Overfitting
-
-During training, the Critic network exhibited a tendency to overfit early, often reaching an `explained_variance` above **0.9** within the first few iterations while `value_loss` dropped below **10**.
-
-Several factors contribute to this behavior:
-
-- **Flat reward landscape**: The reward function is dominated by exponential terms and saturated activations, producing near‑constant values across most states (In the early stage of training, the average per-step reward is only **0.4** with a variance as low as **0.02**! ). 
-- **Direct access to reward-correlated information**: The Critic network receives privileged information (foot forces, joint torques, linear velocity) that is directly used in the reward function.
-- **Effective horizon saturation**: When `n_steps` is set too large, the accumulated reward over the trajectory tends to converge to a near-constant value across different states, reducing the variance in the target returns. 
-- **Excessive network capacity**: The current `net_arch = [256, 256]` provides the Critic with sufficient capacity to memorize training samples.
-
-**Recommendations for improvement**:
-
-- **Adopt a residual critic architecture**: In AsymmetricPolicy, replace the standard value network with a residual structure: V(s) = value_baseline + tanh(value_net(s)) * scale.
-- **Reduce network capacity**: Decrease `net_arch` from `[256, 256]` to `[128, 128]` or `[64, 64]` to limit the Critic's ability to memorize and encourage more generalizable representations.
-- **Adjust privileged information selection**: Consider removing or down-weighting features that have a direct linear relationship with the reward signal (e.g., foot forces) to force the Critic to rely on more indirect state information.
-- **Set a separate, lower learning rate for the Critic**: In `AsymmetricPolicy`, use parameter groups to assign a lower learning rate to the value network (e.g., `1e-5` or `5e-6`) while keeping the Actor at `1e-4`.
-- **Training parameter adjustments**:Reduce `n_steps` from `2048` to `1024` to shorten the effective horizon. Increase `batch_size` from `64` to `128` to compensate for the reduced rollout length.
-
-![Explained Variance](docs/explained_variance.png)
-
-*If the image(explained_variance.png) does not load, please view it directly in the `docs/` folder.*
-
----
 
 ## 📚References
 **Learning Humanoid Walking**

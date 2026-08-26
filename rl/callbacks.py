@@ -2,7 +2,7 @@ import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
 
 
-class AdaptiveLRScheduleCallback(BaseCallback):
+class PlateauLRCallback(BaseCallback):
     def __init__(
         self,
         patience: int = 3,

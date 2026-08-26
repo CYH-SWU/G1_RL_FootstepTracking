@@ -8,18 +8,17 @@ including average reward and success rate.
 Usage:
     uv run python test.py                                  # Load best model, default 10 episodes
 
-    # Load pretrained models (7000iter)
     uv run python test.py \
             --model pretrained_models/ppo_G1_FootstepTracking.zip \
             --norm pretrained_models/vec_normalize.pkl \
             --episodes 20 \
-            --mode FORWARD
+            --mode FORWARD                                 # Load pretrained models (7000iter)
 
     uv run python test.py \
-        --model checkpoints/ppo_g1_final.zip \
+        --model checkpoints/best_model/best_model.zip \
         --norm checkpoints/vec_normalize_final.pkl \
         --episodes 20 \
-        --mode BACKWARD
+        --mode FORWARD
 
 Auto-loading:
     - Model: checkpoints/best_model/best_model.zip
@@ -79,6 +78,8 @@ def find_norm_file(checkpoint_dir: Path, model_path: Path = None) -> Path:
 
 def create_eval_env(difficulty: float = 1.0, mode: str = None):
     env = G1Env(robot_xml_path=str(ROBOT_XML))
+    env.enable_domain_randomization = False
+    env.obs_builder.training = False
     env.set_difficulty(difficulty)
     if mode is not None:
         mode_enum = getattr(WalkModes, mode)

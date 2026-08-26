@@ -156,9 +156,3 @@ class AsymmetricPolicy(ActorCriticPolicy):
     def predict_values(self, obs):
         features_critic = self._get_features(obs, self.critic_obs_key, self.critic_flatten)
         return self.value_net(features_critic).flatten()
-
-
-policy_kwargs = dict(
-    net_arch=dict(pi=[512, 512], vf=[512, 512]),
-    activation_fn=torch.nn.ReLU,
-)

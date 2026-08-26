@@ -132,6 +132,8 @@ class G1Env(gym.Env):
 
         self._fixed_mode = None
 
+        self.enable_domain_randomization = True
+
     def set_mode(self, mode):
         """Set a fixed walking mode for subsequent resets."""
         self._fixed_mode = mode
@@ -171,6 +173,22 @@ class G1Env(gym.Env):
 
         self.max_torques = np.array([88, 139, 88, 139, 50, 50, 88, 139, 88, 139, 50, 50])
 
+    def _randomize_dynamics(self):
+        if not self.enable_domain_randomization:
+            return
+
+        mass_scale = np.random.uniform(0.9, 1.1)
+        for i in range(self.model.nbody):
+            self.model.body_mass[i] *= mass_scale
+
+        friction_scale = np.random.uniform(0.8, 1.2)
+        for i in range(self.model.ngeom):
+            self.model.geom_friction[i, 0] *= friction_scale
+
+        total_mass = sum(self.model.body_mass)
+        self.max_force = total_mass * 9.81 * 0.5
+        self.obs_builder.max_force = self.max_force
+
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.target_reached = False
@@ -207,6 +225,8 @@ class G1Env(gym.Env):
             self.data.ctrl[:] = self.data.qpos[self.actuator_indices]
         else:
             mujoco.mj_resetData(self.model, self.data)
+
+        self._randomize_dynamics()
         mujoco.mj_forward(self.model, self.data)
 
         # Generate footstep sequence.

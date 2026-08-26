@@ -7,9 +7,15 @@ When resuming, both the model and the VecNormalize statistics must be loaded
 to ensure consistent observation normalization.
 
 Usage:
-  uv run python train.py                                       # Fresh training (default 7000 iters)
+  uv run python train.py                                       # Fresh training (default 10000 iters)
 
-  uv run python train.py -i 1100 -s 220 -e 20                  # Custom iterations, save/eval intervals
+  uv run python train.py -i 1100 -s 110 -e 20                  # Custom iterations, save/eval intervals
+
+  uv run python train.py -i 7000 -s 700 -e 20 \
+    --batch_size 64 \
+    --ent_coef 0.0001 \
+    --policy "multi" \
+    --lr_callback "pl"                                   # Baseline
 
   uv run python train.py \
     --model checkpoints/ppo_g1_xxx.zip \
@@ -32,8 +38,8 @@ from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 
 from env.g1_env import G1Env
 from env_utils.mirrorwrapper import MirrorWrapper
-from rl.callbacks import AdaptiveLRScheduleCallback, KLAdaptiveLRCallback
-from rl.policy import policy_kwargs, AsymmetricPolicy
+from rl.callbacks import CurriculumCallback, KLAdaptiveLRCallback, PlateauLRCallback
+from rl.policy import AsymmetricPolicy
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
 
@@ -85,13 +91,13 @@ def parse_args():
         "--iterations",
         "-i",
         type=int,
-        default=7000,
+        default=10000,
         help="Total number of training iterations (including previous if resuming)",
     )
 
     # Save interval in iterations
     parser.add_argument(
-        "--save_interval", "-s", type=int, default=700, help="Iteration interval for saving model checkpoints"
+        "--save_interval", "-s", type=int, default=1000, help="Iteration interval for saving model checkpoints"
     )
 
     # Evaluation interval in iterations
@@ -124,25 +130,37 @@ def parse_args():
     parser.add_argument("--ent_coef", type=float, default=0.0005, help="Entropy coefficient")
     parser.add_argument("--max_grad_norm", type=float, default=0.5, help="Gradient clipping threshold")
 
-    # Learning rate callback parameters
-    parser.add_argument("--lr_patience", type=int, default=3, help="Patience for performance plateau")
-    parser.add_argument("--lr_factor", type=float, default=0.98, help="Learning rate decay factor")
-    parser.add_argument("--lr_min", type=float, default=5e-6, help="Minimum learning rate")
-    parser.add_argument(
-        "--lr_eval-freq", type=int, default=None, help="Evaluation frequency for LR callback (in timesteps)"
-    )
-
     # Number of parallel environments
     parser.add_argument("--n_envs", type=int, default=14, help="Number of parallel environments")
+
+    parser.add_argument(
+        "--policy",
+        type=str,
+        default="asym",
+        choices=["multi", "asym"],
+        help="Policy type: 'multi' for MultiInputPolicy (shared obs), 'asym' for AsymmetricPolicy (default)",
+    )
+
+    parser.add_argument(
+        "--curriculum",
+        action="store_true",
+        default=False,
+        help="Enable curriculum learning (increases step height over time)",
+    )
+
+    parser.add_argument(
+        "--lr_callback",
+        type=str,
+        default="kl",
+        choices=["pl", "kl"],
+        help="LR callback: 'pl' for PlateauLRCallback, 'kl' for KLAdaptiveLRCallback (default)",
+    )
 
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-
-    # Fixed parameters for curriculum learning.
-    # TOTAL_TIMESTEPS_FOR_MAX = 11000 * args.n_envs * args.n_steps
 
     # Create training environment (load normalization stats if provided)
     vec_env = create_vec_env(args.n_envs, args.norm)
@@ -157,23 +175,35 @@ def main():
     callbacks = []
 
     # Curriculum callback.
-    # callbacks.append(CurriculumCallback(TOTAL_TIMESTEPS_FOR_MAX))
+    if args.curriculum:
+        total_timesteps_for_max = 5000 * args.n_steps * args.n_envs
+        curriculum_callback = CurriculumCallback(total_timesteps_for_max)
+        callbacks.append(curriculum_callback)
+        print("Curriculum learning enabled")
+    else:
+        print("Curriculum learning disabled")
 
     # Adaptive learning rate callback.
-    lr_eval_freq = args.lr_eval_freq if args.lr_eval_freq is not None else (16 * steps_per_iter)
-    lr_callback = AdaptiveLRScheduleCallback(
-        patience=args.lr_patience, factor=args.lr_factor, eval_freq=lr_eval_freq, min_lr=args.lr_min, verbose=1
-    )
-    #callbacks.append(lr_callback)
-
-    kl_callback = KLAdaptiveLRCallback(
-        target_kl = 0.022,
-        factor = 0.02,
-        min_lr = 5e-6,
-        max_lr = 8e-4,
-        verbose = 0,
-    )
-    callbacks.append(kl_callback)
+    if args.lr_callback == "pl":
+        lr_callback = PlateauLRCallback(
+            patience=3,
+            factor=0.98,
+            eval_freq=16 * args.n_steps * args.n_envs,
+            min_lr=5e-6,
+            verbose=1,
+        )
+        callbacks.append(lr_callback)
+        print("Using PlateauLRCallback")
+    else:  # "kl"
+        kl_callback = KLAdaptiveLRCallback(
+            target_kl=0.022,
+            factor=0.02,
+            min_lr=5e-6,
+            max_lr=2e-4,
+            verbose=0,
+        )
+        callbacks.append(kl_callback)
+        print("Using KLAdaptiveLRCallback")
 
     # Evaluation environment (must share same normalization as training)
     eval_env = make_vec_env(
@@ -257,9 +287,23 @@ def main():
         train_timesteps = remaining_timesteps
         reset_num = False
     else:
-        # Fresh training
+        if args.policy == "multi":
+            policy = "MultiInputPolicy"
+            policy_kwargs = dict(
+                net_arch=dict(pi=[256, 256], vf=[256, 256]),
+                activation_fn=torch.nn.ReLU,
+            )
+            print("Using MultiInputPolicy")
+        else:  # "asym"
+            policy = AsymmetricPolicy
+            policy_kwargs = dict(
+                net_arch=dict(pi=[512, 512], vf=[512, 512]),
+                activation_fn=torch.nn.ReLU,
+            )
+            print("Using AsymmetricPolicy")
+
         model = PPO(
-            policy=AsymmetricPolicy,
+            policy=policy,
             env=vec_env,
             policy_kwargs=policy_kwargs,
             verbose=1,

@@ -47,6 +47,8 @@ class ObservationBuilder:
             ]
         )
 
+        self.training = True
+
     def get_actor_obs(self, model, data, pelvis_id, left_foot_id, right_foot_id, sequence, t1, t2, phase):
         qpos = data.qpos
         qvel = data.qvel
@@ -101,6 +103,12 @@ class ObservationBuilder:
                 pelvis_angvel,
             ]
         )
+
+        if self.training:
+            noise_std = 0.01
+            obs += np.random.normal(0, noise_std, obs.shape)
+            obs = np.clip(obs, -10.0, 10.0)
+
         return obs.astype(np.float32)
 
     def get_critic_obs(
