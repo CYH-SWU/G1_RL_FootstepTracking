@@ -334,7 +334,7 @@ The **training curves** below show the learning dynamics of the **baseline model
 
 <img src="docs/experience.png" alt="reward" width="350">
 
-**AsymmetricPolicy + domain randomization vs. baseline MultiInputPolicy. The improved configuration shows a convergence curve close to the baseline and slightly outperforms it.**
+AsymmetricPolicy + domain randomization vs. baseline MultiInputPolicy. The improved configuration shows a convergence curve close to the baseline and **slightly outperforms** it.
 
 *If the image(experience.png) does not load, please view it directly in the `docs/` folder.*
 
