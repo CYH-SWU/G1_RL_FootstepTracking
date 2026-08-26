@@ -328,11 +328,11 @@ The **training curves** below show the learning dynamics of the **baseline model
 > To validate the effectiveness of the asymmetric design and domain randomization, we compared the improved configuration against the baseline.
 
 | Configuration | Policy | Domain Randomization | Training Iterations |
-| :--- | :--- | :--- | :--- | :--- | :--- |
+| :--- | :--- | :--- | :--- |
 | **Baseline** | `MultiInputPolicy` | ❌ Disabled | 7,000 |
 | **Improved** | `AsymmetricPolicy` | ✅ Enabled | 1,100 |
 
-![Reward contrast](docs/experience.png)
+<img src="docs/experience.png" alt="reward" width="350">
 *AsymmetricPolicy + domain randomization vs. baseline MultiInputPolicy. The improved configuration shows a convergence curve close to the baseline and slightly outperforms it.*
 
 *If the image(experience.png) does not load, please view it directly in the `docs/` folder.*
