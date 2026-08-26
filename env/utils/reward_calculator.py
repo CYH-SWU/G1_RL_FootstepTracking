@@ -134,7 +134,7 @@ class RewardCalculator:
             "step": 0.45,
             "stability": 0.05,
             "posture": 0.00,
-            "action": 0.01,
+            "action": 0.003,
             "torque": 0.002,
         }
         total = (
