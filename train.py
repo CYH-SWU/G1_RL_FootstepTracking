@@ -15,13 +15,16 @@ Usage:
     --batch_size 64 \
     --ent_coef 0.0001 \
     --policy "multi" \
-    --lr_callback "pl"                                   # Baseline
+    --lr_callback "pl" \
+    --no-domain-rand                                           # Baseline
 
   uv run python train.py \
     --model checkpoints/ppo_g1_xxx.zip \
     --norm checkpoints/vec_normalize_final.pkl                 # Resume from checkpoint
 
   uv run python train.py --lr 3e-4 --n_steps 512               # Adjust PPO hyperparameters
+
+  uv run python train.py --no-domain-rand -i 1100              # No domain rand
 """
 
 import argparse
@@ -53,16 +56,16 @@ LOG_DIR.mkdir(exist_ok=True)
 
 
 # Environment factory
-def make_env():
-    env = G1Env(robot_xml_path=str(ROBOT_XML))
+def make_env(enable_domain_rand: bool = True):
+    env = G1Env(robot_xml_path=str(ROBOT_XML), enable_domain_randomization=enable_domain_rand)
     env = MirrorWrapper(env, mirror_prob=0.5)
     return Monitor(env)
 
 
-def create_vec_env(n_envs: int, norm_path: str = None):
+def create_vec_env(n_envs: int, norm_path: str = None, enable_domain_rand: bool = True):
     """Create vectorized environment with VecNormalize. If norm_path is provided, load stats."""
     vec_env = make_vec_env(
-        make_env,
+        lambda: make_env(enable_domain_rand),
         n_envs=n_envs,
         vec_env_cls=SubprocVecEnv,
         vec_env_kwargs={"start_method": "forkserver"} if sys.platform != "win32" else {},
@@ -156,6 +159,13 @@ def parse_args():
         help="LR callback: 'pl' for PlateauLRCallback, 'kl' for KLAdaptiveLRCallback (default)",
     )
 
+    parser.add_argument(
+        "--no-domain-rand",
+        action="store_true",
+        default=False,
+        help="Disable domain randomization (mass, friction, sensor noise) during training",
+    )
+
     return parser.parse_args()
 
 
@@ -163,7 +173,11 @@ def main():
     args = parse_args()
 
     # Create training environment (load normalization stats if provided)
-    vec_env = create_vec_env(args.n_envs, args.norm)
+    vec_env = create_vec_env(
+        args.n_envs,
+        args.norm,
+        enable_domain_rand=not args.no_domain_rand,
+    )
 
     # Steps per iteration (total across all envs).
     steps_per_iter = args.n_steps * args.n_envs
@@ -207,7 +221,7 @@ def main():
 
     # Evaluation environment (must share same normalization as training)
     eval_env = make_vec_env(
-        make_env,
+        lambda: make_env(enable_domain_rand=False),
         n_envs=1,
         vec_env_cls=SubprocVecEnv,
         vec_env_kwargs={"start_method": "forkserver"} if sys.platform != "win32" else {},
@@ -336,6 +350,11 @@ def main():
     if args.model:
         print(f"  Resuming from previous checkpoint, training {train_timesteps:,} additional timesteps")
     print()
+
+    if args.no_domain_rand:
+        print("Domain randomization: DISABLED")
+    else:
+        print("Domain randomization: ENABLED (mass ±10%, friction ±20%, noise σ=0.01)")
 
     model.learn(
         total_timesteps=train_timesteps,

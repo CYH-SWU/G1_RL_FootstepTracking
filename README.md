@@ -56,7 +56,8 @@ This project builds an omnidirectional footstep tracking walking control system 
 The environment adopts an **asymmetric observation design**: the Actor receives `actor_obs` (41 dims), while the Critic receives `critic_obs` (58 dims), which includes privileged information.
 
 > [!NOTE]
-> **Baseline model**: `MultiInputPolicy` (`pretrained_models/ppo_G1_FootstepTracking.zip`)(99-dim shared obs). **Default config**: `AsymmetricPolicy` (41/58-dim separate obs + domain randomization) — fully implemented and validated.  
+> **Baseline model**: `MultiInputPolicy` (`ppo_G1_FootstepTracking.zip`)(99-dim shared obs no domain rand).
+> **Default config**: `AsymmetricPolicy` (41/58-dim separate obs + domain randomization) — fully implemented and validated.  
 
 - **actor_obs (41 dims)**:
 Joint angles (12), joint velocities (12), pelvis height (1), current footstep position (3), next footstep position (3), current footstep yaw (1), next footstep yaw (1), gait phase (2), pelvis Euler angles (3), pelvis angular velocity (3).
@@ -225,14 +226,14 @@ uv run python train.py
 ```
 ```bash
 uv run python train.py \
-  ---iterations 10000 \
+  --iterations 10000 \
   --save_interval 1000 \
   --eval_interval 20
 ```
 ### Resume training from a checkpoint:
 ```bash
 uv run python train.py \
-  ---iterations 10000 \
+  --iterations 10000 \
   --model checkpoints/ppo_g1_xxx_steps.zip \
   --norm checkpoints/vec_normalize_final.pkl
 ```
@@ -303,7 +304,8 @@ All CI jobs must pass before merging a pull request.
 
 ### Training Performance
 
-The **training curves** below show the learning dynamics of the **baseline model**:
+> [!TIP]
+> The **training curves** below show the learning dynamics of the **baseline model**:
 
 ![Reward Curve](docs/ep_rew_mean.png)
 *Mean episodic reward over training iterations. The reward converges after ~**7,000** iterations and stabilizes at approximately **800** in the final phase.*
@@ -384,7 +386,7 @@ AsymmetricPolicy + domain randomization vs. baseline MultiInputPolicy. The impro
 
 ### 📦 Pretrained Models & Training Logs
 
-The final trained policy is available in the `pretrained_models/` directory as `ppo_G1_FootstepTracking.zip`. The corresponding TensorBoard logs (including training curves, KL divergence, action std, etc.) can be found in `pretrained_logs/`. To visualize the training process, run:
+The Baseline policy is available in the `pretrained_models/` directory as `ppo_G1_FootstepTracking.zip`. The corresponding TensorBoard logs (including training curves, KL divergence, action std, etc.) can be found in `pretrained_logs/`. To visualize the training process, run:
 
 ```bash
 tensorboard --logdir pretrained_logs/

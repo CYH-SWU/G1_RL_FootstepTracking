@@ -69,7 +69,7 @@ from env.utils.terrain_generator import TerrainGenerator
 class G1Env(gym.Env):
     metadata = {"render_modes": []}
 
-    def __init__(self, robot_xml_path, config=None):
+    def __init__(self, robot_xml_path, config=None, enable_domain_randomization=True):
         super().__init__()
         self.config = config or G1EnvConfig()
         self.robot_xml_path = os.path.abspath(robot_xml_path)
@@ -132,7 +132,7 @@ class G1Env(gym.Env):
 
         self._fixed_mode = None
 
-        self.enable_domain_randomization = True
+        self.enable_domain_randomization = enable_domain_randomization
 
     def set_mode(self, mode):
         """Set a fixed walking mode for subsequent resets."""

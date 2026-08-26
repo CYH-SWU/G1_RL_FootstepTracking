@@ -6,7 +6,7 @@ from env.utils.observation_builder import ObservationBuilder
 from env.utils.reward_calculator import RewardCalculator
 from env.utils.step_sequence import StepSequenceGenerator, WalkModes
 from env.utils.terrain_generator import TerrainGenerator
-from rl.callbacks import AdaptiveLRScheduleCallback, CurriculumCallback
+from rl.callbacks import CurriculumCallback, KLAdaptiveLRCallback, PlateauLRCallback
 from rl.policy import AsymmetricPolicy
 
 
@@ -19,8 +19,9 @@ def test_import_env():
 def test_import_rl():
     """Test rl module imports."""
     assert AsymmetricPolicy is not None
-    assert AdaptiveLRScheduleCallback is not None
+    assert PlateauLRCallback is not None
     assert CurriculumCallback is not None
+    assert KLAdaptiveLRCallback is not None
 
 
 def test_import_utils():
