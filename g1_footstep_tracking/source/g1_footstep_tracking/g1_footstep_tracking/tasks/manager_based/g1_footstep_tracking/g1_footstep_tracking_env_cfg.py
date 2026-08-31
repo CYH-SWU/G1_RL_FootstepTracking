@@ -3,12 +3,9 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-import math
-
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.envs import ManagerBasedRLEnvCfg
-from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import RewardTermCfg as RewTerm
@@ -17,164 +14,83 @@ from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.utils.configclass import configclass
 
-from . import mdp
+from isaaclab_assets import G1_MINIMAL_CFG
+import isaaclab.envs.mdp as mdp
 
-##
-# Pre-defined configs
-##
-
-from isaaclab_assets.robots.cartpole import CARTPOLE_CFG  # isort:skip
-
-
-##
-# Scene definition
-##
-
+JOINT_NAMES = [
+    "left_hip_yaw_joint", "left_hip_roll_joint", "left_hip_pitch_joint",
+    "left_knee_joint", "left_ankle_pitch_joint", "left_ankle_roll_joint",
+    "right_hip_yaw_joint", "right_hip_roll_joint", "right_hip_pitch_joint",
+    "right_knee_joint", "right_ankle_pitch_joint", "right_ankle_roll_joint",
+]
 
 @configclass
 class G1FootstepTrackingSceneCfg(InteractiveSceneCfg):
-    """Configuration for a cart-pole scene."""
-
-    # ground plane
-    ground = AssetBaseCfg(
-        prim_path="/World/ground",
-        spawn=sim_utils.GroundPlaneCfg(size=(100.0, 100.0)),
-    )
-
-    # robot
-    robot: ArticulationCfg = CARTPOLE_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-
-    # lights
-    dome_light = AssetBaseCfg(
-        prim_path="/World/DomeLight",
-        spawn=sim_utils.DomeLightCfg(color=(0.9, 0.9, 0.9), intensity=500.0),
-    )
-
-
-##
-# MDP settings
-##
-
+    ground = AssetBaseCfg(prim_path="/World/ground", spawn=sim_utils.GroundPlaneCfg(size=(100.0, 100.0)))
+    robot: ArticulationCfg = G1_MINIMAL_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    dome_light = AssetBaseCfg(prim_path="/World/DomeLight", spawn=sim_utils.DomeLightCfg(color=(0.9, 0.9, 0.9), intensity=500.0))
 
 @configclass
 class ActionsCfg:
-    """Action specifications for the MDP."""
-
-    joint_effort = mdp.JointEffortActionCfg(asset_name="robot", joint_names=["slider_to_cart"], scale=100.0)
-
+    joint_pos = mdp.JointPositionActionCfg(
+        asset_name="robot",
+        joint_names=JOINT_NAMES,
+        scale=0.25,
+        offset={
+            "left_hip_yaw_joint": 0.0,
+            "left_hip_roll_joint": 0.0,
+            "left_hip_pitch_joint": -0.5236,
+            "left_knee_joint": 0.8727,
+            "left_ankle_pitch_joint": -0.3491,
+            "left_ankle_roll_joint": 0.0,
+            "right_hip_yaw_joint": 0.0,
+            "right_hip_roll_joint": 0.0,
+            "right_hip_pitch_joint": -0.5236,
+            "right_knee_joint": 0.8727,
+            "right_ankle_pitch_joint": -0.3491,
+            "right_ankle_roll_joint": 0.0,
+        },
+    )
 
 @configclass
 class ObservationsCfg:
-    """Observation specifications for the MDP."""
-
     @configclass
     class PolicyCfg(ObsGroup):
-        """Observations for policy group."""
-
-        # observation terms (order preserved)
-        joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel)
-        joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel)
-
-        def __post_init__(self) -> None:
+        joint_pos_rel = ObsTerm(
+            func=mdp.joint_pos_rel,
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names=JOINT_NAMES)}
+        )
+        joint_vel_rel = ObsTerm(
+            func=mdp.joint_vel_rel,
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names=JOINT_NAMES)}
+        )
+        def __post_init__(self):
             self.enable_corruption = False
             self.concatenate_terms = True
-
-    # observation groups
-    policy: PolicyCfg = PolicyCfg()
-
-
-@configclass
-class EventCfg:
-    """Configuration for events."""
-
-    # reset
-    reset_cart_position = EventTerm(
-        func=mdp.reset_joints_by_offset,
-        mode="reset",
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=["slider_to_cart"]),
-            "position_range": (-1.0, 1.0),
-            "velocity_range": (-0.5, 0.5),
-        },
-    )
-
-    reset_pole_position = EventTerm(
-        func=mdp.reset_joints_by_offset,
-        mode="reset",
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=["cart_to_pole"]),
-            "position_range": (-0.25 * math.pi, 0.25 * math.pi),
-            "velocity_range": (-0.25 * math.pi, 0.25 * math.pi),
-        },
-    )
-
+    policy = PolicyCfg()
 
 @configclass
 class RewardsCfg:
-    """Reward terms for the MDP."""
-
-    # (1) Constant running reward
     alive = RewTerm(func=mdp.is_alive, weight=1.0)
-    # (2) Failure penalty
-    terminating = RewTerm(func=mdp.is_terminated, weight=-2.0)
-    # (3) Primary task: keep pole upright
-    pole_pos = RewTerm(
-        func=mdp.joint_pos_target_l2,
-        weight=-1.0,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["cart_to_pole"]), "target": 0.0},
-    )
-    # (4) Shaping tasks: lower cart velocity
-    cart_vel = RewTerm(
-        func=mdp.joint_vel_l1,
-        weight=-0.01,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["slider_to_cart"])},
-    )
-    # (5) Shaping tasks: lower pole angular velocity
-    pole_vel = RewTerm(
-        func=mdp.joint_vel_l1,
-        weight=-0.005,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["cart_to_pole"])},
-    )
-
 
 @configclass
 class TerminationsCfg:
-    """Termination terms for the MDP."""
-
-    # (1) Time out
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
-    # (2) Cart out of bounds
-    cart_out_of_bounds = DoneTerm(
-        func=mdp.joint_pos_out_of_manual_limit,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["slider_to_cart"]), "bounds": (-3.0, 3.0)},
-    )
-
-
-##
-# Environment configuration
-##
-
 
 @configclass
 class G1FootstepTrackingEnvCfg(ManagerBasedRLEnvCfg):
-    # Scene settings
-    scene: G1FootstepTrackingSceneCfg = G1FootstepTrackingSceneCfg(num_envs=4096, env_spacing=4.0)
-    # Basic settings
-    observations: ObservationsCfg = ObservationsCfg()
-    actions: ActionsCfg = ActionsCfg()
-    events: EventCfg = EventCfg()
-    # MDP settings
-    rewards: RewardsCfg = RewardsCfg()
-    terminations: TerminationsCfg = TerminationsCfg()
+    scene = G1FootstepTrackingSceneCfg(num_envs=1, env_spacing=4.0)
+    observations = ObservationsCfg()
+    actions = ActionsCfg()
+    rewards = RewardsCfg()
+    terminations = TerminationsCfg()
 
-    # Post initialization
-    def __post_init__(self) -> None:
-        """Post initialization."""
-        # general settings
+    def __post_init__(self):
         self.decimation = 2
-        self.episode_length_s = 5
-        # viewer settings
-        self.viewer.eye = (8.0, 0.0, 5.0)
-        # simulation settings
+        self.episode_length_s = 10.0
+        self.viewer.eye = (2.0, 0.0, 1.0)
+        self.viewer.lookat = (0.0, 0.0, 0.5)
+        self.viewer.origin_type = "world"
+        self.viewer.resolution = (1280, 720)   # 宽度 x 高度（像素）
         self.sim.dt = 1 / 120
         self.sim.render_interval = self.decimation
