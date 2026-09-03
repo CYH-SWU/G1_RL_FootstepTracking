@@ -163,7 +163,7 @@ The environment supports curriculum learning for terrain height (0 → **0.05**m
 | Sensor noise (Gaussian) | `σ = 0.01` | Normal |
 
 
-## 🧬 Sim2Sim
+## 🧬 Sim2Sim(Isaac Lab)
 > [!NOTE]
 > **Sim2Sim Migration**
 > This project has been migrated from **MuJoCo** to **Isaac Lab**
@@ -172,6 +172,8 @@ The environment supports curriculum learning for terrain height (0 → **0.05**m
 > - Reward functions: fully migrated (foot placement, gait phase, posture, etc.)
 >
 > The migration is complete and training‑ready.
+>
+> The Isaac Lab implementation is maintained in the `feature/migrate-to-isaaclab` branch.
 
 
 ## 📂Project Structure
