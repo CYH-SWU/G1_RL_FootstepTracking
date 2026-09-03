@@ -163,7 +163,7 @@ The environment supports curriculum learning for terrain height (0 → **0.05**m
 | Sensor noise (Gaussian) | `σ = 0.01` | Normal |
 
 
-🧬 Sim2Sim
+## 🧬 Sim2Sim
 > [!NOTE]
 > **Sim2Sim Migration**
 > This project has been migrated from **MuJoCo** to **Isaac Lab**
