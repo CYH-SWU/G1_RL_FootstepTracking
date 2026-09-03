@@ -10,7 +10,6 @@ from isaaclab.utils.math import quat_rotate
 from .mdp.step_sequence import StepSequenceGenerator, WalkModes
 from .mdp.config import G1EnvConfig
 
-# ============ 从 mdp.rewards 导入奖励函数 ============
 from .mdp.rewards import (
     foot_frc_clock_reward,
     foot_vel_clock_reward,
@@ -23,7 +22,6 @@ from .mdp.rewards import (
     posture_error_reward,
 )
 
-# ============ 自定义四元数辅助函数 ============
 def quat_rotate_inv(quat, vec):
     q_conj = quat.clone()
     q_conj[:, 1:] = -q_conj[:, 1:]
@@ -36,7 +34,6 @@ def quat_to_euler_xyz(quat):
     yaw = torch.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
     return roll, pitch, yaw
 
-# ============ 环境类 ============
 class G1FootstepTrackingEnv(DirectRLEnv):
 
     def __init__(self, cfg, **kwargs):
@@ -84,7 +81,6 @@ class G1FootstepTrackingEnv(DirectRLEnv):
         self._torso_id = None
         self._contact_sensor = None
 
-        # 存储每个环境的足迹序列
         self._sequences = [None] * self.num_envs
         self._mode = [None] * self.num_envs
 

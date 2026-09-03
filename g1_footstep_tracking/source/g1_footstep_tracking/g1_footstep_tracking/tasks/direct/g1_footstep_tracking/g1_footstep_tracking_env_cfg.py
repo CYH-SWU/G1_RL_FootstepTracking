@@ -12,7 +12,6 @@ from isaaclab_assets import G1_MINIMAL_CFG
 from isaaclab.sensors import ContactSensorCfg
 import isaaclab.envs.mdp as mdp
 
-# ============ 关节名称（与 G1_MINIMAL_CFG 一致） ============
 JOINT_NAMES = [
     "left_hip_yaw_joint", "left_hip_roll_joint", "left_hip_pitch_joint",
     "left_knee_joint", "left_ankle_pitch_joint", "left_ankle_roll_joint",
@@ -20,7 +19,6 @@ JOINT_NAMES = [
     "right_knee_joint", "right_ankle_pitch_joint", "right_ankle_roll_joint",
 ]
 
-# ============ 场景配置 ============
 @configclass
 class G1FootstepTrackingSceneCfg(InteractiveSceneCfg):
     ground = AssetBaseCfg(prim_path="/World/ground", spawn=sim_utils.GroundPlaneCfg(size=(100.0, 100.0)))
@@ -79,14 +77,12 @@ class G1FootstepTrackingSceneCfg(InteractiveSceneCfg):
     )
     dome_light = AssetBaseCfg(prim_path="/World/DomeLight", spawn=sim_utils.DomeLightCfg(color=(0.9, 0.9, 0.9), intensity=500.0))
 
-    # 接触传感器（用于足底力）
     contact_sensor = ContactSensorCfg(
         prim_path="{ENV_REGEX_NS}/Robot/.*_ankle_roll_link",
         history_length=1,
         track_air_time=False,
     )
 
-# ============ 动作配置 ============
 @configclass
 class ActionsCfg:
     joint_pos = mdp.JointPositionActionCfg(
@@ -109,13 +105,11 @@ class ActionsCfg:
         },
     )
 
-# ============ 主环境配置 ============
 @configclass
 class G1FootstepTrackingEnvCfg(DirectRLEnvCfg):
     scene: G1FootstepTrackingSceneCfg = G1FootstepTrackingSceneCfg(num_envs=1, env_spacing=4.0)
     actions: ActionsCfg = ActionsCfg()
 
-    # 观测空间：字典，包含 policy (40维) 和 critic (57维)
     observation_space = gym.spaces.Dict({
         "policy": gym.spaces.Box(low=-float('inf'), high=float('inf'), shape=(40,), dtype=float),
         "critic": gym.spaces.Box(low=-float('inf'), high=float('inf'), shape=(57,), dtype=float),
