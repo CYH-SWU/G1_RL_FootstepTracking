@@ -163,6 +163,17 @@ The environment supports curriculum learning for terrain height (0 → **0.05**m
 | Sensor noise (Gaussian) | `σ = 0.01` | Normal |
 
 
+## 🧬 Sim2Sim
+> [!NOTE]
+> **Sim2Sim Migration**
+> This project has been migrated from **MuJoCo** to **Isaac Lab**
+> - Environment: `DirectRLEnv` with asymmetric Actor‑Critic
+> - Training: RSL‑RL (PPO) with massive parallel environments
+> - Reward functions: fully migrated (foot placement, gait phase, posture, etc.)
+>
+> The migration is complete and training‑ready.
+
+
 ## 📂Project Structure
 
 ```plaintext
