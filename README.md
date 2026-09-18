@@ -198,11 +198,14 @@ G1_RL_FootstepTracking/
 │   ├── assets/
 │   ├── gen_xml.py
 │   └── unitree_g1.xml
+├── deploy/                             # Deployment
+│   └── ......
 ├── scripts/                            # Auxiliary scripts
 │   ├── compute_height.py
 │   ├── compute_max_step.py
 │   ├── test_pose.py
-│   └── inspect_model.py
+│   ├── inspect_model.py
+│   └── export_actor.py
 ├── tests/                              # Unit tests (pytest)
 │   ├── test_env.py
 │   ├── test_imports.py
@@ -425,6 +428,49 @@ The training ran for approximately **22 hours**.
 
 ---
 
+## 🦾 Deployment (Work in Progress)
+
+This project includes a deployment skeleton for transferring the trained
+policy from simulation to the physical Unitree G1 through Unitree SDK2.
+**The deployment code is implemented but not yet validated on hardware.**
+
+### Modules
+
+| File | Purpose |
+|---|---|
+| `deploy/policy_node.py` | Main loop: LowState → obs → action → LowCmd |
+| `deploy/obs_adapter.py` | LowState → 41-dim actor_obs |
+| `deploy/state_estimator.py` | Leg-odometry + contact-based pose estimation |
+| `deploy/forward_kinematics.py` | MuJoCo FK: joint angles → foot position |
+| `deploy/footstep_planner.py` | World-coord footstep sequence + t1/t2 tracking |
+| `deploy/transform.py` | World ↔ pelvis-local frame transformations |
+| `deploy/safety.py` | Timeout / NaN / tilt / joint-limit monitoring |
+| `deploy/joint_map.py` | Sim joint order ↔ real motor index (official G1JointIndex) |
+| `scripts/export_actor.py` | Export SB3 policy to TorchScript (actor only) |
+| `deploy/config.yaml` | DDS, PD gains, safety thresholds |
+
+### Usage (Simulation)
+
+```bash
+# 1. Export trained policy
+uv run scripts/export_actor.py \
+    --model xxxxxxxx \
+    --out deploy/actor.pt
+
+# 2. Start unitree_mujoco (terminal 1)
+cd path/to/unitree_mujoco/simulate/build
+./unitree_mujoco
+
+# 3. Run deployment node (terminal 2)
+export CYCLONEDDS_URI='<CycloneDDS><Domain><General><Interfaces>
+  <NetworkInterface name="lo"/></Interfaces></General></Domain></CycloneDDS>'
+python deploy/policy_node.py --config deploy/config.yaml --dryrun
+
+# 4. Remove --dryrun to send actual LowCmd
+python deploy/policy_node.py --config deploy/config.yaml --no-dryrun
+```
+
+---
 
 ## 📚References
 **Learning Humanoid Walking**
