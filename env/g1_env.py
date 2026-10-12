@@ -79,6 +79,9 @@ class G1Env(gym.Env):
         self.model, self.data = self.terrain_gen.load_model()
         self._cache_ids()
 
+        self._default_body_mass = self.model.body_mass.copy()
+        self._default_geom_friction = self.model.geom_friction.copy()
+
         # Initialize helper components.
         self.step_gen = StepSequenceGenerator(
             self.config.step_length,
@@ -96,6 +99,7 @@ class G1Env(gym.Env):
             self.actuator_indices,
             self.max_torques,
             max_force,
+            enable_observation_noise=enable_domain_randomization,
         )
         self.reward_calc = RewardCalculator(self.config, self.model, max_force)
 
@@ -177,6 +181,9 @@ class G1Env(gym.Env):
         if not self.enable_domain_randomization:
             return
 
+        self.model.body_mass[:] = self._default_body_mass
+        self.model.geom_friction[:] = self._default_geom_friction
+
         mass_scale = np.random.uniform(0.9, 1.1)
         for i in range(self.model.nbody):
             self.model.body_mass[i] *= mass_scale
@@ -187,7 +194,8 @@ class G1Env(gym.Env):
 
         total_mass = sum(self.model.body_mass)
         self.max_force = total_mass * 9.81 * 0.5
-        self.obs_builder.max_force = self.max_force
+
+        self.reward_calc.max_force = self.max_force
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)

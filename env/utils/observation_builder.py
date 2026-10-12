@@ -23,13 +23,41 @@ class ObservationBuilder:
         _get_R_world_to_pelvis: Returns world-to-pelvis rotation matrix.
     """
 
-    def __init__(self, config, joint_indices, joint_vel_indices, actuator_indices, max_torques, max_force):
+    def __init__(
+        self,
+        config,
+        joint_indices,
+        joint_vel_indices,
+        actuator_indices,
+        max_torques,
+        max_force,
+        enable_observation_noise=True,
+    ):
         self.config = config
         self.joint_indices = joint_indices
         self.joint_vel_indices = joint_vel_indices
         self.actuator_indices = actuator_indices
         self.max_torques = max_torques
         self.max_force = max_force  # precomputed max foot force (half body weight)
+        self.enable_observation_noise = enable_observation_noise
+
+        # Build per-channel noise std vector matching the actor_obs layout.
+        np_noise = config.noise_params
+        self.noise_scale = np.concatenate(
+            [
+                [np_noise["joint_angles"]] * len(joint_indices),
+                [np_noise["joint_vels"]] * len(joint_vel_indices),
+                [np_noise["pelvis_height"]],
+                [np_noise["foot_pos"]] * 3,
+                [np_noise["next_pos"]] * 3,
+                [np_noise["foot_yaw"]],
+                [np_noise["next_yaw"]],
+                [np_noise["phase"]] * 2,
+                [np_noise["pelvis_orient"]] * 3,
+                [np_noise["pelvis_angvel"]] * 3,
+            ]
+        ).astype(np.float32)
+        assert self.noise_scale.shape == (41,), f"noise_scale must be 41-dim, got {self.noise_scale.shape}"
 
         # Build normalization scales for critic observations.
         self.critic_obs_scale = np.concatenate(
@@ -104,9 +132,8 @@ class ObservationBuilder:
             ]
         )
 
-        if self.training:
-            noise_std = 0.01
-            obs += np.random.normal(0, noise_std, obs.shape)
+        if self.training and self.enable_observation_noise:
+            obs += np.random.normal(0.0, self.noise_scale, obs.shape)
             obs = np.clip(obs, -10.0, 10.0)
 
         return obs.astype(np.float32)

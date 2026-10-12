@@ -84,3 +84,25 @@ class G1EnvConfig:
             "pelvis_angvel_max": 5.0,
         }
     )
+
+    # Per-channel observation noise standard deviations (applied BEFORE
+    # VecNormalize, i.e. on the raw actor_obs). Layout follows actor_obs order:
+    #   joint_angles(12) | joint_vels(12) | pelvis_height(1) |
+    #   foot_pos(3) | next_pos(3) | foot_yaw(1) | next_yaw(1) |
+    #   phase(2) | pelvis_orient(3) | pelvis_angvel(3)
+    # Velocity-type channels (joint_vels, pelvis_angvel) use a clearly larger
+    # scale than position-type channels, matching real sensor noise magnitude.
+    noise_params: dict = field(
+        default_factory=lambda: {
+            "joint_angles": 0.01,  # rad, position
+            "joint_vels": 0.10,  # rad/s, velocity (10x position)
+            "pelvis_height": 0.005,  # m, position
+            "foot_pos": 0.005,  # m, position
+            "next_pos": 0.005,  # m, position
+            "foot_yaw": 0.005,  # rad, angle
+            "next_yaw": 0.005,  # rad, angle
+            "phase": 0.005,  # sin/cos in [-1, 1]
+            "pelvis_orient": 0.01,  # rad, angle
+            "pelvis_angvel": 0.05,  # rad/s, angular velocity (5x angle)
+        }
+    )
