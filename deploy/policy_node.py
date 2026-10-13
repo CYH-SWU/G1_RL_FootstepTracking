@@ -1,4 +1,5 @@
 import argparse
+import json
 import random
 import sys
 import time
@@ -16,7 +17,7 @@ from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowCmd_, LowState_
 
 from deploy.footstep_planner import FootstepPlanner
 from deploy.forward_kinematics import ForwardKinematics
-from deploy.obs_adapter import build_actor_obs
+from deploy.obs_adapter import StudentObsPipeline, build_actor_obs
 from deploy.safety import SafetyMonitor, SafetyState
 from deploy.state_estimator import StateEstimator
 from deploy.transform import world_to_pelvis, world_yaw_to_pelvis_rel
@@ -27,12 +28,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-DEFAULT_ACTOR_PATH = "deploy/actor.pt"
+DEFAULT_STUDENT_PATH = "deploy/student.pt"
+DEFAULT_META_PATH = "deploy/student.json"
 DEFAULT_XML_PATH = "robot/g1_processed.xml"
 
 
 class PolicyRunner:
-    def __init__(self, config_path, actor_path=None):
+    def __init__(self, config_path, student_path=None):
         with open(config_path, encoding="utf-8") as f:
             self.cfg = yaml.safe_load(f)
 
@@ -50,25 +52,41 @@ class PolicyRunner:
         self.safety = SafetyMonitor(self.cfg["safety"])
         print("[PolicyRunner] SafetyMonitor initialized")
 
-        if actor_path is None:
-            actor_path = self.cfg["policy"].get("actor_path", DEFAULT_ACTOR_PATH)
+        if student_path is None:
+            student_path = self.cfg["policy"].get("student_path", DEFAULT_STUDENT_PATH)
+        student_full_path = Path(student_path)
+        if not student_full_path.is_absolute():
+            student_full_path = PROJECT_ROOT / student_full_path
 
-        actor_full_path = Path(actor_path)
-        if not actor_full_path.is_absolute():
-            actor_full_path = PROJECT_ROOT / actor_full_path
+        meta_path = self.cfg["policy"].get("meta_path", DEFAULT_META_PATH)
+        meta_full_path = Path(meta_path)
+        if not meta_full_path.is_absolute():
+            meta_full_path = PROJECT_ROOT / meta_full_path
 
-        print(f"[PolicyRunner] Loading TorchScript actor: {actor_full_path}")
-        if not actor_full_path.exists():
-            raise FileNotFoundError(f"actor.pt not found: {actor_full_path}. Please run scripts/export_actor.py")
-        self.actor = torch.jit.load(str(actor_full_path))
-        self.actor.eval()
-        print(f"[PolicyRunner] Actor loaded: {type(self.actor).__name__}")
+        print(f"[PolicyRunner] Loading TorchScript student: {student_full_path}")
+        if not student_full_path.exists():
+            raise FileNotFoundError(f"student.pt not found: {student_full_path}. Please run scripts/export_actor.py")
+        self.student = torch.jit.load(str(student_full_path))
+        self.student.eval()
+        print(f"[PolicyRunner] Student loaded: {type(self.student).__name__}")
+
+        if not meta_full_path.exists():
+            raise FileNotFoundError(f"student metadata not found: {meta_full_path}")
+        with open(meta_full_path, encoding="utf-8") as f:
+            self.meta = json.load(f)
+        self.student_obs_dim = int(self.meta["student_obs_dim"])
+        print(
+            f"[PolicyRunner] Student meta: obs_dim={self.student_obs_dim} "
+            f"base_dim={self.meta['base_dim']} history_len={self.meta['history_len']}"
+        )
+
+        self.obs_pipeline = StudentObsPipeline(self.meta)
 
         with torch.no_grad():
-            dummy = torch.zeros(1, 41, dtype=torch.float32)
-            out = self.actor(dummy)
+            dummy = torch.zeros(1, self.student_obs_dim, dtype=torch.float32)
+            out = self.student(dummy)
         self.actor_out_dim = int(out.shape[-1])
-        print(f"[PolicyRunner] Actor output dim: {self.actor_out_dim}")
+        print(f"[PolicyRunner] Student output dim: {self.actor_out_dim}")
 
         self.env_cfg = G1EnvConfig()
 
@@ -102,10 +120,10 @@ class PolicyRunner:
         self.lowstate = msg
         self.safety.on_lowstate()
 
-    def _infer_action(self, actor_obs):
+    def _infer_action(self, student_input):
         with torch.no_grad():
-            obs_t = torch.from_numpy(actor_obs).unsqueeze(0).float()
-            action_t = self.actor(obs_t)
+            obs_t = torch.from_numpy(student_input).unsqueeze(0).float()
+            action_t = self.student(obs_t)
             action = action_t.squeeze(0).cpu().numpy()
         action = np.clip(action, -1.0, 1.0)
         return action.astype(np.float32)
@@ -144,6 +162,7 @@ class PolicyRunner:
     def run(self):
         print("[PolicyRunner] Running. Ctrl-C to stop.")
         self.t_start = time.time()
+        self.obs_pipeline.reset()
 
         while True:
             now = time.time()
@@ -223,12 +242,13 @@ class PolicyRunner:
                     self.phase,
                     pelvis_height=self.state_est.pelvis_height,
                 )
+                student_input = self.obs_pipeline.update(actor_obs)
             except Exception as e:
                 print(f"[ERROR] obs build: {e}")
                 continue
 
             try:
-                action = self._infer_action(actor_obs)
+                action = self._infer_action(student_input)
             except Exception as e:
                 print(f"[ERROR] inference: {e}")
                 continue
@@ -276,9 +296,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="deploy/config.yaml")
     parser.add_argument(
-        "--actor",
+        "--student",
         default=None,
-        help=f"TorchScript actor .pt route (default config.policy.actor_path, or {DEFAULT_ACTOR_PATH})",
+        help=f"TorchScript student .pt route (default config.policy.student_path, or {DEFAULT_STUDENT_PATH})",
     )
     parser.add_argument("--dryrun", action="store_true")
     parser.add_argument("--no-dryrun", action="store_true")
@@ -289,7 +309,7 @@ def main():
         random.seed(args.seed)
         print(f"[main] Random seed set to {args.seed}")
 
-    runner = PolicyRunner(args.config, actor_path=args.actor)
+    runner = PolicyRunner(args.config, student_path=args.student)
 
     if args.dryrun:
         runner.dryrun = True

@@ -21,27 +21,39 @@ TensorBoard logs.
 
 Parameters
 ----------
---rounds N              DAgger rounds (default 20).
+--rounds N              DAgger rounds (default 600).
 --steps-per-round N     Student environment steps collected per round (default 8192).
---history-len N         History window length stacked into the student input (default 3).
---hidden ...            Student hidden layer sizes (default 256 256).
+--history-len N         History window length stacked into the student input (default 12).
+--hidden ...            Student hidden layer sizes (default 512 512 256).
 --updates-per-round N   Gradient updates per round (default 2000).
---batch-size N          Training mini-batch size (default 256).
---lr F                  Adam learning rate (default 3e-4).
+--batch-size N          Training mini-batch size (default 512).
+--lr F                  Adam learning rate, fixed (default 1e-4).
+--teacher-rollout-ratio F  Fraction of rollout steps driven by the teacher
+                        action instead of the student (default 0.3).
 --buffer-size N         Aggregation buffer capacity (default 2_000_000).
---save-interval N       Save a checkpoint every N rounds (default 20).
+--save-interval N       Save a checkpoint every N rounds (default 200).
 --eval-interval N       Evaluate every N rounds (default 5).
 --eval-episodes N       Episodes per evaluation (default 3).
 --mirror-prob F         Mirror augmentation probability (default 0.5).
 --seed N                Random seed (default 42).
+--teacher-model PATH    Teacher policy checkpoint (.zip). Default: the baseline
+                        pretrained_models/ppo_G1_FootstepTracking.zip.
+--teacher-vecnorm PATH  VecNormalize stats for the teacher (and the student env).
+                        Default: pretrained_models/vec_normalize.pkl.
+--name STR              Suffix for run_config_<name>.json. If omitted, an
+                        auto-incrementing index (1, 2, ...) is used.
 
 Usage
 -----
-uv run python distill_dagger.py
-
+# Train with the default baseline teacher:
 uv run python distill_dagger.py \
-    --rounds 500 \
-    --save-interval 100
+    --rounds 600 \
+    --save-interval 200
+
+# Specify a custom teacher model and normalization explicitly:
+uv run python distill_dagger.py \
+    --teacher-model pretrained_models/ppo_G1_FootstepTracking.zip \
+    --teacher-vecnorm pretrained_models/vec_normalize.pkl
 """
 
 import argparse
@@ -145,7 +157,7 @@ class DaggerBuffer:
         return self.size
 
 
-def build_env(n_envs: int, mirror_prob: float):
+def build_env(n_envs: int, mirror_prob: float, vecnorm_path):
     """Env with no DR and no obs noise, wrapped in DummyVecEnv + frozen VecNormalize."""
 
     def _init():
@@ -154,7 +166,7 @@ def build_env(n_envs: int, mirror_prob: float):
         return MirrorWrapper(env, mirror_prob=mirror_prob)
 
     vec_env = DummyVecEnv([_init for _ in range(n_envs)])
-    vec_env = VecNormalize.load(str(TEACHER_VECNORM_PATH), vec_env)
+    vec_env = VecNormalize.load(str(vecnorm_path), vec_env)
     vec_env.training = False  # freeze running statistics
     vec_env.norm_reward = False
     return vec_env
@@ -168,9 +180,10 @@ def get_actor_norm_stats(vec_env):
     return np.asarray(rms.mean, dtype=np.float32), np.asarray(rms.var, dtype=np.float32)
 
 
-def collect(vec_env, student, teacher, hist, buffer, steps, device):
-    """Run the student for `steps`, label each visited state with the teacher,
-    and store (student_input, teacher_action) in the buffer."""
+def collect(vec_env, student, teacher, hist, buffer, steps, device, teacher_rollout_ratio=0.0):
+    """Run `steps` with mixed rollout (teacher_rollout_ratio of steps driven by
+    the teacher action), label each visited state with the teacher, and store
+    (student_input, teacher_action) in the buffer."""
     student.eval()
     obs = vec_env.reset()
     if isinstance(obs, tuple):
@@ -196,7 +209,11 @@ def collect(vec_env, student, teacher, hist, buffer, steps, device):
         buffer.add(student_input, teacher_action)
         action_diffs.append(float(np.mean(np.abs(student_action - teacher_action))))
 
-        obs, reward, done, _ = vec_env.step(student_action[None, :])
+        # Drive the env with the teacher action for a fraction of the rollout,
+        # so the buffer also covers the teacher's own state distribution.
+        step_action = teacher_action if np.random.random() < teacher_rollout_ratio else student_action
+
+        obs, reward, done, _ = vec_env.step(step_action[None, :])
         ep_reward += float(reward[0])
         if done[0]:
             ep_rewards.append(ep_reward)
@@ -259,22 +276,37 @@ def save_student(path, student, meta):
 
 def main():
     parser = argparse.ArgumentParser(description="DAgger distillation for G1 footstep tracking")
-    parser.add_argument("--rounds", type=int, default=20)
+    parser.add_argument("--rounds", type=int, default=600)
     parser.add_argument("--steps-per-round", type=int, default=8192)
-    parser.add_argument("--history-len", type=int, default=3)
-    parser.add_argument("--hidden", type=int, nargs="+", default=[256, 256])
+    parser.add_argument("--history-len", type=int, default=12)
+    parser.add_argument("--hidden", type=int, nargs="+", default=[512, 512, 256])
     parser.add_argument("--updates-per-round", type=int, default=2000)
-    parser.add_argument("--batch-size", type=int, default=256)
-    parser.add_argument("--lr", type=float, default=3e-4)
+    parser.add_argument("--batch-size", type=int, default=512)
+    parser.add_argument("--lr", type=float, default=1e-4)
+    parser.add_argument("--teacher-rollout-ratio", type=float, default=0.3)
     parser.add_argument("--buffer-size", type=int, default=2_000_000)
-    parser.add_argument("--save-interval", type=int, default=20)
+    parser.add_argument("--save-interval", type=int, default=200)
     parser.add_argument("--eval-interval", type=int, default=5)
     parser.add_argument("--eval-episodes", type=int, default=3)
     parser.add_argument("--mirror-prob", type=float, default=0.5)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--teacher-model", type=str, default=str(TEACHER_MODEL_PATH), help="Teacher policy checkpoint (.zip)."
+    )
+    parser.add_argument(
+        "--teacher-vecnorm", type=str, default=str(TEACHER_VECNORM_PATH), help="VecNormalize stats for the teacher."
+    )
+    parser.add_argument(
+        "--name",
+        type=str,
+        default=None,
+        help="Suffix for run_config_<name>.json. If omitted, an auto-incrementing index is used.",
+    )
     args = parser.parse_args()
 
-    for p in (ROBOT_XML, TEACHER_MODEL_PATH, TEACHER_VECNORM_PATH):
+    teacher_model_path = Path(args.teacher_model)
+    teacher_vecnorm_path = Path(args.teacher_vecnorm)
+    for p in (ROBOT_XML, teacher_model_path, teacher_vecnorm_path):
         if not p.exists():
             raise FileNotFoundError(f"Required file not found: {p}")
 
@@ -285,12 +317,12 @@ def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     writer = SummaryWriter(log_dir=str(OUTPUT_DIR / "tb"))
 
-    vec_env = build_env(n_envs=1, mirror_prob=args.mirror_prob)
+    vec_env = build_env(n_envs=1, mirror_prob=args.mirror_prob, vecnorm_path=teacher_vecnorm_path)
     mean, var = get_actor_norm_stats(vec_env)
 
-    teacher = PPO.load(str(TEACHER_MODEL_PATH), device=device)
+    teacher = PPO.load(str(teacher_model_path), device=device)
     teacher.policy.eval()
-    print(f"[teacher] loaded {TEACHER_MODEL_PATH.name} | policy={type(teacher.policy).__name__}")
+    print(f"[teacher] loaded {teacher_model_path.name} | policy={type(teacher.policy).__name__}")
 
     base_dim = ACTOR_OBS_DIM - 1  # pelvis height removed
     student_obs_dim = base_dim * args.history_len
@@ -312,12 +344,31 @@ def main():
         "norm_var": var.tolist(),
         "mirror_prob": args.mirror_prob,
     }
-    with open(OUTPUT_DIR / "run_config.json", "w") as f:
+    # run_config file: run_config_<name>.json if --name is given, otherwise
+    # run_config_<n>.json with the smallest unused n.
+    if args.name:
+        config_path = OUTPUT_DIR / f"run_config_{args.name}.json"
+    else:
+        n = 1
+        while (OUTPUT_DIR / f"run_config_{n}.json").exists():
+            n += 1
+        config_path = OUTPUT_DIR / f"run_config_{n}.json"
+    with open(config_path, "w") as f:
         json.dump({**vars(args), **meta}, f, indent=2)
+    print(f"[config] saved to {config_path}")
 
     best_eval = -np.inf
     for rnd in range(args.rounds):
-        stats = collect(vec_env, student, teacher, hist, buffer, args.steps_per_round, device)
+        stats = collect(
+            vec_env,
+            student,
+            teacher,
+            hist,
+            buffer,
+            args.steps_per_round,
+            device,
+            args.teacher_rollout_ratio,
+        )
         loss = train_student(student, buffer, optimizer, args.updates_per_round, args.batch_size, device)
 
         writer.add_scalar("train/loss", loss, rnd)

@@ -3,7 +3,8 @@ dds:
   interface: "lo"
 
 policy:
-  actor_path: "deploy/actor.pt"
+  student_path: "deploy/student.pt"
+  meta_path: "deploy/student.json"
   device: "cpu"
   deterministic: true
 

@@ -6,6 +6,27 @@ Supports both fresh training and resuming from a checkpoint.
 When resuming, both the model and the VecNormalize statistics must be loaded
 to ensure consistent observation normalization.
 
+Parameters:
+  --iterations, -i INT    Total training iterations (default 10000).
+  --save_interval, -s INT Iteration interval for saving checkpoints (default 1000).
+  --eval_interval, -e INT Iteration interval for evaluation / best-model saving (default 20).
+  --model PATH            Resume from a pretrained checkpoint (.zip).
+  --norm PATH             VecNormalize statistics (.pkl) to load when resuming.
+  --lr FLOAT              Learning rate (default 1e-4).
+  --n_steps INT           Steps per environment per rollout (default 2048).
+  --batch_size INT        Mini-batch size (default 256).
+  --n_epochs INT          Update epochs per rollout (default 3).
+  --gamma FLOAT           Discount factor (default 0.99).
+  --gae_lambda FLOAT      GAE smoothing parameter (default 0.95).
+  --clip_range FLOAT      PPO clipping range (default 0.20).
+  --ent_coef FLOAT        Entropy coefficient (default 0.0005).
+  --max_grad_norm FLOAT   Gradient clipping threshold (default 0.5).
+  --n_envs INT            Number of parallel environments (default 14).
+  --policy {multi,asym}   Policy type: 'multi' (MultiInputPolicy) or 'asym' (AsymmetricPolicy, default).
+  --curriculum            Enable curriculum learning (increases step height over time).
+  --lr_callback {pl,kl}   LR callback: 'pl' (PlateauLRCallback) or 'kl' (KLAdaptiveLRCallback, default).
+  --no-domain-rand        Disable domain randomization (mass, friction, sensor noise).
+
 Usage:
   uv run python train.py                                       # Fresh training (default 10000 iters)
 

@@ -1,156 +1,97 @@
-"""
+"""Export a distilled student policy to TorchScript for deployment.
+
+The student is an actor-only MLP that consumes a history window of frames.
+It is not an SB3 policy, so it is rebuilt directly from the distillation
+checkpoint. Normalization and history stacking are done on the deployment side
+(deploy/obs_adapter.py); the exported TorchScript is a stateless MLP mapping a
+flat (base_dim * history_len) input to a 12-dim action.
+
+A companion JSON with the deployment metadata (history_len, pelvis_height_idx,
+norm_mean, norm_var, ...) is written alongside the .pt.
+
 Usage:
     python scripts/export_actor.py \
-        --model xxx \
-        --out deploy/actor.pt \
-        --obs-dim 41
-
-    python scripts/export_actor.py \
-        --model xxx \
-        --vecnorm xxx \
-        --out deploy/actor.pt \
-        --obs-dim 41
+        --student distill_dagger/student_best.pt \
+        --out deploy/student.pt
 """
 
 import argparse
-import pickle
+import json
+import sys
 from pathlib import Path
 
-import numpy as np
 import torch
-import torch.nn as nn
-from stable_baselines3 import PPO
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-def build_actor_module(policy):
-    has_actor_flatten = hasattr(policy, "actor_flatten")
-    mlp_is_none = getattr(policy, "mlp_extractor", "missing") is None
-
-    if has_actor_flatten and mlp_is_none:
-        print("[export] Detected AsymmetricPolicy (actor_flatten + action_net)")
-
-        class AsymmetricActor(nn.Module):
-            def __init__(self, policy):
-                super().__init__()
-                self.actor_flatten = policy.actor_flatten
-                self.action_net = policy.action_net
-
-            def forward(self, obs):
-                features = self.actor_flatten(obs)
-                return self.action_net(features)
-
-        return AsymmetricActor(policy)
-
-    print("[export] Detected standard ActorCriticPolicy")
-    has_features_extractor = hasattr(policy, "features_extractor")
-    has_mlp_extractor = hasattr(policy, "mlp_extractor") and policy.mlp_extractor is not None
-
-    if not (has_features_extractor and has_mlp_extractor):
-        raise RuntimeError("no actor need actor_flatten+action_net，or features_extractor+mlp_extractor+action_net。")
-
-    class StandardActor(nn.Module):
-        def __init__(self, policy):
-            super().__init__()
-            self.features_extractor = policy.features_extractor
-            self.mlp_extractor = policy.mlp_extractor
-            self.action_net = policy.action_net
-
-        def forward(self, obs):
-            features = self.features_extractor(obs)
-            latent_pi = self.mlp_extractor.forward_actor(features)
-            return self.action_net(latent_pi)
-
-    return StandardActor(policy)
-
-
-def wrap_with_vecnorm(actor, mean, var, eps=1e-8, clip=10.0):
-    class ActorWithNorm(nn.Module):
-        def __init__(self, actor, mean, var, eps, clip):
-            super().__init__()
-            self.actor = actor
-            self.register_buffer("mean", torch.tensor(mean, dtype=torch.float32))
-            self.register_buffer("var", torch.tensor(var, dtype=torch.float32))
-            self.eps = eps
-            self.clip = clip
-
-        def forward(self, obs):
-            norm_obs = (obs - self.mean) / torch.sqrt(self.var + self.eps)
-            norm_obs = torch.clamp(norm_obs, -self.clip, self.clip)
-            return self.actor(norm_obs)
-
-    return ActorWithNorm(actor, mean, var, eps, clip)
+from distill_dagger import StudentPolicy  # noqa: E402
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model", required=True, help="SB3 .zip")
-    parser.add_argument("--vecnorm", default=None, help="VecNormalize .pkl")
-    parser.add_argument("--out", default="deploy/actor.pt", help="out route")
-    parser.add_argument("--obs-dim", type=int, default=41, help="actor obs")
+    parser = argparse.ArgumentParser(description="Export a distilled student policy to TorchScript")
+    parser.add_argument("--student", required=True, help="Student checkpoint (.pt) produced by distill_dagger.py")
+    parser.add_argument("--out", default="deploy/student.pt", help="Output TorchScript path")
+    parser.add_argument("--meta-out", default=None, help="Output metadata JSON path (default: same stem as --out)")
     args = parser.parse_args()
 
-    print(f"[export] Loading SB3 model: {args.model}")
-    model = PPO.load(args.model, device="cpu")
-    policy = model.policy
-    print(f"[export] Policy class: {type(policy).__name__}")
-    print(f"[export] Obs space: {policy.observation_space}")
-    print(f"[export] Action space: {policy.action_space}")
+    student_path = Path(args.student)
+    if not student_path.exists():
+        raise FileNotFoundError(f"student checkpoint not found: {student_path}")
 
-    actor = build_actor_module(policy).eval()
+    ckpt = torch.load(str(student_path), map_location="cpu", weights_only=False)
+    meta = {k: v for k, v in ckpt.items() if k != "state_dict"}
 
-    if args.vecnorm:
-        print(f"[export] Loading VecNormalize: {args.vecnorm}")
-        with open(args.vecnorm, "rb") as f:
-            vec = pickle.load(f)
-        mean = np.asarray(vec.obs_rms.mean, dtype=np.float32)
-        var = np.asarray(vec.obs_rms.var, dtype=np.float32)
-        print(f"[export] VecNormalize mean shape: {mean.shape}")
-        print(f"[export] VecNormalize var shape: {var.shape}")
-        actor = wrap_with_vecnorm(actor, mean, var).eval()
+    obs_dim = int(meta["student_obs_dim"])
+    action_dim = int(meta["action_dim"])
+    hidden = tuple(meta["hidden"])
 
-    dummy = torch.zeros(1, args.obs_dim, dtype=torch.float32)
+    print(f"[export] student: {student_path}")
+    print(f"[export] obs_dim={obs_dim} action_dim={action_dim} hidden={hidden}")
+    print(
+        f"[export] base_dim={meta['base_dim']} history_len={meta['history_len']} "
+        f"pelvis_height_idx={meta['pelvis_height_idx']}"
+    )
+
+    student = StudentPolicy(obs_dim, action_dim, hidden)
+    student.load_state_dict(ckpt["state_dict"])
+    student.eval()
+
+    dummy = torch.zeros(1, obs_dim, dtype=torch.float32)
     with torch.no_grad():
-        out = actor(dummy)
-    print(f"[export] Dummy output shape: {out.shape}")
+        out = student(dummy)
+    if out.shape[-1] != action_dim:
+        raise RuntimeError(f"output dim {out.shape[-1]} != action_dim {action_dim}")
+    print(f"[export] dummy output shape: {tuple(out.shape)}")
 
-    if out.shape[-1] != policy.action_space.shape[0]:
-        raise RuntimeError(f"dim {out.shape[-1]} and action_space {policy.action_space.shape[0]} mismatch!")
-
-    traced = torch.jit.trace(actor, dummy)
+    traced = torch.jit.trace(student, dummy)
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     traced.save(str(out_path))
-    print(f"[export] Saved TorchScript actor: {out_path}")
+    print(f"[export] saved TorchScript student: {out_path}")
 
     reloaded = torch.jit.load(str(out_path))
     with torch.no_grad():
         out2 = reloaded(dummy)
     diff = float(torch.max(torch.abs(out - out2)).item())
-    print(f"[export] Reload check max diff: {diff:.2e}")
+    print(f"[export] reload check max diff: {diff:.2e}")
     assert diff < 1e-5, "TorchScript reload mismatch"
 
-    print()
-    print("[export] Verifying against SB3 policy._predict ...")
-    n_check = 5
-    max_diff_sb3 = 0.0
-    for i in range(n_check):
-        test_obs = torch.randn(1, args.obs_dim, dtype=torch.float32)
-        # TorchScript actor
-        with torch.no_grad():
-            ts_out = actor(test_obs).squeeze(0).numpy()
-        # SB3 policy._predict
-        with torch.no_grad():
-            sb3_out = policy._predict(test_obs.squeeze(0).numpy(), deterministic=True)
-        d = float(np.max(np.abs(ts_out - sb3_out)))
-        max_diff_sb3 = max(max_diff_sb3, d)
-        if i < 2:
-            print(f"  sample {i}: ts={ts_out[:4].round(4)}  sb3={sb3_out[:4].round(4)}  diff={d:.2e}")
-
-    print(f"[export] Max diff vs SB3 _predict: {max_diff_sb3:.2e}")
-    if max_diff_sb3 > 1e-4:
-        print("[export] WARNING: out is different with sb3 largely,check VecNormalize")
-    else:
-        print("[export] OK")
+    deploy_meta = {
+        "student_obs_dim": obs_dim,
+        "base_dim": int(meta["base_dim"]),
+        "history_len": int(meta["history_len"]),
+        "pelvis_height_idx": int(meta["pelvis_height_idx"]),
+        "action_dim": action_dim,
+        "hidden": list(hidden),
+        "norm_mean": list(meta["norm_mean"]),
+        "norm_var": list(meta["norm_var"]),
+    }
+    meta_path = Path(args.meta_out) if args.meta_out else out_path.with_suffix(".json")
+    with open(meta_path, "w") as f:
+        json.dump(deploy_meta, f, indent=2)
+    print(f"[export] saved deployment metadata: {meta_path}")
 
 
 if __name__ == "__main__":
