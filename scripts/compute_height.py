@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
-"""
-Compute the vertical height difference (Z-axis) between the G1 robot's pelvis and feet.
-Loads robot/g1_processed.xml, applies the "stand" keyframe, and outputs the height difference.
+"""Compute the pelvis-to-foot vertical height of the G1 robot in its nominal stance.
+
+Loads robot/g1_processed.xml, applies the "stand" keyframe, runs a forward pass,
+and reports:
+  - pelvis Z and ankle Z coordinates,
+  - the raw pelvis-minus-foot height difference,
+  - the effective pelvis height (raw difference + config.foot_ankle_offset),
+    which should match config.nominal_pelvis_height used by the height reward.
 
 Usage:
     uv run python scripts/compute_height.py

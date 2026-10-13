@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""
-Test G1 robot model loading and keyframe switching.
-Loads robot/g1_processed.xml, switches to the "stand" keyframe, and launches the MuJoCo viewer.
-Gravity is forced to zero to observe joint motions without gravitational effects.
+"""Sanity-check the G1 model and the "stand" keyframe.
+
+Loads robot/g1_processed.xml, sets gravity to zero (so the nominal pose is not
+disturbed by gravitational collapse), applies the "stand" keyframe, and opens an
+interactive MuJoCo viewer to visually inspect the model and nominal posture.
 
 Usage:
     uv run python scripts/test_pose.py

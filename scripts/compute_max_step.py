@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-"""
-Compute the maximum forward footstep amplitude of G1 robot legs near nominal posture.
-Reads nominal angles and action_scale from env.config to stay consistent with the training environment.
+"""Estimate the maximum forward footstep amplitude reachable near the nominal pose.
+
+Grid-searches the left hip-pitch and knee joints within nominal ± action_scale
+(both read from env.config, so the search matches the training action range),
+running forward kinematics at each point. It reports the hip/knee angles that
+maximize the forward displacement of the ankle relative to the pelvis, giving an
+upper bound on how far a single step can reach under the policy's action range.
 
 Usage:
     uv run python scripts/compute_max_step.py

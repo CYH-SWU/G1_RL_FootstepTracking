@@ -433,7 +433,7 @@ python deploy/policy_node.py --config deploy/config.yaml --no-dryrun
 
 ---
 
-## 🎛️Appendices
+## 🎛️ Appendices
 
 ### Robot Model and Joint Configuration
 

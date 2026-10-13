@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
-"""
-Inspect SB3 model: policy, spaces, networks, log_std, optimizer.
+"""Inspect a trained Stable-Baselines3 policy.
+
+Prints the policy class, observation/action spaces, actor and critic networks
+(with parameter counts), log_std, features extractor, and optimizer settings.
+Useful for verifying a checkpoint's architecture (e.g. MultiInputPolicy vs
+AsymmetricPolicy) before exporting or distilling it.
+
+Parameters:
+  --model PATH   Path to the model .zip (default: pretrained_models/ppo_G1_FootstepTracking.zip).
 
 Usage:
-    uv run scripts/inspect_model.py
+    uv run python scripts/inspect_model.py
 
-    uv run scripts/inspect_model.py --model pretrained_models/ppo_G1_FootstepTracking.zip
+    uv run python scripts/inspect_model.py --model pretrained_models/ppo_G1_FootstepTracking.zip
 """
 
 import argparse
